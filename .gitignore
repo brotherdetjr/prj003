@@ -1,0 +1,5 @@
+# Build output
+platform/desktop/emu
+
+# State save files
+platform/desktop/*.json
