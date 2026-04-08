@@ -53,101 +53,192 @@ core/             ← pure C, zero platform dependencies
   character.h/c   ← stats, energy drain, state machine
   world.h/c       ← world container, tick driver, character spawning
   zodiac.h/c      ← sign cycle, compatibility matrix (TODO)
-  render_api.h    ← abstract: draw_sprite, draw_rect, play_tone (TODO)
 
 platform/
   esp32/
     main.ino      ← Arduino setup()/loop(), RTC + BLE
-  desktop/
-    main.c        ← argument parsing, entry point
-    emu.c         ← terminal emulator (screen, console, file I/O)
-    emu.h
+  pc/
+    main.c        ← argument parsing, entry point, main loop
+    server.c/h    ← HTTP command dispatch, SSE push events
+    peer.c/h      ← stdin/stdout peer channel
+    state.c/h     ← world ↔ JSON serialisation
     Makefile
+
+vendor/
+  mongoose/       ← embedded HTTP server (single file, MIT)
+  cjson/          ← JSON parser/writer (single file, MIT)
 ```
 
-Business logic lives entirely in `core/`. Platform layers implement the
-abstract interfaces. This makes the desktop emulator a first-class target —
-iterate fast on PC, then flash to hardware.
+Business logic lives entirely in `core/`. Platform layers talk to it through
+the public API in `world.h` and `character.h`. The PC build is the primary
+development target; behaviour is verified there before flashing to hardware.
 
-## Desktop emulator
+## PC instance
 
 ### Build
 
-```
-cd platform/desktop
+```sh
+cd platform/pc
 make
 ```
 
-Requires GCC and a POSIX terminal (Linux/macOS). No external libraries.
+Requires GCC on Linux or macOS. No system libraries beyond libc.
 
-### Usage
+### Start
 
-```
-./emu                                      # empty device, wall-clock time
-./emu --timeutc=2026-04-07T23:40:00        # empty device, fixed start time
-./emu --noautotick                         # manual tick mode
-./emu --file=mystate.json                  # load saved state
-```
+```sh
+./emu [OPTIONS]
 
-**Auto-tick mode (default):** the virtual clock advances by one second every
-real second. The screen refreshes after each tick.
-
-**Manual mode (`--noautotick`):** the clock only moves when the user presses
-Enter or Space. Useful for step-by-step debugging.
-
-### Main screen
-
-```
-=== GLOXIE EMULATOR ===
-
-Virtual time  : 2026-04-07T23:40:05 UTC
-File          : mystate.json [modified]
-
----- CHARACTER ----
-ID            : 3F8A21CC
-Born          : 2026-04-07T23:40:00 UTC
-Energy        :  255 / 255
-
-[auto-tick]  ESC = console
+  --id=XXXXXXXX                   instance ID (8 hex digits); seeds PRNG
+  --port=N                        HTTP port (default: 7070)
+  --timeutc=YYYY-MM-DDTHH:MM:SS   initial virtual time (UTC)
+  --file=PATH                     load world state from JSON file
+  --noautotick                    start in manual-tick mode
 ```
 
-Press **ESC** at any time to pause and enter the dev console.
+Diagnostic output goes to **stderr**. **stdout** is reserved for outgoing
+peer messages (newline-delimited JSON).
 
-### Dev console commands
+### Smoke test
 
-| Command         | Description                              |
-|-----------------|------------------------------------------|
-| `new`           | Create a new character at current time   |
-| `tick`          | Advance one tick manually                |
-| `save [file]`   | Save state to file (JSON)                |
-| `resume`        | Return to main screen                    |
-| `exit`          | Quit (prompts to save if unsaved changes)|
-| `help`          | List commands                            |
+Start the instance in a terminal (fixed ID and time for reproducibility):
 
-### Save file format
+```sh
+./emu --id=DEADBEEF --timeutc=2026-04-08T00:00:00 --noautotick
+```
 
-State is saved as human-readable JSON, e.g.:
+In a second terminal, run these commands one by one.
 
+**Empty state — no character yet:**
+```sh
+curl -s -X POST http://localhost:7070/command \
+  -H 'Content-Type: application/json' \
+  -d '{"cmd":"get_state"}' | python3 -m json.tool
+```
 ```json
 {
-  "now_ts": 1744063205,
-  "has_character": true,
-  "character": {
-    "id": "3F8A21CC",
-    "birth_ts": 1744063200,
-    "energy": 255,
-    "drain_acc": 5
-  }
+    "ok": true,
+    "state": {
+        "instance_id": "DEADBEEF",
+        "now_ts": 1744070400,
+        "autotick": false,
+        "character": null
+    }
 }
 ```
 
-The file can be inspected or hand-edited between sessions.
+**Spawn a character:**
+```sh
+curl -s -X POST http://localhost:7070/command \
+  -H 'Content-Type: application/json' \
+  -d '{"cmd":"spawn"}' | python3 -m json.tool
+```
+```json
+{
+    "ok": true,
+    "state": {
+        "instance_id": "DEADBEEF",
+        "now_ts": 1744070400,
+        "autotick": false,
+        "character": {
+            "id": "14FE67E1",
+            "birth_ts": 1744070400,
+            "energy": 255,
+            "drain_acc": 0
+        }
+    }
+}
+```
+
+**Advance one tick (returns no state):**
+```sh
+curl -s -X POST http://localhost:7070/command \
+  -H 'Content-Type: application/json' \
+  -d '{"cmd":"tick"}' | python3 -m json.tool
+```
+```json
+{"ok": true}
+```
+
+**Check state after tick (`now_ts` and `drain_acc` incremented):**
+```sh
+curl -s -X POST http://localhost:7070/command \
+  -H 'Content-Type: application/json' \
+  -d '{"cmd":"get_state"}' | python3 -m json.tool
+```
+```json
+{
+    "ok": true,
+    "state": {
+        "instance_id": "DEADBEEF",
+        "now_ts": 1744070401,
+        "autotick": false,
+        "character": {
+            "id": "14FE67E1",
+            "birth_ts": 1744070400,
+            "energy": 255,
+            "drain_acc": 1
+        }
+    }
+}
+```
+
+**Enable auto-tick:**
+```sh
+curl -s -X POST http://localhost:7070/command \
+  -H 'Content-Type: application/json' \
+  -d '{"cmd":"set_autotick","enabled":true}' | python3 -m json.tool
+```
+```json
+{"ok": true, "autotick": true}
+```
+
+**Subscribe to push events (SSE — open in a separate terminal):**
+```sh
+curl -N http://localhost:7070/events
+```
+```
+event: tick
+data: {"now_ts":1744070402}
+
+event: tick
+data: {"now_ts":1744070403}
+```
+
+**Save state, restore it into a fresh instance:**
+```sh
+# get current state
+STATE=$(curl -s -X POST http://localhost:7070/command \
+  -H 'Content-Type: application/json' \
+  -d '{"cmd":"get_state"}' | python3 -c "import sys,json; print(json.dumps(json.load(sys.stdin)['state']))")
+
+# push it back (round-trip check)
+curl -s -X POST http://localhost:7070/command \
+  -H 'Content-Type: application/json' \
+  --data "{\"cmd\":\"set_state\",\"state\":$STATE}" | python3 -m json.tool
+```
+```json
+{"ok": true}
+```
+
+**Character escapes:**
+```sh
+curl -s -X POST http://localhost:7070/command \
+  -H 'Content-Type: application/json' \
+  -d '{"cmd":"escape"}' | python3 -m json.tool
+```
+```json
+{"ok": true}
+```
+
+After `escape`, `get_state` shows `"character": null` and a new `spawn` is accepted.
 
 ## Development order
 
 1. ~~Define core data model~~
-2. ~~Desktop emulator: terminal UI, file save/load~~
-3. Behavior loop: feeding, sleep, aging
-4. Zodiac system and compatibility
-5. BLE encounters on ESP32
-6. Graphics and animations
+2. ~~PC HTTP server: command protocol, SSE push, peer channel~~
+3. Python + Behave BDD integration tests
+4. Behaviour loop: feeding, sleep, aging
+5. Zodiac system and compatibility
+6. BLE encounters on ESP32
+7. Graphics and `get_screen`
