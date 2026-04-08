@@ -1,9 +1,9 @@
-# Tamagotchi-like toy — MaTouch ESP32-S3 (ST7701S 3.16")
+# Gloxie — MaTouch ESP32-S3 (ST7701S 3.16")
 
 ## Concept
 
-A pocket creature toy with no internet, no AI. The creature lives on the device,
-ages, needs care, and meets other creatures via Bluetooth.
+Gloxie is a pocket creature toy with no internet, no AI. The creature lives on
+the device, ages, needs care, and meets other creatures via Bluetooth.
 
 ## Hardware
 
@@ -98,7 +98,7 @@ Enter or Space. Useful for step-by-step debugging.
 ### Main screen
 
 ```
-=== TAMAGOTCHI EMULATOR ===
+=== GLOXIE EMULATOR ===
 
 Virtual time  : 2026-04-07T23:40:05 UTC
 File          : mystate.json [modified]

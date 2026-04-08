@@ -89,7 +89,7 @@ static void screen_render(const emu_state_t *s)
     char ts_buf[32];
 
     printf("\033[2J\033[H");
-    printf("=== TAMAGOTCHI EMULATOR ===\n\n");
+    printf("=== GLOXIE EMULATOR ===\n\n");
 
     fmt_ts(ts_buf, sizeof(ts_buf), s->world.now_ts);
     printf("Virtual time  : %s\n", ts_buf);
