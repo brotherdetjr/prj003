@@ -172,62 +172,34 @@ Response:
 
 #### `get_screen`
 
-Return a text representation of the current screen. Graphics are out of scope
-for now; the screen is a list of plain-text lines.
+Return a PNG rendering of the current screen.
 
 Request:
 ```json
 { "cmd": "get_screen" }
 ```
 
-Response:
-```json
-{
-  "ok": true,
-  "screen": {
-    "lines": [
-      "=== GLOXIE ===",
-      "Time   : 2026-04-07T23:40:05 UTC",
-      "Energy : 255 / 255"
-    ]
-  }
-}
-```
+Response (`Content-Type: image/png`, binary body):
 
-The `screen` object is versioned implicitly by the spec version and will gain
-a cell-based format (glyph + colour per cell) once graphical rendering is
-introduced.
+The raw PNG file. Unlike all other commands, this response is not JSON.
+The caller must inspect `Content-Type` to distinguish it from error responses,
+which remain `application/json` with an `{"ok": false, ...}` body.
 
 ---
 
-#### `save` *(PC only)*
+#### `set_state`
 
-Save the current state to a JSON file on the local filesystem.
+Replace the current world state. Symmetric counterpart to `get_state`.
+Intended for save/restore, test setup, and state transfer between instances.
 
 Request:
 ```json
-{ "cmd": "save", "file": "mystate.json" }
+{ "cmd": "set_state", "state": <State> }
 ```
 
 Response:
 ```json
-{ "ok": true, "file": "mystate.json" }
-```
-
----
-
-#### `load` *(PC only)*
-
-Load state from a JSON file, replacing the current world.
-
-Request:
-```json
-{ "cmd": "load", "file": "mystate.json" }
-```
-
-Response:
-```json
-{ "ok": true, "state": <State> }
+{ "ok": true }
 ```
 
 ---
@@ -403,8 +375,8 @@ All IDs are 8 upper-case hex digits represented as JSON strings
   character exists, or `escape` when none does) return an error rather than
   silently succeeding.
 - The HTTP server returns `400 Bad Request` for malformed JSON bodies.
-- Platform-only commands (`save`, `load`) sent to an ESP32 instance return
-  `{"ok": false, "error": "not supported on this platform"}`.
+- `get_screen` sent to an instance that has not yet implemented rendering
+  returns `{"ok": false, "error": "not implemented"}`.
 
 ---
 
