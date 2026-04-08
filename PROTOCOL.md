@@ -224,39 +224,43 @@ data: <JSON>\n
 
 #### `tick`
 
-Fired after every tick (auto or manual). Carries the full state so subscribed
-frontends can update without polling.
+Fired after every tick (auto or manual). Carries only the new virtual time;
+use `get_state` if full state is needed.
 
 ```
 event: tick
-data: {"state": <State>}
+data: {"now_ts": 1744063206}
 ```
 
 #### `peer_out`
 
-Fired when the instance emits a peer message (mirrors the stdout write, for
-orchestrators that prefer HTTP over stdout parsing).
+Fired when the instance's character emits a peer message (mirrors the stdout
+write, for orchestrators that prefer HTTP over stdout parsing).
 
 ```
 event: peer_out
-data: {"peer_msg": <PeerMessage>}
+data: <PeerMessage>
 ```
 
 #### `peer_in`
 
-Fired when the instance processes an incoming peer message.
+Fired when the instance's character receives and processes a peer message.
 
 ```
 event: peer_in
-data: {"peer_msg": <PeerMessage>}
+data: <PeerMessage>
 ```
 
 ---
 
 ## 3. Peer channel
 
-Peer messages carry game-level device-to-device interaction: presence
-announcements, greetings, mood effects, etc.
+Peer messages carry character-to-character game interaction: presence
+announcements, greetings, mood effects, etc. An instance with no active
+character does not send or accept peer messages.
+
+`from` and `to` are always **character IDs**, not device/instance IDs.
+Device routing is a transport concern invisible at the game-logic level.
 
 ### 3.1 PC transport (stdin / stdout)
 
@@ -265,18 +269,20 @@ announcements, greetings, mood effects, etc.
 - **Incoming** (orchestrator → instance): the orchestrator writes one JSON
   object per line to the instance's **stdin**.
 
-The orchestrator is responsible for routing: it reads stdout from all managed
+The orchestrator routes messages by mapping character IDs to instances (it
+builds this map from `get_state` responses). It reads stdout from all managed
 instances, inspects the `to` field, and forwards each message to the
 appropriate instance's stdin (fan-out for `"*"`).
 
-Peer discovery on PC is therefore orchestrator-mediated: instances do not
-discover each other directly.
+Peer discovery on PC is orchestrator-mediated: instances do not discover each
+other directly.
 
 ### 3.2 ESP32 transport (BLE)
 
 Peer messages are exchanged directly over BLE. Discovery uses BLE advertising.
-The orchestrator is not involved in routing; it may observe peer events via
-the SSE `peer_in` / `peer_out` events if connected.
+Character IDs are included in the message payload; the device layer handles
+transport. The orchestrator is not involved in routing; it may observe peer
+events via the SSE `peer_in` / `peer_out` events if connected.
 
 ---
 
@@ -291,6 +297,9 @@ All peer messages share a common envelope:
   "to":   "XXXXXXXX | *"
 }
 ```
+
+`from` and `to` are character IDs. `"*"` in `to` means broadcast to all
+reachable characters.
 
 `to: "*"` means broadcast to all reachable peers.
 
