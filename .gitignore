@@ -1,5 +1,6 @@
 # Build output
-platform/desktop/emu
+platform/pc/emu
+platform/pc/*.o
 
 # State save files
-platform/desktop/*.json
+platform/pc/*.json
