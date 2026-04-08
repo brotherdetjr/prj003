@@ -1,4 +1,4 @@
-# Gloxie — MaTouch ESP32-S3 (ST7701S 3.16")
+# Gloxie
 
 ## Concept
 
@@ -7,16 +7,16 @@ the device, ages, needs care, and meets other creatures via Bluetooth.
 
 ## Hardware
 
-- **Device:** MaTouch ESP32-S3 Parallel TFT 3.16" (ST7701S)
-- **Controls:** up to 3 buttons, optional orientation sensor (accelerometer)
+- **Target Device Candidate:** MaTouch ESP32-S3 Parallel TFT 3.16" (ST7701S)
+- **Controls:** up to 3 buttons (touchscreen?), optional orientation sensor (accelerometer)
 - **Radio:** Bluetooth (BLE) for device-to-device discovery and interaction
 
-## Core mechanics
+## Core mechanics - draft (!!!) ideas
 
 ### Character lifecycle
 - Born with a generated ID and a birth timestamp (UTC epoch)
 - Ages over real time; care quality shapes which form it evolves into
-- Eventually passes; a new character can be born
+- Does not pass, but can escape under certain conditions; a new character can be born
 
 ### Stats
 - **Energy** — depletes over time; restored by feeding/sleeping
@@ -29,8 +29,8 @@ the device, ages, needs care, and meets other creatures via Bluetooth.
 - 6×6 compatibility matrix drives encounter outcomes and passive mood effects
 
 ### Bluetooth interactions
-- Devices advertise character sign and basic stats via BLE
-- Proximity (RSSI) used to gauge "nearness" — compatible signs lift mood passively
+- Devices advertise character sign and basic stats via BLE and Wi-Fi
+- Proximity ([RSSI](https://en.wikipedia.org/wiki/Received_signal_strength_indicator)) used to gauge "nearness" — compatible signs lift mood passively
 - Encounter memory: device remembers last N characters met (by ID)
 - Repeated meetings feel different from first contact
 
@@ -41,6 +41,7 @@ the device, ages, needs care, and meets other creatures via Bluetooth.
 ### Mini-game
 - One simple reflex game tied to button timing
 - Outcome modified by current day's sign "luck" stat
+- Could be "rock paper scissors"
 
 ### Aura visualization
 - Each sign has an associated color/glow
