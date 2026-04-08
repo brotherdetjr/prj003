@@ -14,6 +14,26 @@ All messages are JSON. The orchestration channel uses standard HTTP
 request/response plus optional Server-Sent Events for push notifications.
 The peer channel uses newline-delimited JSON (one JSON object per line).
 
+### Design philosophy: polling over event-sourcing
+
+The orchestration channel is intentionally **not** event-sourced. There is no
+pattern of "subscribe once, then receive granular state-delta events." Instead,
+callers poll with explicit requests like `get_state` whenever they need the
+current snapshot.
+
+Consequences of this choice:
+
+- `tick` (both the command and the SSE event) returns no state. If the caller
+  needs state after a tick, it issues a separate `get_state`.
+- SSE events (`tick`, `peer_in`, `peer_out`) are lightweight notifications, not
+  state carriers. They signal that something happened; the caller decides whether
+  to fetch updated state.
+- There is no `hello` event that pushes initial state on SSE connect.
+
+This keeps the protocol simple and makes test orchestration natural: a test
+advances the world with `tick` commands, then reads state with `get_state`,
+with no need to reconcile an event stream against a local state replica.
+
 ---
 
 ## 1. Instance startup
