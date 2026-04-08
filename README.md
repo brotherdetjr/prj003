@@ -55,6 +55,8 @@ core/             ← pure C, zero platform dependencies
   zodiac.h/c      ← sign cycle, compatibility matrix (TODO)
 
 platform/
+  common/
+    app.h         ← app_t (world + mongoose mgr + autotick); shared by all platforms
   esp32/
     main.ino      ← Arduino setup()/loop(), RTC + BLE
   pc/
@@ -232,6 +234,59 @@ curl -s -X POST http://localhost:7070/command \
 ```
 
 After `escape`, `get_state` shows `"character": null` and a new `spawn` is accepted.
+
+## ESP32 compatibility
+
+### Architecture stance
+
+The HTTP server layer is designed to work on ESP32 as well as PC. This enables
+WiFi-based debugging on real hardware without a separate debug protocol.
+
+### What is reusable on ESP32 without changes
+
+- `core/` — pure C, zero platform dependencies
+- `platform/common/app.h` — `app_t` struct (world + Mongoose manager + autotick)
+- `platform/pc/server.c/h` — HTTP command dispatch and SSE push
+- `platform/pc/state.c/h` — world ↔ JSON serialisation
+
+Mongoose (`vendor/mongoose/`) has explicit ESP32/Arduino support and compiles
+on that target without modification.
+
+### What changes on ESP32
+
+**`main.ino` sketch** drives the event loop via `mg_mgr_poll()` instead of
+`delay()`. This is non-blocking and naturally accommodates BLE polling, button
+reads, and rendering alongside the HTTP server:
+
+```c
+void setup() {
+    WiFi.begin("ssid", "password");
+    while (WiFi.status() != WL_CONNECTED) delay(100);
+
+    world_init(&s_world, rtc_now());
+    world_spawn_character(&s_world, esp_random());
+
+    mg_mgr_init(&app.mgr);
+    mg_http_listen(&app.mgr, "http://0.0.0.0:80", mg_event_handler, &app);
+    mg_timer_add(&app.mgr, WORLD_TICK_S * 1000, MG_TIMER_REPEAT, tick_timer_fn, &app);
+}
+
+void loop() {
+    mg_mgr_poll(&app.mgr, 10);  /* drives HTTP + tick timer */
+    /* poll BLE, buttons, render */
+}
+```
+
+**Peer channel** — on PC, peers communicate over stdin/stdout (`peer.c`). On
+ESP32, BLE will play that role. The peer message envelope format (defined in
+`PROTOCOL.md`) is shared; only the transport implementation differs.
+
+### What is ESP32-only
+
+- WiFi initialisation in `setup()`
+- RTC read for initial `now_ts`
+- `esp_random()` for character ID generation
+- BLE peer transport (future `platform/esp32/peer_ble.c`)
 
 ## Development order
 

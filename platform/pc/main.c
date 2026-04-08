@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include "app.h"
+#include "../common/app.h"
 #include "server.h"
 #include "peer.h"
 #include "state.h"

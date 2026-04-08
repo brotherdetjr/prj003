@@ -1,7 +1,7 @@
 #ifndef PEER_H
 #define PEER_H
 
-#include "app.h"
+#include "../common/app.h"
 #include "../../vendor/cjson/cJSON.h"
 
 /* Set stdin to non-blocking. Call once at startup. */
