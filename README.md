@@ -16,7 +16,8 @@ the device, ages, needs care, and meets other creatures via Bluetooth.
 ### Character lifecycle
 - Born with a generated ID and a birth timestamp (UTC epoch)
 - Ages over real time; care quality shapes which form it evolves into
-- Does not pass, but can escape under certain conditions; a new character can be born
+- Does not die of old age, but  under certain conditions; a new character can be born
+- Due to marketing reasons, we don't use word "die", but "poof"
 
 ### Stats
 - **Energy** — depletes over time; restored by feeding/sleeping
@@ -224,17 +225,17 @@ curl -s -X POST http://localhost:7070/command \
 {"ok": true}
 ```
 
-**Character escapes:**
+**Character poofs:**
 ```sh
 curl -s -X POST http://localhost:7070/command \
   -H 'Content-Type: application/json' \
-  -d '{"cmd":"escape"}' | python3 -m json.tool
+  -d '{"cmd":"poof"}' | python3 -m json.tool
 ```
 ```json
 {"ok": true}
 ```
 
-After `escape`, `get_state` shows `"character": null` and a new `spawn` is accepted.
+After `poof`, `get_state` shows `"character": null` and a new `spawn` is accepted.
 
 ## ESP32 compatibility
 
