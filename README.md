@@ -144,7 +144,7 @@ curl -s -X POST http://localhost:7070/command \
     "state": {
         "instance_id": "DEADBEEF",
         "now_tick": 42,
-        "now_unix_sec": 1744070400,
+        "now_unix_sec": 1775606400,
         "autotick": false,
         "character": null
     }
@@ -163,11 +163,11 @@ curl -s -X POST http://localhost:7070/command \
     "state": {
         "instance_id": "DEADBEEF",
         "now_tick": 42,
-        "now_unix_sec": 1744070400,
+        "now_unix_sec": 1775606400,
         "autotick": false,
         "character": {
             "id": "14FE67E1",
-            "birth_unix_sec": 1744070400,
+            "birth_unix_sec": 1775606400,
             "birth_tick": 42,
             "energy": 255
         }
@@ -207,11 +207,11 @@ curl -s -X POST http://localhost:7070/command \
     "state": {
         "instance_id": "DEADBEEF",
         "now_tick": 339042,
-        "now_unix_sec": 1744070400,
+        "now_unix_sec": 1775606400,
         "autotick": false,
         "character": {
             "id": "14FE67E1",
-            "birth_unix_sec": 1744070400,
+            "birth_unix_sec": 1775606400,
             "birth_tick": 42,
             "energy": 254
         }
@@ -223,7 +223,7 @@ curl -s -X POST http://localhost:7070/command \
 ```sh
 curl -s -X POST http://localhost:7070/command \
   -H 'Content-Type: application/json' \
-  -d '{"cmd":"set_wall_clock","now_unix_sec":1744416000}' | python3 -m json.tool
+  -d '{"cmd":"set_wall_clock","now_unix_sec":1775606401}' | python3 -m json.tool
 ```
 ```json
 {"ok": true}
