@@ -9,7 +9,6 @@
 #define JSON_HDR    "Content-Type: application/json\r\n"
 #define IS_SSE(c)   ((c)->data[0] == 'S')
 
-#define AUTOTICK_MS 1000U   /* virtual ms advanced per autotick interval */
 
 /* ------------------------------------------------------------------ */
 /* SSE                                                                  */
@@ -33,12 +32,7 @@ void tick_timer_fn(void *arg)
     if (!app->autotick) return;
 
     app->world.now_unix_sec = (uint64_t)time(NULL);
-    advance_result_t r = world_advance(&app->world,
-                                       app->world.now_tick + AUTOTICK_MS, 0);
-    char data[64];
-    snprintf(data, sizeof(data), "{\"now_tick\":%llu}",
-             (unsigned long long)r.now_tick);
-    sse_push(&app->mgr, "tick", data);
+    world_advance(&app->world, AUTOTICK, 0);
 }
 
 /* ------------------------------------------------------------------ */
@@ -107,34 +101,13 @@ static void handle_command(struct mg_connection *c,
         cJSON *stop_j = cJSON_GetObjectItemCaseSensitive(body, "stop_on_event");
         int stop_on_event = cJSON_IsTrue(stop_j);
 
-        int has_duration = dur_j && !cJSON_IsNull(dur_j);
-        advance_result_t r = { app->world.now_tick, 0, 0 };
-
-        if (has_duration) {
-            uint64_t dur;
-            if (!parse_uint(dur_j, &dur) || dur == 0) {
-                reply_error(c, "ticks must be a positive integer");
-                goto done;
-            }
-            r = world_advance(&app->world,
-                              app->world.now_tick + dur, stop_on_event);
-        } else if (stop_on_event) {
-            /* advance to next scheduled event, if any */
-            const scheduled_event_t *next =
-                scheduler_peek(&app->world.scheduler);
-            if (next)
-                r = world_advance(&app->world, next->fire_at_ms, 1);
-            /* else: no event pending — do not advance */
+        uint64_t ticks;
+        if (!parse_uint(dur_j, &ticks)) {
+            reply_error(c, "ticks must be a non-negative integer");
+            goto done;
         }
-        /* null duration + stop_on_event=false → no-op */
 
-        if (r.now_tick != app->world.now_tick ||
-            r.now_tick == app->world.now_tick /* always push for simplicity */) {
-            char sse_data[64];
-            snprintf(sse_data, sizeof(sse_data), "{\"now_tick\":%llu}",
-                     (unsigned long long)r.now_tick);
-            sse_push(&app->mgr, "tick", sse_data);
-        }
+        advance_result_t r = world_advance(&app->world, ticks, stop_on_event);
 
         cJSON *resp = cJSON_CreateObject();
         cJSON_AddBoolToObject  (resp, "ok",               1);

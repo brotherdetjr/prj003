@@ -1,6 +1,4 @@
-#include "../../core/world.h"
-
-#define AUTOTICK_MS 1000U
+#include "../common/app.h"
 
 static world_t s_world;
 static uint32_t s_last_tick_ms = 0;
@@ -23,7 +21,7 @@ void loop()
     uint32_t now = millis();
     if (now - s_last_tick_ms >= AUTOTICK_MS) {
         s_last_tick_ms = now;
-        world_advance(&s_world, s_world.now_tick + AUTOTICK_MS, 0);
+        world_advance(&s_world, AUTOTICK, 0);
         /* TODO: render */
     }
     /* TODO: poll BLE, buttons */

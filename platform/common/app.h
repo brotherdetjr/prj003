@@ -4,6 +4,8 @@
 #include "../../core/world.h"
 #include "../../vendor/mongoose/mongoose.h"
 
+#define AUTOTICK 1000U  /* virtual ms advanced per real-second timer tick */
+
 typedef struct {
     world_t       world;
     char          instance_id[9];  /* "XXXXXXXX\0" */

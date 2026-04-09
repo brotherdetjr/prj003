@@ -44,12 +44,18 @@ int world_spawn_character(world_t *w, uint32_t id);
 int world_poof_character(world_t *w);
 
 /*
- * Advance virtual time to target_tick, firing scheduled events in order.
- * If stop_on_event != 0, stops immediately after the first event fires.
+ * Advance virtual time by `ticks` milliseconds, firing scheduled events in order.
+ *
+ * Behaviour matrix:
+ *   ticks > 0, stop_on_event=0  — advance full ticks; fire all events in range.
+ *   ticks > 0, stop_on_event=1  — advance up to ticks; stop after first event.
+ *   ticks = 0, stop_on_event=1  — advance to the next scheduled event; no-op if none.
+ *   ticks = 0, stop_on_event=0  — no-op.
+ *
  * now_tick is updated to the event's fire_at_ms when stopping early,
- * or to target_tick when the full range is consumed.
+ * or to now_tick + ticks when the full range is consumed.
  */
-advance_result_t world_advance(world_t *w, uint64_t target_tick, int stop_on_event);
+advance_result_t world_advance(world_t *w, uint64_t ticks, int stop_on_event);
 
 /*
  * Rebuild the scheduler from current world state.

@@ -113,9 +113,11 @@ Request:
 { "cmd": "advance_time", "ticks": 5000 }
 ```
 
+Required fields:
+- `"ticks": N` — non-negative integer. Use `0` as the "unlimited" sentinel:
+  advance to the next scheduled event (or no-op if `stop_on_event` is false).
+
 Optional fields:
-- `"ticks": N` — advance up to N virtual milliseconds (must be > 0 if provided;
-  `null` or omitted means "no upper bound").
 - `"stop_on_event": true` — stop immediately after the first scheduled event
   fires, even if `ticks` has not elapsed. Default: `false`.
 
@@ -125,9 +127,8 @@ Optional fields:
 |---|---|---|
 | N > 0 | false | Advance full N ticks; fire all events in range. |
 | N > 0 | true  | Advance up to N ticks; stop after first event. |
-| null  | true  | Advance to next scheduled event; if none, do not advance. |
-| null  | false | No-op. |
-| 0     | any   | Error. |
+| 0     | true  | Advance to next scheduled event; if none, do not advance. |
+| 0     | false | No-op. |
 
 Response:
 ```json
@@ -300,16 +301,6 @@ Each event is formatted per the SSE spec:
 event: <event_name>\n
 data: <JSON>\n
 \n
-```
-
-#### `tick`
-
-Fired after every tick (auto or manual). Carries only the new virtual time;
-use `get_state` if full state is needed.
-
-```
-event: tick
-data: {"now_tick": 5000}
 ```
 
 #### `peer_out`

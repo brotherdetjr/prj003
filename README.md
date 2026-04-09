@@ -189,7 +189,7 @@ curl -s -X POST http://localhost:7070/command \
 ```sh
 curl -s -X POST http://localhost:7070/command \
   -H 'Content-Type: application/json' \
-  -d '{"cmd":"advance_time","stop_on_event":true}' | python3 -m json.tool
+  -d '{"cmd":"advance_time","ticks":0,"stop_on_event":true}' | python3 -m json.tool
 ```
 ```json
 {"ok": true, "now_tick": 339042, "stopped_on_event": true, "event": "energy_drain"}
@@ -243,13 +243,11 @@ curl -s -X POST http://localhost:7070/command \
 ```sh
 curl -N http://localhost:7070/events
 ```
-```
-event: tick
-data: {"now_tick":340042}
 
-event: tick
-data: {"now_tick":341042}
-```
+`peer_in` and `peer_out` events appear here when peer interactions occur.
+In autotick mode the virtual clock advances 1,000 ticks per real second, so a
+new `energy_drain` event fires and is processed roughly every 339 real seconds —
+observable via `get_state` showing energy decreasing by 1.
 
 **Save state, restore it into a fresh instance:**
 ```sh

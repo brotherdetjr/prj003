@@ -8,7 +8,6 @@
 #include "state.h"
 
 #define DEFAULT_PORT     "7070"
-#define AUTOTICK_MS      1000U   /* timer interval for autotick */
 
 static void usage(const char *prog)
 {
@@ -151,7 +150,7 @@ int main(int argc, char *argv[])
             app.instance_id, port, app.autotick ? "on" : "off");
 
     /* autotick timer */
-    mg_timer_add(&app.mgr, AUTOTICK_MS, MG_TIMER_REPEAT, tick_timer_fn, &app);
+    mg_timer_add(&app.mgr, AUTOTICK, MG_TIMER_REPEAT, tick_timer_fn, &app);
 
     /* peer stdin (non-blocking) */
     peer_stdin_init();

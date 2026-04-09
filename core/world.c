@@ -42,11 +42,21 @@ static void dispatch(world_t *w, const scheduled_event_t *ev)
     }
 }
 
-advance_result_t world_advance(world_t *w, uint64_t target_tick, int stop_on_event)
+advance_result_t world_advance(world_t *w, uint64_t ticks, int stop_on_event)
 {
     advance_result_t r = { w->now_tick, 0, 0 };
-    const scheduled_event_t *next;
 
+    uint64_t target_tick;
+    if (ticks == 0) {
+        if (!stop_on_event) return r;          /* no-op */
+        const scheduled_event_t *next = scheduler_peek(&w->scheduler);
+        if (!next) return r;                   /* no event pending */
+        target_tick = next->fire_at_ms;
+    } else {
+        target_tick = w->now_tick + ticks;
+    }
+
+    const scheduled_event_t *next;
     while ((next = scheduler_peek(&w->scheduler)) != NULL
            && next->fire_at_ms <= target_tick) {
         scheduled_event_t ev;
