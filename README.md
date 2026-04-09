@@ -175,11 +175,11 @@ curl -s -X POST http://localhost:7070/command \
 }
 ```
 
-**Advance 1 second of virtual time (`now_tick` moves; `now_unix_sec` does not):**
+**Advance 1000 virtual ticks (1 simulated second; `now_tick` moves, `now_unix_sec` does not):**
 ```sh
 curl -s -X POST http://localhost:7070/command \
   -H 'Content-Type: application/json' \
-  -d '{"cmd":"advance_time","duration_ms":1000}' | python3 -m json.tool
+  -d '{"cmd":"advance_time","ticks":1000}' | python3 -m json.tool
 ```
 ```json
 {"ok": true, "now_tick": 1042, "stopped_on_event": false}

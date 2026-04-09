@@ -110,21 +110,21 @@ Returns the new virtual timestamp — use `get_state` for full state.
 
 Request:
 ```json
-{ "cmd": "advance_time", "duration_ms": 5000 }
+{ "cmd": "advance_time", "ticks": 5000 }
 ```
 
 Optional fields:
-- `"duration_ms": N` — advance up to N ms (must be > 0 if provided; `null` or
-  omitted means "no upper bound").
+- `"ticks": N` — advance up to N virtual milliseconds (must be > 0 if provided;
+  `null` or omitted means "no upper bound").
 - `"stop_on_event": true` — stop immediately after the first scheduled event
-  fires, even if `duration_ms` has not elapsed. Default: `false`.
+  fires, even if `ticks` has not elapsed. Default: `false`.
 
 **Behaviour matrix:**
 
-| `duration_ms` | `stop_on_event` | Behaviour |
+| `ticks`  | `stop_on_event` | Behaviour |
 |---|---|---|
-| N > 0 | false | Advance full N ms; fire all events in range. |
-| N > 0 | true  | Advance up to N ms; stop after first event. |
+| N > 0 | false | Advance full N ticks; fire all events in range. |
+| N > 0 | true  | Advance up to N ticks; stop after first event. |
 | null  | true  | Advance to next scheduled event; if none, do not advance. |
 | null  | false | No-op. |
 | 0     | any   | Error. |

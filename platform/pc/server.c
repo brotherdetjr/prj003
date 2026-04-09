@@ -103,7 +103,7 @@ static void handle_command(struct mg_connection *c,
 
     /* ---- advance_time ---- */
     if (strcmp(cmd, "advance_time") == 0) {
-        cJSON *dur_j  = cJSON_GetObjectItemCaseSensitive(body, "duration_ms");
+        cJSON *dur_j  = cJSON_GetObjectItemCaseSensitive(body, "ticks");
         cJSON *stop_j = cJSON_GetObjectItemCaseSensitive(body, "stop_on_event");
         int stop_on_event = cJSON_IsTrue(stop_j);
 
@@ -113,7 +113,7 @@ static void handle_command(struct mg_connection *c,
         if (has_duration) {
             uint64_t dur;
             if (!parse_uint(dur_j, &dur) || dur == 0) {
-                reply_error(c, "duration_ms must be a positive integer");
+                reply_error(c, "ticks must be a positive integer");
                 goto done;
             }
             r = world_advance(&app->world,
