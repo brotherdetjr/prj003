@@ -52,7 +52,7 @@ Options:
   --port=N                   HTTP port for the orchestration channel (default: 7070).
   --nowtick=N                              Initial virtual clock in ms (now_tick).
                                            Defaults to wall-clock time.
-  --wallclockutc=YYYY-MM-DDTHH:MM:SS[.sss] Initial wall-clock time (now_unix_ms).
+  --wallclockutc=YYYY-MM-DDTHH:MM:SS        Initial wall-clock time (now_unix_sec).
                                            Defaults to system clock.
   --file=PATH                Load state from a previously saved JSON file.
   --noautotick               Start in manual-tick mode. Default is auto-tick.
@@ -151,7 +151,7 @@ command lets tests control it without relying on the system clock.
 
 Request:
 ```json
-{ "cmd": "set_wall_clock", "now_unix_ms": 1744070400000 }
+{ "cmd": "set_wall_clock", "now_unix_sec": 1744070400 }
 ```
 
 Response:
@@ -172,7 +172,7 @@ Request:
 
 Response:
 ```json
-{ "ok": true, "now_unix_ms": 1744070400000 }
+{ "ok": true, "now_unix_sec": 1744070400 }
 ```
 
 ---
@@ -423,7 +423,7 @@ game mechanics are further defined.
 {
   "instance_id": "DEADBEEF",
   "now_tick":    0,
-  "now_unix_ms": 1744063205000,
+  "now_unix_sec": 1744063205,
   "autotick":    true,
   "character":   null
 }
@@ -433,11 +433,11 @@ game mechanics are further defined.
 {
   "instance_id": "DEADBEEF",
   "now_tick":    5000,
-  "now_unix_ms": 1744063205000,
+  "now_unix_sec": 1744063205,
   "autotick":    true,
   "character": {
     "id":           "3F8A21CC",
-    "birth_unix_ms": 1744063200000,
+    "birth_unix_sec": 1744063200,
     "birth_tick": 0,
     "energy":        255
   }
@@ -450,15 +450,16 @@ game mechanics are further defined.
 | Field | Description |
 |---|---|
 | `now_tick` | Virtual clock in ms. Advanced by `advance_time`. Drives game logic. |
-| `now_unix_ms` | Wall-clock UTC ms. Set by `set_wall_clock` or system clock. Used for zodiac. |
-| `birth_unix_ms` | Wall-clock UTC ms at character birth. Used to derive zodiac sign. |
+| `now_unix_sec` | Wall-clock UTC seconds. Set by `set_wall_clock` or system clock. Used for zodiac. |
+| `birth_unix_sec` | Wall-clock UTC seconds at character birth. Used to derive zodiac sign. |
 | `birth_tick` | Virtual clock at character birth. Virtual age = `now_tick − birth_tick`. |
 
 ### Timestamps
 
-All timestamps are UTC Unix epoch **milliseconds** (`uint64_t` on the wire as
-a JSON integer). The `now_tick` field uses the same unit for consistency, even
-though it represents virtual time that may diverge from wall-clock time.
+`now_unix_sec` and `birth_unix_sec` are UTC Unix epoch **seconds** (`uint64_t`
+on the wire as a JSON integer). `now_tick` and `birth_tick` are virtual clock
+values in **milliseconds** — the same numeric unit, but representing virtual
+time that may diverge from wall-clock time.
 
 ### IDs
 

@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include "server.h"
 #include "state.h"
 #include "../../vendor/cjson/cJSON.h"
@@ -31,6 +32,7 @@ void tick_timer_fn(void *arg)
     app_t *app = (app_t *)arg;
     if (!app->autotick) return;
 
+    app->world.now_unix_sec = (uint64_t)time(NULL);
     advance_result_t r = world_advance(&app->world,
                                        app->world.now_tick + AUTOTICK_MS, 0);
     char data[64];
@@ -187,20 +189,20 @@ static void handle_command(struct mg_connection *c,
 
     /* ---- set_wall_clock ---- */
     } else if (strcmp(cmd, "set_wall_clock") == 0) {
-        cJSON *wc_j = cJSON_GetObjectItemCaseSensitive(body, "now_unix_ms");
+        cJSON *wc_j = cJSON_GetObjectItemCaseSensitive(body, "now_unix_sec");
         uint64_t wc;
         if (!parse_uint(wc_j, &wc)) {
-            reply_error(c, "now_unix_ms must be a non-negative integer");
+            reply_error(c, "now_unix_sec must be a non-negative integer");
             goto done;
         }
-        app->world.now_unix_ms = wc;
+        app->world.now_unix_sec = wc;
         reply_ok(c);
 
     /* ---- get_wall_clock ---- */
     } else if (strcmp(cmd, "get_wall_clock") == 0) {
         mg_http_reply(c, 200, JSON_HDR,
-                      "{\"ok\":true,\"now_unix_ms\":%llu}\n",
-                      (unsigned long long)app->world.now_unix_ms);
+                      "{\"ok\":true,\"now_unix_sec\":%llu}\n",
+                      (unsigned long long)app->world.now_unix_sec);
 
     /* ---- get_screen ---- */
     } else if (strcmp(cmd, "get_screen") == 0) {

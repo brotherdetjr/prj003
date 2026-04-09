@@ -8,9 +8,9 @@ static uint32_t s_last_tick_ms = 0;
 void setup()
 {
     /* TODO: read RTC for wall-clock time */
-    uint64_t now_unix_ms = 0; /* (uint64_t)rtc.now().unixtime() * 1000ULL */
+    uint64_t now_unix_sec = 0; /* (uint64_t)rtc.now().unixtime() */
 
-    world_init(&s_world, 0, now_unix_ms);
+    world_init(&s_world, 0, now_unix_sec);
 
     uint32_t id = 0xDEADBEEFUL; /* TODO: random from esp_random() */
     world_spawn_character(&s_world, id);

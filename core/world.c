@@ -1,10 +1,10 @@
 #include "world.h"
 #include <stddef.h>
 
-void world_init(world_t *w, uint64_t now_tick, uint64_t now_unix_ms)
+void world_init(world_t *w, uint64_t now_tick, uint64_t now_unix_sec)
 {
     w->now_tick      = now_tick;
-    w->now_unix_ms   = now_unix_ms;
+    w->now_unix_sec   = now_unix_sec;
     w->has_character = 0;
     scheduler_init(&w->scheduler);
 }
@@ -12,7 +12,7 @@ void world_init(world_t *w, uint64_t now_tick, uint64_t now_unix_ms)
 int world_spawn_character(world_t *w, uint32_t id)
 {
     if (w->has_character) return -1;
-    character_init(&w->character, id, w->now_unix_ms, w->now_tick);
+    character_init(&w->character, id, w->now_unix_sec, w->now_tick);
     w->has_character = 1;
     scheduler_add(&w->scheduler,
                   w->now_tick + CHARACTER_ENERGY_DRAIN_MS,

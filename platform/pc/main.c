@@ -17,7 +17,7 @@ static void usage(const char *prog)
         "  --id=XXXXXXXX                             instance ID (8 hex digits); seeds PRNG\n"
         "  --port=N                                  HTTP port (default: " DEFAULT_PORT ")\n"
         "  --nowtick=N                               initial virtual clock in ms (now_tick)\n"
-        "  --wallclockutc=YYYY-MM-DDTHH:MM:SS[.sss]  initial wall-clock time (now_unix_ms)\n"
+        "  --wallclockutc=YYYY-MM-DDTHH:MM:SS         initial wall-clock time (now_unix_sec)\n"
         "  --file=PATH                               load world state from JSON file\n"
         "  --noautotick                              start in manual-tick mode\n",
         prog);
@@ -26,13 +26,11 @@ static void usage(const char *prog)
 static uint64_t parse_wallclockutc(const char *s)
 {
     struct tm tm = {0};
-    int ms = 0;
-    int n = sscanf(s, "%d-%d-%dT%d:%d:%d.%d",
-                   &tm.tm_year, &tm.tm_mon, &tm.tm_mday,
-                   &tm.tm_hour, &tm.tm_min, &tm.tm_sec, &ms);
-    if (n < 6) {
+    if (sscanf(s, "%d-%d-%dT%d:%d:%d",
+               &tm.tm_year, &tm.tm_mon, &tm.tm_mday,
+               &tm.tm_hour, &tm.tm_min, &tm.tm_sec) != 6) {
         fprintf(stderr, "Invalid --wallclockutc format. "
-                        "Expected: YYYY-MM-DDTHH:MM:SS[.sss]\n");
+                        "Expected: YYYY-MM-DDTHH:MM:SS\n");
         exit(1);
     }
     tm.tm_year -= 1900;
@@ -43,7 +41,7 @@ static uint64_t parse_wallclockutc(const char *s)
         fprintf(stderr, "Invalid --wallclockutc value\n");
         exit(1);
     }
-    return (uint64_t)t * 1000ULL + (uint64_t)ms;
+    return (uint64_t)t;
 }
 
 static int load_state_file(app_t *app, const char *path)
@@ -115,14 +113,14 @@ int main(int argc, char *argv[])
     srand(app.instance_id_raw);
 
     /* wall clock: --wallclockutc if given, else real system time */
-    uint64_t now_unix_ms = has_wallclock
+    uint64_t now_unix_sec = has_wallclock
                            ? arg_wallclock
-                           : (uint64_t)time(NULL) * 1000ULL;
+                           : (uint64_t)time(NULL);
 
     /* virtual clock: --nowtick if given, else same as wall clock */
-    uint64_t now_tick = has_nowtick ? arg_nowtick : now_unix_ms;
+    uint64_t now_tick = has_nowtick ? arg_nowtick : now_unix_sec;
 
-    world_init(&app.world, now_tick, now_unix_ms);
+    world_init(&app.world, now_tick, now_unix_sec);
 
     if (load_file[0]) {
         if (load_state_file(&app, load_file) == 0) {
@@ -132,7 +130,7 @@ int main(int argc, char *argv[])
                 world_rebuild_scheduler(&app.world);
             }
             if (has_wallclock)
-                app.world.now_unix_ms = arg_wallclock;
+                app.world.now_unix_sec = arg_wallclock;
             fprintf(stderr, "Loaded state from '%s'\n", load_file);
         } else {
             fprintf(stderr, "Warning: failed to load '%s', starting fresh\n",

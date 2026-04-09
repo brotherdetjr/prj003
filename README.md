@@ -82,7 +82,7 @@ Two independent clocks:
 | Field | Type | Description |
 |---|---|---|
 | `world.now_tick` | virtual ticks, similar to millisecond during the actual application execution, though can drift away from the wall clock time | Advances via `advance_time`. Drives all game logic and the scheduler. |
-| `world.now_unix_ms` | Unix Epoch ms | Wall clock. Set from RTC (ESP32) or system clock / `set_wall_clock` (PC). Used only for zodiac. |
+| `world.now_unix_sec` | Unix Epoch seconds | Wall clock. Set from RTC (ESP32) or system clock / `set_wall_clock` (PC). Updated every real second in autotick mode. Used only for zodiac. |
 
 The scheduler is a min-heap of `(fire_at_ms, tag)` events. `world_advance` pops
 and dispatches events in chronological order up to a target tick. Game logic
@@ -123,7 +123,7 @@ peer messages (newline-delimited JSON).
 
 Start the instance in a terminal. `--nowtick` sets the virtual clock (game
 logic); `--wallclockutc` sets the wall clock (zodiac). The two are independent:
-`now_tick` advances via `advance_time`; `now_unix_ms` only changes via
+`now_tick` advances via `advance_time`; `now_unix_sec` only changes via
 `set_wall_clock`.
 
 ```sh
@@ -144,7 +144,7 @@ curl -s -X POST http://localhost:7070/command \
     "state": {
         "instance_id": "DEADBEEF",
         "now_tick": 42,
-        "now_unix_ms": 1744070400000,
+        "now_unix_sec": 1744070400,
         "autotick": false,
         "character": null
     }
@@ -163,11 +163,11 @@ curl -s -X POST http://localhost:7070/command \
     "state": {
         "instance_id": "DEADBEEF",
         "now_tick": 42,
-        "now_unix_ms": 1744070400000,
+        "now_unix_sec": 1744070400,
         "autotick": false,
         "character": {
             "id": "14FE67E1",
-            "birth_unix_ms": 1744070400000,
+            "birth_unix_sec": 1744070400,
             "birth_tick": 42,
             "energy": 255
         }
@@ -175,7 +175,7 @@ curl -s -X POST http://localhost:7070/command \
 }
 ```
 
-**Advance 1 second of virtual time (`now_tick` moves; `now_unix_ms` does not):**
+**Advance 1 second of virtual time (`now_tick` moves; `now_unix_sec` does not):**
 ```sh
 curl -s -X POST http://localhost:7070/command \
   -H 'Content-Type: application/json' \
@@ -195,7 +195,7 @@ curl -s -X POST http://localhost:7070/command \
 {"ok": true, "now_tick": 339042, "stopped_on_event": true, "event": "energy_drain"}
 ```
 
-**Check state (`now_tick` advanced to 339,042; `now_unix_ms` still 2026-04-08; energy 254):**
+**Check state (`now_tick` advanced to 339,042; `now_unix_sec` still 2026-04-08; energy 254):**
 ```sh
 curl -s -X POST http://localhost:7070/command \
   -H 'Content-Type: application/json' \
@@ -207,11 +207,11 @@ curl -s -X POST http://localhost:7070/command \
     "state": {
         "instance_id": "DEADBEEF",
         "now_tick": 339042,
-        "now_unix_ms": 1744070400000,
+        "now_unix_sec": 1744070400,
         "autotick": false,
         "character": {
             "id": "14FE67E1",
-            "birth_unix_ms": 1744070400000,
+            "birth_unix_sec": 1744070400,
             "birth_tick": 42,
             "energy": 254
         }
@@ -223,7 +223,7 @@ curl -s -X POST http://localhost:7070/command \
 ```sh
 curl -s -X POST http://localhost:7070/command \
   -H 'Content-Type: application/json' \
-  -d '{"cmd":"set_wall_clock","now_unix_ms":1744416000000}' | python3 -m json.tool
+  -d '{"cmd":"set_wall_clock","now_unix_sec":1744416000}' | python3 -m json.tool
 ```
 ```json
 {"ok": true}
