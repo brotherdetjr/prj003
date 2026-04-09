@@ -109,8 +109,8 @@ static void handle_command(struct mg_connection *c,
         world_spawn_character(&app->world, char_id);
         reply_state(c, app);
 
-    /* ---- escape ---- */
-    } else if (strcmp(cmd, "escape") == 0) {
+    /* ---- poof ---- */
+    } else if (strcmp(cmd, "poof") == 0) {
         if (!app->world.has_character) {
             reply_error(c, "no character");
             goto done;
