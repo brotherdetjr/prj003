@@ -81,7 +81,7 @@ Two independent clocks:
 
 | Field | Type | Description |
 |---|---|---|
-| `world.now_tick` | virtual ms | Advances via `advance_time`. Drives all game logic and the scheduler. |
+| `world.now_tick` | virtual ticks, similar to millisecond during the actual application execution, though can drift away from the wall clock time | Advances via `advance_time`. Drives all game logic and the scheduler. |
 | `world.now_unix_ms` | UTC ms | Wall clock. Set from RTC (ESP32) or system clock / `set_wall_clock` (PC). Used only for zodiac. |
 
 The scheduler is a min-heap of `(fire_at_ms, tag)` events. `world_advance` pops
