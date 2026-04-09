@@ -7,35 +7,43 @@
 #include "peer.h"
 #include "state.h"
 
-#define DEFAULT_PORT "7070"
+#define DEFAULT_PORT     "7070"
+#define AUTOTICK_MS      1000U   /* timer interval for autotick */
 
 static void usage(const char *prog)
 {
     fprintf(stderr,
         "Usage: %s [OPTIONS]\n"
-        "  --id=XXXXXXXX                   instance ID (8 hex digits); seeds PRNG\n"
-        "  --port=N                        HTTP port (default: " DEFAULT_PORT ")\n"
-        "  --timeutc=YYYY-MM-DDTHH:MM:SS   initial virtual time (UTC)\n"
-        "  --file=PATH                     load world state from JSON file\n"
-        "  --noautotick                    start in manual-tick mode\n",
+        "  --id=XXXXXXXX                             instance ID (8 hex digits); seeds PRNG\n"
+        "  --port=N                                  HTTP port (default: " DEFAULT_PORT ")\n"
+        "  --nowtick=N                               initial virtual clock in ms (now_tick)\n"
+        "  --wallclockutc=YYYY-MM-DDTHH:MM:SS[.sss]  initial wall-clock time (now_unix_ms)\n"
+        "  --file=PATH                               load world state from JSON file\n"
+        "  --noautotick                              start in manual-tick mode\n",
         prog);
 }
 
-static uint64_t parse_timeutc(const char *s)
+static uint64_t parse_wallclockutc(const char *s)
 {
     struct tm tm = {0};
-    if (sscanf(s, "%d-%d-%dT%d:%d:%d",
-               &tm.tm_year, &tm.tm_mon, &tm.tm_mday,
-               &tm.tm_hour, &tm.tm_min, &tm.tm_sec) != 6) {
-        fprintf(stderr, "Invalid --timeutc format. Expected: YYYY-MM-DDTHH:MM:SS\n");
+    int ms = 0;
+    int n = sscanf(s, "%d-%d-%dT%d:%d:%d.%d",
+                   &tm.tm_year, &tm.tm_mon, &tm.tm_mday,
+                   &tm.tm_hour, &tm.tm_min, &tm.tm_sec, &ms);
+    if (n < 6) {
+        fprintf(stderr, "Invalid --wallclockutc format. "
+                        "Expected: YYYY-MM-DDTHH:MM:SS[.sss]\n");
         exit(1);
     }
     tm.tm_year -= 1900;
     tm.tm_mon  -= 1;
     tm.tm_isdst = 0;
     time_t t = timegm(&tm);
-    if (t == (time_t)-1) { fprintf(stderr, "Invalid --timeutc value\n"); exit(1); }
-    return (uint64_t)t;
+    if (t == (time_t)-1) {
+        fprintf(stderr, "Invalid --wallclockutc value\n");
+        exit(1);
+    }
+    return (uint64_t)t * 1000ULL + (uint64_t)ms;
 }
 
 static int load_state_file(app_t *app, const char *path)
@@ -70,11 +78,12 @@ int main(int argc, char *argv[])
     app_t app = {0};
     app.autotick = 1;
 
-    const char *port    = DEFAULT_PORT;
-    uint64_t    start_ts = 0;
+    const char *port           = DEFAULT_PORT;
+    uint64_t    arg_nowtick    = 0;   int has_nowtick    = 0;
+    uint64_t    arg_wallclock  = 0;   int has_wallclock  = 0;
     char        load_file[256] = {0};
-    uint32_t    given_id = 0;
-    int         has_id   = 0;
+    uint32_t    given_id       = 0;
+    int         has_id         = 0;
 
     for (int i = 1; i < argc; i++) {
         if (strncmp(argv[i], "--id=", 5) == 0) {
@@ -82,8 +91,12 @@ int main(int argc, char *argv[])
             has_id = 1;
         } else if (strncmp(argv[i], "--port=", 7) == 0) {
             port = argv[i] + 7;
-        } else if (strncmp(argv[i], "--timeutc=", 10) == 0) {
-            start_ts = parse_timeutc(argv[i] + 10);
+        } else if (strncmp(argv[i], "--nowtick=", 10) == 0) {
+            arg_nowtick = (uint64_t)strtoull(argv[i] + 10, NULL, 10);
+            has_nowtick = 1;
+        } else if (strncmp(argv[i], "--wallclockutc=", 15) == 0) {
+            arg_wallclock = parse_wallclockutc(argv[i] + 15);
+            has_wallclock = 1;
         } else if (strncmp(argv[i], "--file=", 7) == 0) {
             snprintf(load_file, sizeof(load_file), "%s", argv[i] + 7);
         } else if (strcmp(argv[i], "--noautotick") == 0) {
@@ -101,14 +114,25 @@ int main(int argc, char *argv[])
              "%08X", app.instance_id_raw);
     srand(app.instance_id_raw);
 
-    /* world init */
-    uint64_t ts = start_ts ? start_ts : (uint64_t)time(NULL);
-    world_init(&app.world, ts);
+    /* wall clock: --wallclockutc if given, else real system time */
+    uint64_t now_unix_ms = has_wallclock
+                           ? arg_wallclock
+                           : (uint64_t)time(NULL) * 1000ULL;
+
+    /* virtual clock: --nowtick if given, else same as wall clock */
+    uint64_t now_tick = has_nowtick ? arg_nowtick : now_unix_ms;
+
+    world_init(&app.world, now_tick, now_unix_ms);
 
     if (load_file[0]) {
         if (load_state_file(&app, load_file) == 0) {
-            /* --timeutc overrides saved now_ts if explicitly given */
-            if (start_ts) app.world.now_ts = start_ts;
+            /* explicit flags override values from the saved file */
+            if (has_nowtick) {
+                app.world.now_tick = arg_nowtick;
+                world_rebuild_scheduler(&app.world);
+            }
+            if (has_wallclock)
+                app.world.now_unix_ms = arg_wallclock;
             fprintf(stderr, "Loaded state from '%s'\n", load_file);
         } else {
             fprintf(stderr, "Warning: failed to load '%s', starting fresh\n",
@@ -128,9 +152,8 @@ int main(int argc, char *argv[])
     fprintf(stderr, "Gloxie %s  port %s  autotick %s\n",
             app.instance_id, port, app.autotick ? "on" : "off");
 
-    /* auto-tick timer (fires every WORLD_TICK_S seconds) */
-    mg_timer_add(&app.mgr, WORLD_TICK_S * 1000,
-                 MG_TIMER_REPEAT, tick_timer_fn, &app);
+    /* autotick timer */
+    mg_timer_add(&app.mgr, AUTOTICK_MS, MG_TIMER_REPEAT, tick_timer_fn, &app);
 
     /* peer stdin (non-blocking) */
     peer_stdin_init();

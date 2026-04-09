@@ -23,16 +23,18 @@ current snapshot.
 
 Consequences of this choice:
 
-- `tick` (both the command and the SSE event) returns no state. If the caller
-  needs state after a tick, it issues a separate `get_state`.
+- `advance_time` (both the command and the SSE `tick` event) returns only the
+  new virtual timestamp. If the caller needs full state, it issues a separate
+  `get_state`.
 - SSE events (`tick`, `peer_in`, `peer_out`) are lightweight notifications, not
   state carriers. They signal that something happened; the caller decides whether
   to fetch updated state.
 - There is no `hello` event that pushes initial state on SSE connect.
 
 This keeps the protocol simple and makes test orchestration natural: a test
-advances the world with `tick` commands, then reads state with `get_state`,
-with no need to reconcile an event stream against a local state replica.
+advances the world with `advance_time` commands, then reads state with
+`get_state`, with no need to reconcile an event stream against a local state
+replica.
 
 ---
 
@@ -48,7 +50,10 @@ Options:
                              is used for peer routing. Generated randomly if
                              omitted, but omitting it makes tests non-repeatable.
   --port=N                   HTTP port for the orchestration channel (default: 7070).
-  --timeutc=YYYY-MM-DDTHH:MM:SS  Initial virtual time (UTC). Defaults to wall clock.
+  --nowtick=N                              Initial virtual clock in ms (now_tick).
+                                           Defaults to wall-clock time.
+  --wallclockutc=YYYY-MM-DDTHH:MM:SS[.sss] Initial wall-clock time (now_unix_ms).
+                                           Defaults to system clock.
   --file=PATH                Load state from a previously saved JSON file.
   --noautotick               Start in manual-tick mode. Default is auto-tick.
 ```
@@ -98,20 +103,76 @@ Errors always return a JSON body regardless of HTTP status code.
 
 ---
 
-#### `tick`
+#### `advance_time`
 
-Advance the world by one tick (regardless of autotick mode).
-Returns no state — use `get_state` when the current state is needed.
-This allows the orchestrator to issue many ticks in a row cheaply.
+Advance the virtual clock, firing all scheduled events in order.
+Returns the new virtual timestamp — use `get_state` for full state.
 
 Request:
 ```json
-{ "cmd": "tick" }
+{ "cmd": "advance_time", "duration_ms": 5000 }
+```
+
+Optional fields:
+- `"duration_ms": N` — advance up to N ms (must be > 0 if provided; `null` or
+  omitted means "no upper bound").
+- `"stop_on_event": true` — stop immediately after the first scheduled event
+  fires, even if `duration_ms` has not elapsed. Default: `false`.
+
+**Behaviour matrix:**
+
+| `duration_ms` | `stop_on_event` | Behaviour |
+|---|---|---|
+| N > 0 | false | Advance full N ms; fire all events in range. |
+| N > 0 | true  | Advance up to N ms; stop after first event. |
+| null  | true  | Advance to next scheduled event; if none, do not advance. |
+| null  | false | No-op. |
+| 0     | any   | Error. |
+
+Response:
+```json
+{ "ok": true, "now_tick": 339000, "stopped_on_event": false }
+```
+
+When `stopped_on_event` is `true`, an `"event"` field names what fired:
+```json
+{ "ok": true, "now_tick": 339000, "stopped_on_event": true, "event": "energy_drain" }
+```
+
+Also pushes a `tick` SSE event with the new `now_tick`.
+
+---
+
+#### `set_wall_clock`
+
+Override the wall-clock time used for zodiac and other real-time features.
+In normal operation the wall clock is set to system time at startup; this
+command lets tests control it without relying on the system clock.
+
+Request:
+```json
+{ "cmd": "set_wall_clock", "now_unix_ms": 1744070400000 }
 ```
 
 Response:
 ```json
 { "ok": true }
+```
+
+---
+
+#### `get_wall_clock`
+
+Return the current wall-clock time.
+
+Request:
+```json
+{ "cmd": "get_wall_clock" }
+```
+
+Response:
+```json
+{ "ok": true, "now_unix_ms": 1744070400000 }
 ```
 
 ---
@@ -248,7 +309,7 @@ use `get_state` if full state is needed.
 
 ```
 event: tick
-data: {"now_ts": 1744063206}
+data: {"now_tick": 5000}
 ```
 
 #### `peer_out`
@@ -361,7 +422,8 @@ game mechanics are further defined.
 ```json
 {
   "instance_id": "DEADBEEF",
-  "now_ts":      1744063205,
+  "now_tick":    0,
+  "now_unix_ms": 1744063205000,
   "autotick":    true,
   "character":   null
 }
@@ -370,13 +432,14 @@ game mechanics are further defined.
 ```json
 {
   "instance_id": "DEADBEEF",
-  "now_ts":      1744063205,
+  "now_tick":    5000,
+  "now_unix_ms": 1744063205000,
   "autotick":    true,
   "character": {
-    "id":        "3F8A21CC",
-    "birth_ts":  1744063200,
-    "energy":    255,
-    "drain_acc": 5
+    "id":           "3F8A21CC",
+    "birth_unix_ms": 1744063200000,
+    "birth_tick": 0,
+    "energy":        255
   }
 }
 ```
@@ -384,10 +447,18 @@ game mechanics are further defined.
 `character` is `null` when no character has been spawned yet, or after a
 `poof`.
 
+| Field | Description |
+|---|---|
+| `now_tick` | Virtual clock in ms. Advanced by `advance_time`. Drives game logic. |
+| `now_unix_ms` | Wall-clock UTC ms. Set by `set_wall_clock` or system clock. Used for zodiac. |
+| `birth_unix_ms` | Wall-clock UTC ms at character birth. Used to derive zodiac sign. |
+| `birth_tick` | Virtual clock at character birth. Virtual age = `now_tick − birth_tick`. |
+
 ### Timestamps
 
-All timestamps are UTC Unix epoch seconds (`uint64_t` on the wire as a JSON
-integer).
+All timestamps are UTC Unix epoch **milliseconds** (`uint64_t` on the wire as
+a JSON integer). The `now_tick` field uses the same unit for consistency, even
+though it represents virtual time that may diverge from wall-clock time.
 
 ### IDs
 

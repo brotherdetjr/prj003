@@ -8,6 +8,8 @@
 #define JSON_HDR    "Content-Type: application/json\r\n"
 #define IS_SSE(c)   ((c)->data[0] == 'S')
 
+#define AUTOTICK_MS 1000U   /* virtual ms advanced per autotick interval */
+
 /* ------------------------------------------------------------------ */
 /* SSE                                                                  */
 /* ------------------------------------------------------------------ */
@@ -21,28 +23,40 @@ void sse_push(struct mg_mgr *mgr, const char *event, const char *data)
 }
 
 /* ------------------------------------------------------------------ */
-/* Tick                                                                 */
+/* Autotick timer                                                       */
 /* ------------------------------------------------------------------ */
-
-void do_tick(app_t *app)
-{
-    world_tick(&app->world);
-    char data[64];
-    snprintf(data, sizeof(data), "{\"now_ts\":%llu}",
-             (unsigned long long)app->world.now_ts);
-    sse_push(&app->mgr, "tick", data);
-}
 
 void tick_timer_fn(void *arg)
 {
     app_t *app = (app_t *)arg;
-    if (app->autotick)
-        do_tick(app);
+    if (!app->autotick) return;
+
+    advance_result_t r = world_advance(&app->world,
+                                       app->world.now_tick + AUTOTICK_MS, 0);
+    char data[64];
+    snprintf(data, sizeof(data), "{\"now_tick\":%llu}",
+             (unsigned long long)r.now_tick);
+    sse_push(&app->mgr, "tick", data);
 }
 
 /* ------------------------------------------------------------------ */
 /* Response helpers                                                     */
 /* ------------------------------------------------------------------ */
+
+/*
+ * Parse a cJSON item as a non-negative integer (no fractional part, >= 0).
+ * Returns 1 and writes *out on success; returns 0 on failure.
+ */
+static int parse_uint(const cJSON *j, uint64_t *out)
+{
+    if (!cJSON_IsNumber(j)) return 0;
+    double v = j->valuedouble;
+    if (v < 0.0) return 0;
+    uint64_t u = (uint64_t)v;
+    if ((double)u != v) return 0;
+    *out = u;
+    return 1;
+}
 
 static void reply_ok(struct mg_connection *c)
 {
@@ -85,10 +99,52 @@ static void handle_command(struct mg_connection *c,
     }
     const char *cmd = cmd_j->valuestring;
 
-    /* ---- tick ---- */
-    if (strcmp(cmd, "tick") == 0) {
-        do_tick(app);
-        reply_ok(c);
+    /* ---- advance_time ---- */
+    if (strcmp(cmd, "advance_time") == 0) {
+        cJSON *dur_j  = cJSON_GetObjectItemCaseSensitive(body, "duration_ms");
+        cJSON *stop_j = cJSON_GetObjectItemCaseSensitive(body, "stop_on_event");
+        int stop_on_event = cJSON_IsTrue(stop_j);
+
+        int has_duration = dur_j && !cJSON_IsNull(dur_j);
+        advance_result_t r = { app->world.now_tick, 0, 0 };
+
+        if (has_duration) {
+            uint64_t dur;
+            if (!parse_uint(dur_j, &dur) || dur == 0) {
+                reply_error(c, "duration_ms must be a positive integer");
+                goto done;
+            }
+            r = world_advance(&app->world,
+                              app->world.now_tick + dur, stop_on_event);
+        } else if (stop_on_event) {
+            /* advance to next scheduled event, if any */
+            const scheduled_event_t *next =
+                scheduler_peek(&app->world.scheduler);
+            if (next)
+                r = world_advance(&app->world, next->fire_at_ms, 1);
+            /* else: no event pending — do not advance */
+        }
+        /* null duration + stop_on_event=false → no-op */
+
+        if (r.now_tick != app->world.now_tick ||
+            r.now_tick == app->world.now_tick /* always push for simplicity */) {
+            char sse_data[64];
+            snprintf(sse_data, sizeof(sse_data), "{\"now_tick\":%llu}",
+                     (unsigned long long)r.now_tick);
+            sse_push(&app->mgr, "tick", sse_data);
+        }
+
+        cJSON *resp = cJSON_CreateObject();
+        cJSON_AddBoolToObject  (resp, "ok",               1);
+        cJSON_AddNumberToObject(resp, "now_tick",         (double)r.now_tick);
+        cJSON_AddBoolToObject  (resp, "stopped_on_event", r.stopped_on_event);
+        if (r.stopped_on_event)
+            cJSON_AddStringToObject(resp, "event",
+                                    world_event_name(r.event_tag));
+        char *resp_s = cJSON_PrintUnformatted(resp);
+        mg_http_reply(c, 200, JSON_HDR, "%s\n", resp_s);
+        cJSON_free(resp_s);
+        cJSON_Delete(resp);
 
     /* ---- get_state ---- */
     } else if (strcmp(cmd, "get_state") == 0) {
@@ -111,11 +167,10 @@ static void handle_command(struct mg_connection *c,
 
     /* ---- poof ---- */
     } else if (strcmp(cmd, "poof") == 0) {
-        if (!app->world.has_character) {
+        if (world_poof_character(&app->world) != 0) {
             reply_error(c, "no character");
             goto done;
         }
-        app->world.has_character = 0;
         reply_ok(c);
 
     /* ---- set_autotick ---- */
@@ -129,6 +184,23 @@ static void handle_command(struct mg_connection *c,
         mg_http_reply(c, 200, JSON_HDR,
                       "{\"ok\":true,\"autotick\":%s}\n",
                       app->autotick ? "true" : "false");
+
+    /* ---- set_wall_clock ---- */
+    } else if (strcmp(cmd, "set_wall_clock") == 0) {
+        cJSON *wc_j = cJSON_GetObjectItemCaseSensitive(body, "now_unix_ms");
+        uint64_t wc;
+        if (!parse_uint(wc_j, &wc)) {
+            reply_error(c, "now_unix_ms must be a non-negative integer");
+            goto done;
+        }
+        app->world.now_unix_ms = wc;
+        reply_ok(c);
+
+    /* ---- get_wall_clock ---- */
+    } else if (strcmp(cmd, "get_wall_clock") == 0) {
+        mg_http_reply(c, 200, JSON_HDR,
+                      "{\"ok\":true,\"now_unix_ms\":%llu}\n",
+                      (unsigned long long)app->world.now_unix_ms);
 
     /* ---- get_screen ---- */
     } else if (strcmp(cmd, "get_screen") == 0) {

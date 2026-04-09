@@ -105,10 +105,13 @@ peer messages (newline-delimited JSON).
 
 ### Smoke test
 
-Start the instance in a terminal (fixed ID and time for reproducibility):
+Start the instance in a terminal. `--nowtick` sets the virtual clock (game
+logic); `--wallclockutc` sets the wall clock (zodiac). The two are independent:
+`now_tick` advances via `advance_time`; `now_unix_ms` only changes via
+`set_wall_clock`.
 
 ```sh
-./emu --id=DEADBEEF --timeutc=2026-04-08T00:00:00 --noautotick
+./emu --id=DEADBEEF --nowtick=42 --wallclockutc=2026-04-08T00:00:00 --noautotick
 ```
 
 In a second terminal, run these commands one by one.
@@ -124,7 +127,8 @@ curl -s -X POST http://localhost:7070/command \
     "ok": true,
     "state": {
         "instance_id": "DEADBEEF",
-        "now_ts": 1744070400,
+        "now_tick": 42,
+        "now_unix_ms": 1744070400000,
         "autotick": false,
         "character": null
     }
@@ -142,29 +146,40 @@ curl -s -X POST http://localhost:7070/command \
     "ok": true,
     "state": {
         "instance_id": "DEADBEEF",
-        "now_ts": 1744070400,
+        "now_tick": 42,
+        "now_unix_ms": 1744070400000,
         "autotick": false,
         "character": {
             "id": "14FE67E1",
-            "birth_ts": 1744070400,
-            "energy": 255,
-            "drain_acc": 0
+            "birth_unix_ms": 1744070400000,
+            "birth_tick": 42,
+            "energy": 255
         }
     }
 }
 ```
 
-**Advance one tick (returns no state):**
+**Advance 1 second of virtual time (`now_tick` moves; `now_unix_ms` does not):**
 ```sh
 curl -s -X POST http://localhost:7070/command \
   -H 'Content-Type: application/json' \
-  -d '{"cmd":"tick"}' | python3 -m json.tool
+  -d '{"cmd":"advance_time","duration_ms":1000}' | python3 -m json.tool
 ```
 ```json
-{"ok": true}
+{"ok": true, "now_tick": 1042, "stopped_on_event": false}
 ```
 
-**Check state after tick (`now_ts` and `drain_acc` incremented):**
+**Fast-forward to the next event (energy drain at `birth_tick` + 339,000 ms = 339,042):**
+```sh
+curl -s -X POST http://localhost:7070/command \
+  -H 'Content-Type: application/json' \
+  -d '{"cmd":"advance_time","stop_on_event":true}' | python3 -m json.tool
+```
+```json
+{"ok": true, "now_tick": 339042, "stopped_on_event": true, "event": "energy_drain"}
+```
+
+**Check state (`now_tick` advanced to 339,042; `now_unix_ms` still 2026-04-08; energy 254):**
 ```sh
 curl -s -X POST http://localhost:7070/command \
   -H 'Content-Type: application/json' \
@@ -175,16 +190,27 @@ curl -s -X POST http://localhost:7070/command \
     "ok": true,
     "state": {
         "instance_id": "DEADBEEF",
-        "now_ts": 1744070401,
+        "now_tick": 339042,
+        "now_unix_ms": 1744070400000,
         "autotick": false,
         "character": {
             "id": "14FE67E1",
-            "birth_ts": 1744070400,
-            "energy": 255,
-            "drain_acc": 1
+            "birth_unix_ms": 1744070400000,
+            "birth_tick": 42,
+            "energy": 254
         }
     }
 }
+```
+
+**Advance wall clock independently (e.g. to test a different zodiac sign):**
+```sh
+curl -s -X POST http://localhost:7070/command \
+  -H 'Content-Type: application/json' \
+  -d '{"cmd":"set_wall_clock","now_unix_ms":1744416000000}' | python3 -m json.tool
+```
+```json
+{"ok": true}
 ```
 
 **Enable auto-tick:**
@@ -203,10 +229,10 @@ curl -N http://localhost:7070/events
 ```
 ```
 event: tick
-data: {"now_ts":1744070402}
+data: {"now_tick":340042}
 
 event: tick
-data: {"now_ts":1744070403}
+data: {"now_tick":341042}
 ```
 
 **Save state, restore it into a fresh instance:**

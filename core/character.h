@@ -7,30 +7,25 @@
 typedef uint8_t energy_t;
 
 /*
- * Energy drains by 1 unit every CHARACTER_ENERGY_DRAIN_S ticks (seconds).
+ * Energy drains by 1 unit every CHARACTER_ENERGY_DRAIN_MS milliseconds.
  * Default: full drain (255 → 0) in 24 hours.
- *   24h = 86,400 s / 255 ≈ 339 s per unit
+ *   24h = 86,400,000 ms / 255 ≈ 339,000 ms per unit
  */
-#define CHARACTER_ENERGY_DRAIN_S 339U
+#define CHARACTER_ENERGY_DRAIN_MS 339000ULL
 
 typedef struct {
-    uint32_t id;          /* randomly generated at birth */
-    uint64_t birth_ts;    /* UTC Unix epoch, seconds */
+    uint32_t id;
+    uint64_t birth_unix_ms; /* wall-clock UTC ms at birth; used for zodiac */
+    uint64_t birth_tick;    /* world now_tick at birth; virtual age = now_tick - birth_tick */
     energy_t energy;
-    uint16_t _drain_acc;  /* ticks accumulated toward next energy drop */
 } character_t;
 
 /*
  * Initialise a new character.
- * id and birth_ts are supplied by the platform (RNG + RTC).
- * Energy starts at full.
+ * birth_unix_ms — real-world UTC milliseconds (from RTC / wall clock).
+ * birth_tick — world->now_tick at the moment of spawning.
  */
-void character_init(character_t *c, uint32_t id, uint64_t birth_ts);
-
-/*
- * Advance character state by one tick (WORLD_TICK_S seconds).
- * Call this from world_tick(); do not call directly.
- */
-void character_tick(character_t *c);
+void character_init(character_t *c, uint32_t id,
+                    uint64_t birth_unix_ms, uint64_t birth_tick);
 
 #endif /* CHARACTER_H */

@@ -1,20 +1,10 @@
 #include "character.h"
 
-void character_init(character_t *c, uint32_t id, uint64_t birth_ts)
+void character_init(character_t *c, uint32_t id,
+                    uint64_t birth_unix_ms, uint64_t birth_tick)
 {
-    c->id        = id;
-    c->birth_ts  = birth_ts;
-    c->energy    = 255;
-    c->_drain_acc = 0;
-}
-
-void character_tick(character_t *c)
-{
-    if (c->energy == 0)
-        return;
-
-    if (++c->_drain_acc >= CHARACTER_ENERGY_DRAIN_S) {
-        c->_drain_acc = 0;
-        c->energy--;
-    }
+    c->id             = id;
+    c->birth_unix_ms  = birth_unix_ms;
+    c->birth_tick  = birth_tick;
+    c->energy         = 255;
 }
