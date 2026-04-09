@@ -51,27 +51,43 @@ the device, ages, needs care, and meets other creatures via Bluetooth.
 ## Architecture
 
 ```
-core/             ← pure C, zero platform dependencies
-  character.h/c   ← stats, energy drain, state machine
-  world.h/c       ← world container, tick driver, character spawning
-  zodiac.h/c      ← sign cycle, compatibility matrix (TODO)
+core/               ← pure C, zero platform dependencies
+  scheduler.h/c     ← generic min-heap priority queue (opaque tag)
+  world.h/c         ← world container, event dispatch, character spawning
+  character.h/c     ← character struct, initialisation
+  zodiac.h/c        ← sign cycle, compatibility matrix (TODO)
+  test_scheduler.c  ← scheduler unit tests (make test)
 
 platform/
   common/
-    app.h         ← app_t (world + mongoose mgr + autotick); shared by all platforms
+    app.h           ← app_t (world + mongoose mgr + autotick); shared by all platforms
   esp32/
-    main.ino      ← Arduino setup()/loop(), RTC + BLE
+    main.ino        ← Arduino setup()/loop(), RTC + BLE
   pc/
-    main.c        ← argument parsing, entry point, main loop
-    server.c/h    ← HTTP command dispatch, SSE push events
-    peer.c/h      ← stdin/stdout peer channel
-    state.c/h     ← world ↔ JSON serialisation
+    main.c          ← argument parsing, entry point, main loop
+    server.c/h      ← HTTP command dispatch, SSE push events
+    peer.c/h        ← stdin/stdout peer channel
+    state.c/h       ← world ↔ JSON serialisation
     Makefile
 
 vendor/
-  mongoose/       ← embedded HTTP server (single file, MIT)
-  cjson/          ← JSON parser/writer (single file, MIT)
+  mongoose/         ← embedded HTTP server (single file, MIT)
+  cjson/            ← JSON parser/writer (single file, MIT)
 ```
+
+### Time model
+
+Two independent clocks:
+
+| Field | Type | Description |
+|---|---|---|
+| `world.now_tick` | virtual ms | Advances via `advance_time`. Drives all game logic and the scheduler. |
+| `world.now_unix_ms` | UTC ms | Wall clock. Set from RTC (ESP32) or system clock / `set_wall_clock` (PC). Used only for zodiac. |
+
+The scheduler is a min-heap of `(fire_at_ms, tag)` events. `world_advance` pops
+and dispatches events in chronological order up to a target tick. Game logic
+(energy drain, future: hunger, sleep, …) registers recurring events rather than
+polling every tick.
 
 Business logic lives entirely in `core/`. Platform layers talk to it through
 the public API in `world.h` and `character.h`. The PC build is the primary
