@@ -134,8 +134,7 @@ Response:
 
 #### `spawn`
 
-Create a new character. Fails if a character already exists (use `escape`
-first to clear the current one).
+Create a new character. Fails if a character already exists (use `poof` first to clear the current one).
 
 Request:
 ```json
@@ -157,14 +156,14 @@ Response:
 
 ---
 
-#### `escape`
+#### `poof`
 
-The current character escapes — it leaves the device, clearing the slot so a
+The current character poofs — it leaves the device, clearing the slot so a
 new character can be spawned. Fails if no character is present.
 
 Request:
 ```json
-{ "cmd": "escape" }
+{ "cmd": "poof" }
 ```
 
 Response:
@@ -382,8 +381,8 @@ game mechanics are further defined.
 }
 ```
 
-`character` is `null` when no character has been spawned yet, or after an
-`escape`.
+`character` is `null` when no character has been spawned yet, or after a
+`poof`.
 
 ### Timestamps
 
@@ -401,7 +400,7 @@ All IDs are 8 upper-case hex digits represented as JSON strings
 
 - Commands with missing required fields return `{"ok": false, "error": "..."}`.
 - Commands that are not applicable in the current state (e.g. `spawn` when a
-  character exists, or `escape` when none does) return an error rather than
+  character exists, or `poof` when none does) return an error rather than
   silently succeeding.
 - The HTTP server returns `400 Bad Request` for malformed JSON bodies.
 - `get_screen` sent to an instance that has not yet implemented rendering
