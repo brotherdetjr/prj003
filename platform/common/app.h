@@ -4,7 +4,7 @@
 #include "../../core/world.h"
 #include "../../vendor/mongoose/mongoose.h"
 
-#define AUTOTICK 1000U  /* virtual ms advanced per real-second timer tick */
+#define AUTOTICK 100U   /* virtual ms per timer tick; timer fires 10×/sec for ~10 FPS */
 
 typedef struct {
     world_t       world;

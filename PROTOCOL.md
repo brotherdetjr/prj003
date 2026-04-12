@@ -303,6 +303,19 @@ data: <JSON>\n
 \n
 ```
 
+#### Game events (e.g. `energy_drain`)
+
+Fired when a scheduled game event is processed during an autotick or
+`advance_time` call. The SSE event name is the game event name; data carries
+the virtual tick at which it fired.
+
+```
+event: energy_drain
+data: {"now_tick": 339042}
+```
+
+Use `get_state` afterwards if the full updated state is needed.
+
 #### `peer_out`
 
 Fired when the instance's character emits a peer message (mirrors the stdout

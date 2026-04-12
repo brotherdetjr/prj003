@@ -243,11 +243,15 @@ curl -s -X POST http://localhost:7070/command \
 ```sh
 curl -N http://localhost:7070/events
 ```
+```
+event: energy_drain
+data: {"now_tick":339042}
+```
 
-`peer_in` and `peer_out` events appear here when peer interactions occur.
-In autotick mode the virtual clock advances 1,000 ticks per real second, so a
-new `energy_drain` event fires and is processed roughly every 339 real seconds —
-observable via `get_state` showing energy decreasing by 1.
+Game events (`energy_drain`, …) are pushed as they fire. `peer_in` and
+`peer_out` appear when peer interactions occur. In autotick mode the virtual
+clock advances 1,000 ticks per real second, so `energy_drain` fires roughly
+every 339 real seconds.
 
 **Save state, restore it into a fresh instance:**
 ```sh

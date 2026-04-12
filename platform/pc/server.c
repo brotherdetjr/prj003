@@ -32,7 +32,17 @@ void tick_timer_fn(void *arg)
     if (!app->autotick) return;
 
     app->world.now_unix_sec = (uint64_t)time(NULL);
-    world_advance(&app->world, AUTOTICK, 0);
+
+    uint64_t target = app->world.now_tick + AUTOTICK;
+    while (app->world.now_tick < target) {
+        uint64_t remaining = target - app->world.now_tick;
+        advance_result_t r = world_advance(&app->world, remaining, 1);
+        if (!r.stopped_on_event) break;
+        char data[64];
+        snprintf(data, sizeof(data), "{\"now_tick\":%llu}",
+                 (unsigned long long)r.now_tick);
+        sse_push(&app->mgr, world_event_name(r.event_tag), data);
+    }
 }
 
 /* ------------------------------------------------------------------ */
