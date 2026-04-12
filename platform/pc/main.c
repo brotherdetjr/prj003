@@ -18,7 +18,8 @@ static void usage(const char *prog)
         "  --nowtick=N                               initial virtual clock in ms (now_tick)\n"
         "  --wallclockutc=YYYY-MM-DDTHH:MM:SS         initial wall-clock time (now_unix_sec)\n"
         "  --file=PATH                               load world state from JSON file\n"
-        "  --noautotick                              start in manual-tick mode\n",
+        "  --noautotick                              start in manual-tick mode\n"
+        "  --help                                    show this help and exit\n",
         prog);
 }
 
@@ -98,6 +99,9 @@ int main(int argc, char *argv[])
             snprintf(load_file, sizeof(load_file), "%s", argv[i] + 7);
         } else if (strcmp(argv[i], "--noautotick") == 0) {
             app.autotick = 0;
+        } else if (strcmp(argv[i], "--help") == 0) {
+            usage(argv[0]);
+            return 0;
         } else {
             fprintf(stderr, "Unknown option: %s\n", argv[i]);
             usage(argv[0]);

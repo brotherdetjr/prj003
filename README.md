@@ -109,11 +109,13 @@ Requires GCC on Linux or macOS. No system libraries beyond libc.
 ```sh
 ./emu [OPTIONS]
 
-  --id=XXXXXXXX                   instance ID (8 hex digits); seeds PRNG
-  --port=N                        HTTP port (default: 7070)
-  --timeutc=YYYY-MM-DDTHH:MM:SS   initial virtual time (UTC)
-  --file=PATH                     load world state from JSON file
-  --noautotick                    start in manual-tick mode
+  --id=XXXXXXXX                             instance ID (8 hex digits); seeds PRNG
+  --port=N                                  HTTP port (default: 7070)
+  --nowtick=N                               initial virtual clock in ms (now_tick)
+  --wallclockutc=YYYY-MM-DDTHH:MM:SS        initial wall-clock time (now_unix_sec)
+  --file=PATH                               load world state from JSON file
+  --noautotick                              start in manual-tick mode
+  --help                                    show this help and exit
 ```
 
 Diagnostic output goes to **stderr**. **stdout** is reserved for outgoing
