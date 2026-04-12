@@ -38,10 +38,13 @@ void tick_timer_fn(void *arg)
         uint64_t remaining = target - app->world.now_tick;
         advance_result_t r = world_advance(&app->world, remaining, 1);
         if (!r.stopped_on_event) break;
+        const char *evname = world_event_name(r.event_tag);
+        fprintf(stderr, "event %s  now_tick=%llu\n",
+                evname, (unsigned long long)r.now_tick);
         char data[64];
         snprintf(data, sizeof(data), "{\"now_tick\":%llu}",
                  (unsigned long long)r.now_tick);
-        sse_push(&app->mgr, world_event_name(r.event_tag), data);
+        sse_push(&app->mgr, evname, data);
     }
 }
 
@@ -123,9 +126,12 @@ static void handle_command(struct mg_connection *c,
         cJSON_AddBoolToObject  (resp, "ok",               1);
         cJSON_AddNumberToObject(resp, "now_tick",         (double)r.now_tick);
         cJSON_AddBoolToObject  (resp, "stopped_on_event", r.stopped_on_event);
-        if (r.stopped_on_event)
-            cJSON_AddStringToObject(resp, "event",
-                                    world_event_name(r.event_tag));
+        if (r.stopped_on_event) {
+            const char *evname = world_event_name(r.event_tag);
+            fprintf(stderr, "event %s  now_tick=%llu\n",
+                    evname, (unsigned long long)r.now_tick);
+            cJSON_AddStringToObject(resp, "event", evname);
+        }
         char *resp_s = cJSON_PrintUnformatted(resp);
         mg_http_reply(c, 200, JSON_HDR, "%s\n", resp_s);
         cJSON_free(resp_s);
