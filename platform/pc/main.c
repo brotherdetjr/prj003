@@ -150,8 +150,13 @@ int main(int argc, char *argv[])
         fprintf(stderr, "Failed to listen on %s\n", addr);
         return 1;
     }
-    fprintf(stderr, "Gloxie %s  port %s  autotick %s\n",
-            app.instance_id, port, app.autotick ? "on" : "off");
+    {
+        time_t t = (time_t)app.world.now_unix_sec;
+        char tbuf[32];
+        strftime(tbuf, sizeof(tbuf), "%Y-%m-%dT%H:%M:%SZ", gmtime(&t));
+        fprintf(stderr, "Gloxie %s  autotick %s  wall %s\n",
+                app.instance_id, app.autotick ? "on" : "off", tbuf);
+    }
 
     /* autotick timer */
     mg_timer_add(&app.mgr, AUTOTICK, MG_TIMER_REPEAT, tick_timer_fn, &app);
