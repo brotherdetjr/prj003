@@ -248,6 +248,9 @@ curl -N http://localhost:7070/events
 ```
 event: energy_drain
 data: {"now_tick":678042}
+
+event: energy_drain
+data: {"now_tick":1017042}
 ```
 
 Game events (`energy_drain`, …) are pushed as they fire. `peer_in` and
