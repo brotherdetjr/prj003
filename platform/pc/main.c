@@ -16,7 +16,7 @@ static void usage(const char *prog)
         "  --id=XXXXXXXX                             instance ID (8 hex digits); seeds PRNG\n"
         "  --port=N                                  HTTP port (default: " DEFAULT_PORT ")\n"
         "  --nowtick=N                               initial virtual clock in ms (now_tick)\n"
-        "  --wallclockutc=YYYY-MM-DDTHH:MM:SS         initial wall-clock time (now_unix_sec)\n"
+        "  --wallclockutc=YYYY-MM-DDTHH:MM:SS        initial wall-clock time (now_unix_sec)\n"
         "  --file=PATH                               load world state from JSON file\n"
         "  --noautotick                              start in manual-tick mode\n"
         "  --help                                    show this help and exit\n",
