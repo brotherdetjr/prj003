@@ -142,6 +142,13 @@ Feature: HTTP API edge cases
       """
     Then the response has ok false
 
+  Scenario: set_wall_clock with a non-numeric value
+    When I post command:
+      """
+      {"cmd": "set_wall_clock", "now_unix_sec": "woe is me"}
+      """
+    Then the response has ok false
+
   Scenario: set_wall_clock with a fractional value
     When I post command:
       """
