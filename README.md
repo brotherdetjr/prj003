@@ -71,15 +71,27 @@ core/               ← pure C, zero platform dependencies
 
 platform/
   common/
-    app.h           ← app_t (world + mongoose mgr + autotick); shared by all platforms
+    app.h           ← app_t (world + mongoose mgr + autotick flag + AUTOTICK constant)
   esp32/
     main.ino        ← Arduino setup()/loop(), RTC + BLE
   pc/
     main.c          ← argument parsing, entry point, main loop
-    server.c/h      ← HTTP command dispatch, SSE push events
+    server.c/h      ← HTTP command dispatch, SSE game-event push
     peer.c/h        ← stdin/stdout peer channel
     state.c/h       ← world ↔ JSON serialisation
     Makefile
+
+tests/
+  features/
+    smoke.feature   ← happy-path scenarios from README smoke test
+    args.feature    ← CLI argument parsing, defaults, invalid inputs
+    api.feature     ← HTTP API edge cases (bad inputs, state errors)
+    environment.py  ← Behave hooks (emu lifecycle, temp-file cleanup)
+    steps/
+      steps.py      ← shared Given/When/Then step definitions
+      args_steps.py ← steps specific to CLI argument scenarios
+      api_steps.py  ← steps specific to HTTP API scenarios
+      utils.py      ← shared helpers (EMU path, post, raw_request, start_emu)
 
 vendor/
   mongoose/         ← embedded HTTP server (single file, MIT)
