@@ -136,8 +136,7 @@ int main(int argc, char *argv[])
                 app.world.now_unix_sec = arg_wallclock;
             fprintf(stderr, "Loaded state from '%s'\n", load_file);
         } else {
-            fprintf(stderr, "Warning: failed to load '%s', starting fresh\n",
-                    load_file);
+            return 1;
         }
     }
 

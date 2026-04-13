@@ -1,24 +1,7 @@
-import os
-import subprocess
-import time
-
-import requests
 from behave import given, when, then
+from utils import post, start_emu
 
-EMU = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), '../../../platform/pc/emu'))
 PORT = 17070
-
-
-def post(context, payload):
-    r = requests.post(
-        f'http://localhost:{context.port}/command',
-        json=payload,
-        timeout=5,
-    )
-    r.raise_for_status()
-    context.resp = r.json()
-    return context.resp
 
 
 # ---------------------------------------------------------------------------
@@ -27,25 +10,12 @@ def post(context, payload):
 
 @given('a running emu with id "{emu_id}" nowtick {nowtick:d} wallclock "{wallclock}" in manual-tick mode')
 def step_start_emu(context, emu_id, nowtick, wallclock):
-    context.port = PORT
-    cmd = [
-        EMU,
+    start_emu(context, [
         f'--id={emu_id}',
         f'--nowtick={nowtick}',
         f'--wallclockutc={wallclock}',
-        f'--port={PORT}',
         '--noautotick',
-    ]
-    context.emu_proc = subprocess.Popen(
-        cmd, stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
-    for _ in range(30):
-        try:
-            requests.post(f'http://localhost:{PORT}/command',
-                          json={'cmd': 'get_state'}, timeout=0.3)
-            return
-        except Exception:
-            time.sleep(0.1)
-    raise RuntimeError('emu did not start in time')
+    ], PORT)
 
 
 # ---------------------------------------------------------------------------
