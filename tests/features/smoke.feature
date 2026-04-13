@@ -10,6 +10,12 @@ Feature: Smoke — happy path from README
     And now_unix_sec is 1775606400
     And there is no character
 
+  Scenario: Wall clock can be set and read back independently
+    When I set wall clock to 1775606401
+    Then the response is ok
+    When I get wall clock
+    Then now_unix_sec is 1775606401
+
   Scenario: Character lifecycle — spawn, advance, energy drain, poof
     When I spawn a character
     Then the response is ok
@@ -32,11 +38,6 @@ Feature: Smoke — happy path from README
     When I get state
     Then now_tick is 339042
     And energy is 254
-
-    When I set wall clock to 1775606401
-    Then the response is ok
-    When I get wall clock
-    Then now_unix_sec is 1775606401
 
     When I poof the character
     Then the response is ok
