@@ -19,6 +19,22 @@ def post(context, payload):
     return context.resp
 
 
+def raw_request(context, method, path, **kwargs):
+    """Like post(), but works for any method/path and never raises on 4xx/5xx."""
+    r = requests.request(
+        method,
+        f'http://localhost:{context.port}{path}',
+        timeout=5,
+        **kwargs,
+    )
+    context.http_status = r.status_code
+    try:
+        context.resp = r.json()
+    except Exception:
+        context.resp = {}
+    return context.resp
+
+
 def wait_for_emu(port, timeout=3.0):
     deadline = time.time() + timeout
     while time.time() < deadline:

@@ -36,7 +36,7 @@ def step_get_wall_clock(context):
 @when('I spawn a character')
 def step_spawn(context):
     resp = post(context, {'cmd': 'spawn'})
-    context.state = resp['state']
+    context.state = resp.get('state')
 
 
 @when('I advance {ticks:d} ticks')
