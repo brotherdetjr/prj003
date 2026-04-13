@@ -37,11 +37,11 @@ Feature: Command-line argument parsing
     And there is no character
 
   Scenario: --file restores a character
-    Given a state file with a character "CAFEBABE" at energy 200
+    Given a state file with a character "CAFEBABE" at scripted energy 200
     And emu starts with that state file and args "--noautotick"
     When I get state
     Then the character id is "CAFEBABE"
-    And energy is 200
+    And scripted energy is 200
 
   # ---------------------------------------------------------------------------
   # Defaults

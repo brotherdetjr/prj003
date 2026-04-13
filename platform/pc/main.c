@@ -2,10 +2,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <unistd.h>
 #include "../common/app.h"
 #include "server.h"
 #include "peer.h"
 #include "state.h"
+#include "lua_bind.h"
 
 #define DEFAULT_PORT     "7070"
 
@@ -18,6 +20,8 @@ static void usage(const char *prog)
         "  --nowtick=N                               initial virtual clock in ms (now_tick)\n"
         "  --wallclockutc=YYYY-MM-DDTHH:MM:SS        initial wall-clock time (now_unix_sec)\n"
         "  --file=PATH                               load world state from JSON file\n"
+        "  --script=PATH                             Lua game script (default: scripts/energy.lua\n"
+        "                                            relative to this binary)\n"
         "  --noautotick                              start in manual-tick mode\n"
         "  --help                                    show this help and exit\n",
         prog);
@@ -80,6 +84,7 @@ int main(int argc, char *argv[])
     uint64_t    arg_nowtick    = 0;   int has_nowtick    = 0;
     uint64_t    arg_wallclock  = 0;   int has_wallclock  = 0;
     char        load_file[256] = {0};
+    char        script_arg[1024] = {0};
     uint32_t    given_id       = 0;
     int         has_id         = 0;
 
@@ -121,6 +126,12 @@ int main(int argc, char *argv[])
                 return 1;
             }
             snprintf(load_file, sizeof(load_file), "%s", argv[i] + 7);
+        } else if (strncmp(argv[i], "--script=", 9) == 0) {
+            if (*(argv[i] + 9) == '\0') {
+                fprintf(stderr, "--script requires a non-empty path\n");
+                return 1;
+            }
+            snprintf(script_arg, sizeof(script_arg), "%s", argv[i] + 9);
         } else if (strcmp(argv[i], "--noautotick") == 0) {
             app.autotick = 0;
         } else if (strcmp(argv[i], "--help") == 0) {
@@ -149,6 +160,29 @@ int main(int argc, char *argv[])
 
     world_init(&app.world, now_tick, now_unix_sec);
 
+    /* Determine script path: --script overrides; otherwise relative to binary */
+    char script_path[1024];
+    if (script_arg[0] != '\0') {
+        snprintf(script_path, sizeof(script_path), "%s", script_arg);
+    } else {
+        char binary_path[512];
+        ssize_t n = readlink("/proc/self/exe", binary_path, sizeof(binary_path) - 1);
+        if (n > 0) {
+            binary_path[n] = '\0';
+            char *slash = strrchr(binary_path, '/');
+            if (slash) *slash = '\0';
+            snprintf(script_path, sizeof(script_path),
+                     "%s/../../scripts/energy.lua", binary_path);
+        } else {
+            snprintf(script_path, sizeof(script_path), "scripts/energy.lua");
+        }
+    }
+
+    if (lua_bind_init(&app, script_path) != 0) {
+        fprintf(stderr, "Failed to initialise Lua from: %s\n", script_path);
+        return 1;
+    }
+
     if (load_file[0]) {
         if (load_state_file(&app, load_file) == 0) {
             /* explicit flags override values from the saved file */
@@ -159,6 +193,10 @@ int main(int argc, char *argv[])
             if (has_wallclock)
                 app.world.now_unix_sec = arg_wallclock;
             fprintf(stderr, "Loaded state from '%s'\n", load_file);
+            if (app.world.has_character) {
+                lua_bind_restore_scripted(&app);
+                lua_bind_call0(&app, "on_restore");
+            }
         } else {
             return 1;
         }

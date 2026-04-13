@@ -18,8 +18,14 @@ cJSON *app_state_to_json(const app_t *app)
         cJSON *c = cJSON_CreateObject();
         cJSON_AddStringToObject(c, "id",            id_str);
         cJSON_AddNumberToObject(c, "birth_unix_sec", (double)ch->birth_unix_sec);
-        cJSON_AddNumberToObject(c, "birth_tick", (double)ch->birth_tick);
-        cJSON_AddNumberToObject(c, "energy",        ch->energy);
+        cJSON_AddNumberToObject(c, "birth_tick",     (double)ch->birth_tick);
+
+        /* scripted is a JSON object owned by Lua; embed it directly */
+        const char *sj = ch->scripted_json;
+        cJSON *scripted = (sj && sj[0] != '\0') ? cJSON_Parse(sj) : NULL;
+        cJSON_AddItemToObject(c, "scripted",
+                              scripted ? scripted : cJSON_CreateObject());
+
         cJSON_AddItemToObject(root, "character", c);
     } else {
         cJSON_AddNullToObject(root, "character");
@@ -48,16 +54,26 @@ int json_to_world(world_t *w, const cJSON *json)
     cJSON *id_j       = cJSON_GetObjectItemCaseSensitive(ch, "id");
     cJSON *b_unix_j   = cJSON_GetObjectItemCaseSensitive(ch, "birth_unix_sec");
     cJSON *b_tick_j   = cJSON_GetObjectItemCaseSensitive(ch, "birth_tick");
-    cJSON *energy_j   = cJSON_GetObjectItemCaseSensitive(ch, "energy");
+    cJSON *scripted_j = cJSON_GetObjectItemCaseSensitive(ch, "scripted");
 
     if (!cJSON_IsString(id_j)     || !cJSON_IsNumber(b_unix_j) ||
-        !cJSON_IsNumber(b_tick_j) || !cJSON_IsNumber(energy_j))
+        !cJSON_IsNumber(b_tick_j))
         return -1;
 
-    w->character.id            = (uint32_t)strtoul(id_j->valuestring, NULL, 16);
-    w->character.birth_unix_sec = (uint64_t)b_unix_j->valuedouble;
-    w->character.birth_tick = (uint64_t)b_tick_j->valuedouble;
-    w->character.energy        = (uint8_t) energy_j->valueint;
+    w->character.id             = (uint32_t)strtoul(id_j->valuestring, NULL, 16);
+    w->character.birth_unix_sec  = (uint64_t)b_unix_j->valuedouble;
+    w->character.birth_tick      = (uint64_t)b_tick_j->valuedouble;
+
+    /* Serialise scripted back to JSON string for storage in character_t */
+    if (cJSON_IsObject(scripted_j)) {
+        char *s = cJSON_PrintUnformatted(scripted_j);
+        strncpy(w->character.scripted_json, s, CHARACTER_SCRIPTED_JSON_MAX - 1);
+        w->character.scripted_json[CHARACTER_SCRIPTED_JSON_MAX - 1] = '\0';
+        free(s);
+    } else {
+        w->character.scripted_json[0] = '\0';
+    }
+
     w->has_character = 1;
 
     world_rebuild_scheduler(w);

@@ -30,13 +30,13 @@ def step_state_file_empty(context, nowtick):
     _make_state_file(context, nowtick, character=None)
 
 
-@given('a state file with a character "{char_id}" at energy {energy:d}')
+@given('a state file with a character "{char_id}" at scripted energy {energy:d}')
 def step_state_file_with_character(context, char_id, energy):
     character = {
         'id': char_id,
         'birth_unix_sec': 1775606400,
         'birth_tick': 0,
-        'energy': energy,
+        'scripted': {'energy': energy},
     }
     _make_state_file(context, 0, character=character)
 

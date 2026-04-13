@@ -3,8 +3,18 @@
 
 #include "../../core/world.h"
 #include "../../vendor/mongoose/mongoose.h"
+#include "../../vendor/lua/lua.h"
 
 #define AUTOTICK 100U   /* virtual ms per timer tick; timer fires 10×/sec for ~10 FPS */
+
+/* Bit 31 set in a scheduler tag indicates a Lua-registered event. */
+#define LUA_EVENT_BIT   0x80000000U
+#define LUA_MAX_EVENTS  64U
+
+typedef struct {
+    int  lua_ref;       /* LUA_NOREF when slot is free */
+    char name[32];      /* event name for SSE / logging */
+} lua_event_t;
 
 typedef struct {
     world_t       world;
@@ -12,6 +22,9 @@ typedef struct {
     uint32_t      instance_id_raw;
     int           autotick;
     struct mg_mgr mgr;
+    lua_State    *L;
+    lua_event_t   lua_events[LUA_MAX_EVENTS];
+    char          last_event_name[32]; /* name of the most recently fired Lua event */
 } app_t;
 
 #endif /* APP_H */

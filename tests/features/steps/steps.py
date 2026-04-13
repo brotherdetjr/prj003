@@ -105,10 +105,10 @@ def step_birth_tick(context, value):
     assert actual == value, f'expected birth_tick={value}, got {actual}'
 
 
-@then('energy is {value:d}')
-def step_energy(context, value):
-    actual = context.state['character']['energy']
-    assert actual == value, f'expected energy={value}, got {actual}'
+@then('scripted energy is {value:d}')
+def step_scripted_energy(context, value):
+    actual = context.state['character']['scripted']['energy']
+    assert actual == value, f'expected scripted.energy={value}, got {actual}'
 
 
 @then('stopped_on_event is {value}')

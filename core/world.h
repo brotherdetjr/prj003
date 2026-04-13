@@ -5,26 +5,28 @@
 #include "character.h"
 #include "scheduler.h"
 
-/* Tags used to schedule world events. Interpreted by world.c dispatch. */
-typedef enum {
-    WORLD_EVENT_ENERGY_DRAIN = 0
-} world_event_tag_t;
-
-/* Human-readable name for a world event tag (for JSON responses). */
-const char *world_event_name(uint32_t tag);
+/*
+ * Callback invoked by world_advance when a scheduled event fires.
+ * The platform layer (server.c / main.ino) sets this to dispatch Lua events.
+ * `tag`  — the scheduler tag that fired.
+ * `ud`   — opaque pointer supplied at registration (app_t * on PC).
+ */
+typedef void (*world_dispatch_fn)(uint32_t tag, void *ud);
 
 typedef struct {
-    uint64_t      now_tick;     /* virtual clock in ms; advanced by world_advance */
-    uint64_t      now_unix_sec;  /* wall-clock UTC seconds; set by platform / set_wall_clock */
-    int           has_character;
-    character_t   character;
-    scheduler_t   scheduler;
+    uint64_t          now_tick;     /* virtual clock in ms; advanced by world_advance */
+    uint64_t          now_unix_sec;  /* wall-clock UTC seconds; set by platform / set_wall_clock */
+    int               has_character;
+    character_t       character;
+    scheduler_t       scheduler;
+    world_dispatch_fn dispatch_cb;  /* platform-supplied event handler; may be NULL */
+    void             *dispatch_ud;  /* userdata forwarded to dispatch_cb */
 } world_t;
 
 typedef struct {
     uint64_t now_tick;
     int      stopped_on_event;  /* non-zero if advance stopped at a fired event */
-    uint32_t event_tag;         /* meaningful only when stopped_on_event != 0 */
+    uint32_t event_tag;         /* tag of the fired event; meaningful when stopped_on_event != 0 */
 } advance_result_t;
 
 /* Initialise an empty world. now_tick and now_unix_sec are set by the caller. */
