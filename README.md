@@ -44,6 +44,17 @@ the device, ages, needs care, and meets other creatures via Bluetooth.
 - Outcome modified by current day's sign "luck" stat
 - Could be "rock paper scissors"
 
+### Touchscreen latency
+The render loop targets 100 ms per frame (10 FPS). For the care loop (feed,
+play, dismiss) this is imperceptible — interactions are discrete taps with no
+precision timing required, and 100 ms is within the range users find
+responsive for button-style input. The original Tamagotchi was slower.
+
+The one exception is a pure reflex mini-game: 100 ms of input latency eats
+meaningfully into the player's reaction budget. **Design mini-game mechanics
+to be forgiving of this** — rock-paper-scissors is fine; a narrow tap-window
+game is not.
+
 ### Aura visualization
 - Each sign has an associated color/glow
 - Visible on screen; pulses during BLE encounters
