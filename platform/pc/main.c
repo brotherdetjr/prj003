@@ -85,17 +85,41 @@ int main(int argc, char *argv[])
 
     for (int i = 1; i < argc; i++) {
         if (strncmp(argv[i], "--id=", 5) == 0) {
-            given_id = (uint32_t)strtoul(argv[i] + 5, NULL, 16);
+            const char *s = argv[i] + 5;
+            char *end;
+            if (*s == '\0') {
+                fprintf(stderr, "--id requires a non-empty hex value\n");
+                return 1;
+            }
+            given_id = (uint32_t)strtoul(s, &end, 16);
+            if (*end != '\0') {
+                fprintf(stderr, "Invalid --id value: %s\n", s);
+                return 1;
+            }
             has_id = 1;
         } else if (strncmp(argv[i], "--port=", 7) == 0) {
             port = argv[i] + 7;
         } else if (strncmp(argv[i], "--nowtick=", 10) == 0) {
-            arg_nowtick = (uint64_t)strtoull(argv[i] + 10, NULL, 10);
+            const char *s = argv[i] + 10;
+            char *end;
+            if (*s == '\0') {
+                fprintf(stderr, "--nowtick requires a numeric value\n");
+                return 1;
+            }
+            arg_nowtick = (uint64_t)strtoull(s, &end, 10);
+            if (*end != '\0') {
+                fprintf(stderr, "Invalid --nowtick value: %s\n", s);
+                return 1;
+            }
             has_nowtick = 1;
         } else if (strncmp(argv[i], "--wallclockutc=", 15) == 0) {
             arg_wallclock = parse_wallclockutc(argv[i] + 15);
             has_wallclock = 1;
         } else if (strncmp(argv[i], "--file=", 7) == 0) {
+            if (*(argv[i] + 7) == '\0') {
+                fprintf(stderr, "--file requires a non-empty path\n");
+                return 1;
+            }
             snprintf(load_file, sizeof(load_file), "%s", argv[i] + 7);
         } else if (strcmp(argv[i], "--noautotick") == 0) {
             app.autotick = 0;

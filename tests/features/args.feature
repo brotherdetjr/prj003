@@ -81,6 +81,26 @@ Feature: Command-line argument parsing
     When emu is invoked with args "--file=/nonexistent/state.json"
     Then the exit code is 1
 
+  Scenario: --id with empty value exits with an error
+    When emu is invoked with args "--id="
+    Then the exit code is 1
+
+  Scenario: --id with non-hex value exits with an error
+    When emu is invoked with args "--id=!!!"
+    Then the exit code is 1
+
+  Scenario: --nowtick with empty value exits with an error
+    When emu is invoked with args "--nowtick="
+    Then the exit code is 1
+
+  Scenario: --nowtick with non-numeric value exits with an error
+    When emu is invoked with args "--nowtick=abc"
+    Then the exit code is 1
+
+  Scenario: --file with empty path exits with an error
+    When emu is invoked with args "--file="
+    Then the exit code is 1
+
   Scenario: --help exits with code 0
     When emu is invoked with args "--help"
     Then the exit code is 0
