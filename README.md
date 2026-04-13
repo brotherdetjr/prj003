@@ -104,6 +104,26 @@ make
 
 Requires GCC on Linux or macOS. No system libraries beyond libc.
 
+### Tests
+
+Unit tests (scheduler):
+
+```sh
+cd platform/pc
+make test
+```
+
+Integration tests (Behave/Cucumber) — requires Python 3 with `behave` and
+`requests`:
+
+```sh
+pip install behave requests
+cd tests
+python3 -m behave
+```
+
+Build the `emu` binary before running integration tests.
+
 ### Start
 
 ```sh
