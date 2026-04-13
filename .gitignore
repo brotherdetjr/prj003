@@ -5,3 +5,4 @@ platform/pc/*.o
 
 # State save files
 platform/pc/*.json
+tests/features/steps/__pycache__/
