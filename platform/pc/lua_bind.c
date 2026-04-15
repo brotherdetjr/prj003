@@ -275,7 +275,7 @@ void lua_bind_dispatch(uint32_t tag, void *ud)
     strncpy(name, app->lua_events[slot].name, sizeof(name) - 1);
     name[sizeof(name) - 1] = '\0';
 
-    /* Capture for last_event_name, free slot before calling fn */
+    /* Capture for caller; free slot before calling fn (fn may reschedule) */
     strncpy(app->last_event_name, name, sizeof(app->last_event_name) - 1);
     app->last_event_name[sizeof(app->last_event_name) - 1] = '\0';
     app->lua_events[slot].name[0] = '\0';
