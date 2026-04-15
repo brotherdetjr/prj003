@@ -190,6 +190,7 @@ int main(int argc, char *argv[])
         }
     }
 
+    strncpy(app.script_path, script_path, sizeof(app.script_path) - 1);
     if (lua_bind_init(&app, script_path) != 0) {
         fprintf(stderr, "Failed to initialise Lua from: %s\n", script_path);
         return 1;

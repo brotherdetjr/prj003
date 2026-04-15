@@ -7,6 +7,7 @@ cJSON *app_state_to_json(const app_t *app)
 {
     cJSON *root = cJSON_CreateObject();
     cJSON_AddStringToObject(root, "instance_id",  app->instance_id);
+    cJSON_AddStringToObject(root, "script",       app->script_path);
     cJSON_AddNumberToObject(root, "now_tick",      (double)app->world.now_tick);
     cJSON_AddNumberToObject(root, "now_unix_sec",   (double)app->world.now_unix_sec);
     cJSON_AddBoolToObject  (root, "autotick",      app->autotick);

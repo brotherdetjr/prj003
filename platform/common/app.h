@@ -17,13 +17,14 @@ typedef struct {
 
 typedef struct {
     world_t       world;
-    char          instance_id[9];  /* "XXXXXXXX\0" */
+    char          instance_id[9];    /* "XXXXXXXX\0" */
     uint32_t      instance_id_raw;
     int           autotick;
     struct mg_mgr mgr;
     lua_State    *L;
     lua_event_t   lua_events[LUA_MAX_EVENTS];
     char          last_event_name[32]; /* name of the most recently fired Lua event */
+    char          script_path[512];  /* path of the loaded Lua script */
 } app_t;
 
 #endif /* APP_H */
