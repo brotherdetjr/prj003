@@ -138,3 +138,10 @@ def step_scheduler_has_event(context, event, tick):
 def step_scheduler_empty(context):
     sched = context.state.get('scheduler', [])
     assert sched == [], f'expected empty scheduler, got: {sched}'
+
+
+@then('the script path ends with "{suffix}"')
+def step_script_ends_with(context, suffix):
+    actual = context.state.get('script', '')
+    assert actual.endswith(suffix), \
+        f'expected script ending with {suffix!r}, got {actual!r}'

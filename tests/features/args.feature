@@ -24,6 +24,11 @@ Feature: Command-line argument parsing
     When I get state
     Then autotick is false
 
+  Scenario: --script appears in state JSON
+    Given emu starts with args "--nowtick=0 --noautotick" and the default script
+    When I get state
+    Then the script path ends with "scripts/energy.lua"
+
   Scenario: --port changes the listening port
     Given emu starts on port 17072 with args "--nowtick=0 --noautotick"
     When I get state

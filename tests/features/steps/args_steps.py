@@ -15,9 +15,20 @@ ARGS_PORT = 17071
 # Given — start emu
 # ---------------------------------------------------------------------------
 
+DEFAULT_SCRIPT = os.path.abspath(
+    os.path.join(os.path.dirname(EMU), '../../scripts/energy.lua'))
+
+
 @given('emu starts with args "{args_str}"')
 def step_emu_starts(context, args_str):
     start_emu(context, shlex.split(args_str), ARGS_PORT)
+
+
+@given('emu starts with args "{args_str}" and the default script')
+def step_emu_starts_with_default_script(context, args_str):
+    start_emu(context,
+              shlex.split(args_str) + [f'--script={DEFAULT_SCRIPT}'],
+              ARGS_PORT)
 
 
 @given('emu starts on port {port:d} with args "{args_str}"')
