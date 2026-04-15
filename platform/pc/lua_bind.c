@@ -6,24 +6,33 @@
 #include "../../vendor/lua/lauxlib.h"
 #include "../../vendor/cjson/cJSON.h"
 
+/* Registry keys */
+#define REG_APP    "_gloxie_app"
+#define REG_GLOXIE "_gloxie_table"
+
 /* ------------------------------------------------------------------ */
 /* Helpers                                                              */
 /* ------------------------------------------------------------------ */
 
-/* Retrieve the app_t pointer stored in the Lua registry. */
 static app_t *get_app(lua_State *L)
 {
-    lua_getfield(L, LUA_REGISTRYINDEX, "_gloxie_app");
+    lua_getfield(L, LUA_REGISTRYINDEX, REG_APP);
     app_t *app = (app_t *)lua_touserdata(L, -1);
     lua_pop(L, 1);
     return app;
+}
+
+/* Push the gloxie table onto the Lua stack. */
+static void push_gloxie(lua_State *L)
+{
+    lua_getfield(L, LUA_REGISTRYINDEX, REG_GLOXIE);
 }
 
 /* Find a free slot in app->lua_events[]. Returns -1 if full. */
 static int alloc_event_slot(app_t *app)
 {
     for (unsigned i = 0; i < LUA_MAX_EVENTS; i++) {
-        if (app->lua_events[i].lua_ref == LUA_NOREF)
+        if (app->lua_events[i].name[0] == '\0')
             return (int)i;
     }
     return -1;
@@ -71,16 +80,16 @@ static int l_character(lua_State *L)
 }
 
 /*
- * gloxie.schedule(delay_ms, fn, name)
- * Schedule `fn` to fire after `delay_ms` virtual milliseconds.
- * `name` is used for SSE event type and logging.
+ * gloxie.schedule(delay_ms, event_name)
+ * Schedule a call to the Lua global `event_name(gloxie)` after
+ * `delay_ms` virtual milliseconds. `event_name` is also used as
+ * the SSE event type when the scheduler fires it.
  */
 static int l_schedule(lua_State *L)
 {
     app_t *app = get_app(L);
     lua_Integer delay = luaL_checkinteger(L, 1);
-    luaL_checktype(L, 2, LUA_TFUNCTION);
-    const char *name = luaL_checkstring(L, 3);
+    const char *name  = luaL_checkstring(L, 2);
 
     if (delay < 0)
         return luaL_error(L, "schedule: delay_ms must be >= 0");
@@ -89,11 +98,8 @@ static int l_schedule(lua_State *L)
     if (slot < 0)
         return luaL_error(L, "schedule: lua_events table full");
 
-    /* Store function in Lua registry */
-    lua_pushvalue(L, 2);
-    int ref = luaL_ref(L, LUA_REGISTRYINDEX);
-    app->lua_events[slot].lua_ref = ref;
-    strncpy(app->lua_events[slot].name, name, sizeof(app->lua_events[slot].name) - 1);
+    strncpy(app->lua_events[slot].name, name,
+            sizeof(app->lua_events[slot].name) - 1);
     app->lua_events[slot].name[sizeof(app->lua_events[slot].name) - 1] = '\0';
 
     uint32_t tag = LUA_EVENT_BIT | (uint32_t)slot;
@@ -106,7 +112,6 @@ static int l_schedule(lua_State *L)
 /* scripted table → JSON and back                                       */
 /* ------------------------------------------------------------------ */
 
-/* Forward decl */
 static cJSON *lua_table_to_cjson(lua_State *L, int idx);
 
 static cJSON *lua_value_to_cjson(lua_State *L, int idx)
@@ -147,7 +152,7 @@ void lua_bind_flush_scripted(app_t *app)
     if (!app->world.has_character) return;
     lua_State *L = app->L;
 
-    lua_getglobal(L, "gloxie");
+    push_gloxie(L);
     lua_getfield(L, -1, "scripted");
 
     cJSON *obj = lua_table_to_cjson(L, -1);
@@ -159,6 +164,15 @@ void lua_bind_flush_scripted(app_t *app)
     cJSON_Delete(obj);
 
     lua_pop(L, 2); /* scripted, gloxie */
+}
+
+void lua_bind_reset_scripted(app_t *app)
+{
+    lua_State *L = app->L;
+    push_gloxie(L);
+    lua_newtable(L);
+    lua_setfield(L, -2, "scripted");
+    lua_pop(L, 1);
 }
 
 static void cjson_to_lua_table(lua_State *L, const cJSON *obj)
@@ -187,22 +201,13 @@ static void cjson_to_lua_table(lua_State *L, const cJSON *obj)
     }
 }
 
-void lua_bind_reset_scripted(app_t *app)
-{
-    lua_State *L = app->L;
-    lua_getglobal(L, "gloxie");
-    lua_newtable(L);
-    lua_setfield(L, -2, "scripted");
-    lua_pop(L, 1);
-}
-
 void lua_bind_restore_scripted(app_t *app)
 {
     if (!app->world.has_character) return;
     lua_State *L = app->L;
     const char *json = app->world.character.scripted_json;
 
-    lua_getglobal(L, "gloxie");
+    push_gloxie(L);
 
     cJSON *obj = NULL;
     if (json && json[0] != '\0')
@@ -220,6 +225,41 @@ void lua_bind_restore_scripted(app_t *app)
 }
 
 /* ------------------------------------------------------------------ */
+/* Scheduler restore                                                    */
+/* ------------------------------------------------------------------ */
+
+void lua_bind_restore_scheduler(app_t *app, const cJSON *arr)
+{
+    /* Clear all slots and the scheduler */
+    for (unsigned i = 0; i < LUA_MAX_EVENTS; i++)
+        app->lua_events[i].name[0] = '\0';
+    scheduler_clear(&app->world.scheduler);
+
+    if (!cJSON_IsArray(arr)) return;
+
+    const cJSON *entry;
+    cJSON_ArrayForEach(entry, arr) {
+        cJSON *fire_j = cJSON_GetObjectItemCaseSensitive(entry, "fire_at_ms");
+        cJSON *name_j = cJSON_GetObjectItemCaseSensitive(entry, "event");
+        if (!cJSON_IsNumber(fire_j) || !cJSON_IsString(name_j)) continue;
+
+        int slot = alloc_event_slot(app);
+        if (slot < 0) {
+            fprintf(stderr, "lua_bind_restore_scheduler: event table full\n");
+            break;
+        }
+
+        strncpy(app->lua_events[slot].name, name_j->valuestring,
+                sizeof(app->lua_events[slot].name) - 1);
+        app->lua_events[slot].name[sizeof(app->lua_events[slot].name) - 1] = '\0';
+
+        uint64_t fire_at_ms = (uint64_t)fire_j->valuedouble;
+        scheduler_add(&app->world.scheduler,
+                      fire_at_ms, LUA_EVENT_BIT | (uint32_t)slot);
+    }
+}
+
+/* ------------------------------------------------------------------ */
 /* Dispatch                                                             */
 /* ------------------------------------------------------------------ */
 
@@ -229,27 +269,27 @@ void lua_bind_dispatch(uint32_t tag, void *ud)
     if (!(tag & LUA_EVENT_BIT)) return;
 
     uint32_t slot = tag & ~LUA_EVENT_BIT;
-    if (slot >= LUA_MAX_EVENTS) return;
+    if (slot >= LUA_MAX_EVENTS || app->lua_events[slot].name[0] == '\0') return;
 
-    int ref = app->lua_events[slot].lua_ref;
-    if (ref == LUA_NOREF) return;
+    char name[32];
+    strncpy(name, app->lua_events[slot].name, sizeof(name) - 1);
+    name[sizeof(name) - 1] = '\0';
 
-    /* Capture name for caller before freeing the slot */
-    strncpy(app->last_event_name, app->lua_events[slot].name,
-            sizeof(app->last_event_name) - 1);
+    /* Capture for last_event_name, free slot before calling fn */
+    strncpy(app->last_event_name, name, sizeof(app->last_event_name) - 1);
     app->last_event_name[sizeof(app->last_event_name) - 1] = '\0';
-
-    /* Free the slot before calling the function — fn may reschedule itself */
-    app->lua_events[slot].lua_ref = LUA_NOREF;
     app->lua_events[slot].name[0] = '\0';
 
     lua_State *L = app->L;
-    lua_rawgeti(L, LUA_REGISTRYINDEX, ref);
-    luaL_unref(L, LUA_REGISTRYINDEX, ref);
-
-    if (lua_pcall(L, 0, 0, 0) != LUA_OK) {
-        fprintf(stderr, "Lua error in event handler: %s\n",
-                lua_tostring(L, -1));
+    lua_getglobal(L, name);
+    if (!lua_isfunction(L, -1)) {
+        fprintf(stderr, "Lua: no global function '%s' for scheduled event\n", name);
+        lua_pop(L, 1);
+        return;
+    }
+    push_gloxie(L);
+    if (lua_pcall(L, 1, 0, 0) != LUA_OK) {
+        fprintf(stderr, "Lua error in %s: %s\n", name, lua_tostring(L, -1));
         lua_pop(L, 1);
     }
 }
@@ -258,7 +298,7 @@ void lua_bind_dispatch(uint32_t tag, void *ud)
 /* Call helper                                                          */
 /* ------------------------------------------------------------------ */
 
-void lua_bind_call0(app_t *app, const char *fn_name)
+void lua_bind_call(app_t *app, const char *fn_name)
 {
     lua_State *L = app->L;
     lua_getglobal(L, fn_name);
@@ -266,9 +306,9 @@ void lua_bind_call0(app_t *app, const char *fn_name)
         lua_pop(L, 1);
         return;
     }
-    if (lua_pcall(L, 0, 0, 0) != LUA_OK) {
-        fprintf(stderr, "Lua error in %s: %s\n",
-                fn_name, lua_tostring(L, -1));
+    push_gloxie(L);
+    if (lua_pcall(L, 1, 0, 0) != LUA_OK) {
+        fprintf(stderr, "Lua error in %s: %s\n", fn_name, lua_tostring(L, -1));
         lua_pop(L, 1);
     }
 }
@@ -296,23 +336,18 @@ int lua_bind_init(app_t *app, const char *script_path)
 
     /* Store app pointer in registry */
     lua_pushlightuserdata(L, app);
-    lua_setfield(L, LUA_REGISTRYINDEX, "_gloxie_app");
+    lua_setfield(L, LUA_REGISTRYINDEX, REG_APP);
 
-    /* Create gloxie module table */
+    /* Build gloxie table and store it in the registry (not as a global) */
     lua_newtable(L);
     luaL_setfuncs(L, gloxie_funcs, 0);
-
-    /* gloxie.scripted starts as an empty table; populated on spawn/restore */
-    lua_newtable(L);
+    lua_newtable(L);                        /* gloxie.scripted = {} */
     lua_setfield(L, -2, "scripted");
-
-    lua_setglobal(L, "gloxie");
+    lua_setfield(L, LUA_REGISTRYINDEX, REG_GLOXIE);
 
     /* Initialise event slots */
-    for (unsigned i = 0; i < LUA_MAX_EVENTS; i++) {
-        app->lua_events[i].lua_ref = LUA_NOREF;
+    for (unsigned i = 0; i < LUA_MAX_EVENTS; i++)
         app->lua_events[i].name[0] = '\0';
-    }
 
     /* Wire world dispatch */
     app->world.dispatch_cb = lua_bind_dispatch;

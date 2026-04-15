@@ -31,6 +31,20 @@ cJSON *app_state_to_json(const app_t *app)
         cJSON_AddNullToObject(root, "character");
     }
 
+    /* Scheduler: array of {fire_at_ms, event} for each pending Lua event */
+    cJSON *sched = cJSON_CreateArray();
+    for (int i = 0; i < app->world.scheduler.count; i++) {
+        const scheduled_event_t *ev = &app->world.scheduler.heap[i];
+        if (!(ev->tag & LUA_EVENT_BIT)) continue;
+        uint32_t slot = ev->tag & ~LUA_EVENT_BIT;
+        if (slot >= LUA_MAX_EVENTS || app->lua_events[slot].name[0] == '\0') continue;
+        cJSON *entry = cJSON_CreateObject();
+        cJSON_AddNumberToObject(entry, "fire_at_ms", (double)ev->fire_at_ms);
+        cJSON_AddStringToObject(entry, "event",      app->lua_events[slot].name);
+        cJSON_AddItemToArray(sched, entry);
+    }
+    cJSON_AddItemToObject(root, "scheduler", sched);
+
     return root;
 }
 

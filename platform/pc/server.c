@@ -162,7 +162,7 @@ static void handle_command(struct mg_connection *c,
         world_spawn_character(&app->world, char_id);
         if (app->L) {
             lua_bind_reset_scripted(app);
-            lua_bind_call0(app, "on_spawn");
+            lua_bind_call(app, "on_spawn");
         }
         reply_state(c, app);
 
@@ -172,7 +172,6 @@ static void handle_command(struct mg_connection *c,
             reply_error(c, "no character");
             goto done;
         }
-        if (app->L) lua_bind_call0(app, "on_poof");
         world_poof_character(&app->world);
         reply_ok(c);
 
@@ -223,9 +222,11 @@ static void handle_command(struct mg_connection *c,
             goto done;
         }
         app->world = new_world;
-        if (app->L && app->world.has_character) {
-            lua_bind_restore_scripted(app);
-            lua_bind_call0(app, "on_restore");
+        if (app->L) {
+            if (app->world.has_character)
+                lua_bind_restore_scripted(app);
+            lua_bind_restore_scheduler(app,
+                cJSON_GetObjectItemCaseSensitive(state_j, "scheduler"));
         }
         reply_ok(c);
 

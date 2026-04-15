@@ -122,3 +122,19 @@ def step_stopped_on_event(context, value):
 def step_event_name(context, name):
     actual = context.resp.get('event')
     assert actual == name, f'expected event={name!r}, got {actual!r}'
+
+
+@then('the scheduler has an "{event}" event at tick {tick:d}')
+def step_scheduler_has_event(context, event, tick):
+    sched = context.state.get('scheduler', [])
+    for entry in sched:
+        if entry.get('event') == event and int(entry.get('fire_at_ms', -1)) == tick:
+            return
+    assert False, \
+        f'no {event!r} event at tick {tick} in scheduler: {sched}'
+
+
+@then('the scheduler is empty')
+def step_scheduler_empty(context):
+    sched = context.state.get('scheduler', [])
+    assert sched == [], f'expected empty scheduler, got: {sched}'

@@ -70,8 +70,20 @@ static int load_state_file(app_t *app, const char *path)
     if (!json) { fprintf(stderr, "%s: malformed JSON\n", path); return -1; }
 
     int rc = json_to_world(&app->world, json);
+    if (rc != 0) {
+        cJSON_Delete(json);
+        fprintf(stderr, "%s: invalid state\n", path);
+        return -1;
+    }
+
+    if (app->L) {
+        if (app->world.has_character)
+            lua_bind_restore_scripted(app);
+        lua_bind_restore_scheduler(app,
+            cJSON_GetObjectItemCaseSensitive(json, "scheduler"));
+    }
+
     cJSON_Delete(json);
-    if (rc != 0) { fprintf(stderr, "%s: invalid state\n", path); return -1; }
     return 0;
 }
 
@@ -193,10 +205,6 @@ int main(int argc, char *argv[])
             if (has_wallclock)
                 app.world.now_unix_sec = arg_wallclock;
             fprintf(stderr, "Loaded state from '%s'\n", load_file);
-            if (app.world.has_character) {
-                lua_bind_restore_scripted(&app);
-                lua_bind_call0(&app, "on_restore");
-            }
         } else {
             return 1;
         }

@@ -1,28 +1,21 @@
 -- Energy drain script for Gloxie
 -- Energy: 255 (full) → 0 (exhausted) over 24 hours.
 -- One unit drains every 339,000 virtual milliseconds.
+--
+-- `gloxie` is passed as the first argument to every callback and lifecycle hook.
 
 local DRAIN_MS = 339000
 
-local function do_drain()
+-- Called by the scheduler; name matches gloxie.schedule(DRAIN_MS, "energy_drain").
+function energy_drain(gloxie)
     local e = gloxie.scripted.energy or 0
     if e > 0 then
         gloxie.scripted.energy = e - 1
     end
-    -- Reschedule regardless so the event keeps firing (even at 0)
-    gloxie.schedule(DRAIN_MS, do_drain, "energy_drain")
+    gloxie.schedule(DRAIN_MS, "energy_drain")
 end
 
-function on_spawn()
+function on_spawn(gloxie)
     gloxie.scripted.energy = 255
-    gloxie.schedule(DRAIN_MS, do_drain, "energy_drain")
-end
-
-function on_restore()
-    -- Re-queue one drain cycle from now so energy keeps ticking
-    gloxie.schedule(DRAIN_MS, do_drain, "energy_drain")
-end
-
-function on_poof()
-    -- Nothing to clean up; scheduler is cleared by world_poof_character
+    gloxie.schedule(DRAIN_MS, "energy_drain")
 end

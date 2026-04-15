@@ -12,8 +12,7 @@
 #define LUA_MAX_EVENTS  64U
 
 typedef struct {
-    int  lua_ref;       /* LUA_NOREF when slot is free */
-    char name[32];      /* event name for SSE / logging */
+    char name[32];  /* empty string when slot is free; also the Lua global fn to call */
 } lua_event_t;
 
 typedef struct {
