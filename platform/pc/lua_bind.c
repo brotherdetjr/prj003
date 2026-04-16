@@ -147,23 +147,14 @@ static cJSON *lua_table_to_cjson(lua_State *L, int idx)
     return obj;
 }
 
-void lua_bind_flush_scripted(app_t *app)
+cJSON *lua_bind_scripted_to_cjson(app_t *app)
 {
-    if (!app->world.has_character) return;
     lua_State *L = app->L;
-
     push_gloxie(L);
     lua_getfield(L, -1, "scripted");
-
     cJSON *obj = lua_table_to_cjson(L, -1);
-    char *s = cJSON_PrintUnformatted(obj);
-    strncpy(app->world.character.scripted_json, s,
-            CHARACTER_SCRIPTED_JSON_MAX - 1);
-    app->world.character.scripted_json[CHARACTER_SCRIPTED_JSON_MAX - 1] = '\0';
-    cJSON_free(s);
-    cJSON_Delete(obj);
-
     lua_pop(L, 2); /* scripted, gloxie */
+    return obj;
 }
 
 void lua_bind_reset_scripted(app_t *app)
@@ -201,25 +192,15 @@ static void cjson_to_lua_table(lua_State *L, const cJSON *obj)
     }
 }
 
-void lua_bind_restore_scripted(app_t *app)
+void lua_bind_restore_scripted(app_t *app, const cJSON *scripted)
 {
     if (!app->world.has_character) return;
     lua_State *L = app->L;
-    const char *json = app->world.character.scripted_json;
-
     push_gloxie(L);
-
-    cJSON *obj = NULL;
-    if (json && json[0] != '\0')
-        obj = cJSON_Parse(json);
-
-    if (obj && cJSON_IsObject(obj)) {
-        cjson_to_lua_table(L, obj);
-        cJSON_Delete(obj);
-    } else {
-        if (obj) cJSON_Delete(obj);
+    if (scripted && cJSON_IsObject(scripted))
+        cjson_to_lua_table(L, scripted);
+    else
         lua_newtable(L);
-    }
     lua_setfield(L, -2, "scripted");
     lua_pop(L, 1); /* gloxie */
 }

@@ -7,6 +7,4 @@ void character_init(character_t *c, uint32_t id,
     c->id             = id;
     c->birth_unix_sec  = birth_unix_sec;
     c->birth_tick     = birth_tick;
-    /* scripted_json starts empty; Lua on_spawn() will populate it */
-    c->scripted_json[0] = '\0';
 }

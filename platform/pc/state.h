@@ -5,7 +5,7 @@
 #include "../../vendor/cjson/cJSON.h"
 
 /* Serialise full app state to a cJSON object (caller must cJSON_Delete). */
-cJSON *app_state_to_json(const app_t *app);
+cJSON *app_state_to_json(app_t *app);
 
 /*
  * Deserialise world state (now_ts + character) from a cJSON State object.

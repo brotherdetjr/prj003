@@ -2,8 +2,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include "state.h"
+#include "lua_bind.h"
 
-cJSON *app_state_to_json(const app_t *app)
+cJSON *app_state_to_json(app_t *app)
 {
     cJSON *root = cJSON_CreateObject();
     cJSON_AddStringToObject(root, "instance_id",  app->instance_id);
@@ -21,11 +22,8 @@ cJSON *app_state_to_json(const app_t *app)
         cJSON_AddNumberToObject(c, "birth_unix_sec", (double)ch->birth_unix_sec);
         cJSON_AddNumberToObject(c, "birth_tick",     (double)ch->birth_tick);
 
-        /* scripted is a JSON object owned by Lua; embed it directly */
-        const char *sj = ch->scripted_json;
-        cJSON *scripted = (sj && sj[0] != '\0') ? cJSON_Parse(sj) : NULL;
-        cJSON_AddItemToObject(c, "scripted",
-                              scripted ? scripted : cJSON_CreateObject());
+        cJSON *scripted = app->L ? lua_bind_scripted_to_cjson(app) : cJSON_CreateObject();
+        cJSON_AddItemToObject(c, "scripted", scripted);
 
         cJSON_AddItemToObject(root, "character", c);
     } else {
@@ -66,10 +64,9 @@ int json_to_world(world_t *w, const cJSON *json)
     }
     if (!cJSON_IsObject(ch)) return -1;
 
-    cJSON *id_j       = cJSON_GetObjectItemCaseSensitive(ch, "id");
-    cJSON *b_unix_j   = cJSON_GetObjectItemCaseSensitive(ch, "birth_unix_sec");
-    cJSON *b_tick_j   = cJSON_GetObjectItemCaseSensitive(ch, "birth_tick");
-    cJSON *scripted_j = cJSON_GetObjectItemCaseSensitive(ch, "scripted");
+    cJSON *id_j     = cJSON_GetObjectItemCaseSensitive(ch, "id");
+    cJSON *b_unix_j = cJSON_GetObjectItemCaseSensitive(ch, "birth_unix_sec");
+    cJSON *b_tick_j = cJSON_GetObjectItemCaseSensitive(ch, "birth_tick");
 
     if (!cJSON_IsString(id_j)     || !cJSON_IsNumber(b_unix_j) ||
         !cJSON_IsNumber(b_tick_j))
@@ -78,16 +75,6 @@ int json_to_world(world_t *w, const cJSON *json)
     w->character.id             = (uint32_t)strtoul(id_j->valuestring, NULL, 16);
     w->character.birth_unix_sec  = (uint64_t)b_unix_j->valuedouble;
     w->character.birth_tick      = (uint64_t)b_tick_j->valuedouble;
-
-    /* Serialise scripted back to JSON string for storage in character_t */
-    if (cJSON_IsObject(scripted_j)) {
-        char *s = cJSON_PrintUnformatted(scripted_j);
-        strncpy(w->character.scripted_json, s, CHARACTER_SCRIPTED_JSON_MAX - 1);
-        w->character.scripted_json[CHARACTER_SCRIPTED_JSON_MAX - 1] = '\0';
-        free(s);
-    } else {
-        w->character.scripted_json[0] = '\0';
-    }
 
     w->has_character = 1;
 

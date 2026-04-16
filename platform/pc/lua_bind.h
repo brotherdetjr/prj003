@@ -18,11 +18,11 @@ int lua_bind_init(app_t *app, const char *script_path);
 void lua_bind_call(app_t *app, const char *fn_name);
 
 /*
- * Serialise gloxie.scripted to a JSON string and write it into
- * app->world.character.scripted_json.
- * Call before saving state.
+ * Return gloxie.scripted as a cJSON object (caller must cJSON_Delete).
+ * Used by app_state_to_json to embed scripted state without an intermediate
+ * string buffer.
  */
-void lua_bind_flush_scripted(app_t *app);
+cJSON *lua_bind_scripted_to_cjson(app_t *app);
 
 /*
  * Reset gloxie.scripted to an empty table.
@@ -31,10 +31,11 @@ void lua_bind_flush_scripted(app_t *app);
 void lua_bind_reset_scripted(app_t *app);
 
 /*
- * Populate gloxie.scripted from app->world.character.scripted_json.
+ * Populate gloxie.scripted from a cJSON object.
  * Call after restoring state (set_state / --file load).
+ * Passing NULL or a non-object resets scripted to an empty table.
  */
-void lua_bind_restore_scripted(app_t *app);
+void lua_bind_restore_scripted(app_t *app, const cJSON *scripted);
 
 /*
  * Restore the scheduler from a JSON array of {fire_at_ms, event} objects.

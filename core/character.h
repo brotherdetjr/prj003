@@ -3,14 +3,10 @@
 
 #include <stdint.h>
 
-/* Maximum size of the Lua-controlled scripted-state JSON blob */
-#define CHARACTER_SCRIPTED_JSON_MAX 4096
-
 typedef struct {
     uint32_t id;
     uint64_t birth_unix_sec; /* wall-clock UTC seconds at birth; used for zodiac */
     uint64_t birth_tick;    /* world now_tick at birth; virtual age = now_tick - birth_tick */
-    char     scripted_json[CHARACTER_SCRIPTED_JSON_MAX]; /* Lua-owned state, serialised as JSON */
 } character_t;
 
 /*

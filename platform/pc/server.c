@@ -83,8 +83,6 @@ static void reply_error(struct mg_connection *c, const char *msg)
 
 static void reply_state(struct mg_connection *c, app_t *app)
 {
-    /* Sync Lua scripted table → character.scripted_json before serialising */
-    if (app->L) lua_bind_flush_scripted(app);
     cJSON *state = app_state_to_json(app);
     char  *s     = cJSON_PrintUnformatted(state);
     mg_http_reply(c, 200, JSON_HDR, "{\"ok\":true,\"state\":%s}\n", s);
@@ -223,8 +221,13 @@ static void handle_command(struct mg_connection *c,
         }
         app->world = new_world;
         if (app->L) {
-            if (app->world.has_character)
-                lua_bind_restore_scripted(app);
+            if (app->world.has_character) {
+                cJSON *ch_j = cJSON_GetObjectItemCaseSensitive(state_j, "character");
+                lua_bind_restore_scripted(app,
+                    cJSON_IsObject(ch_j)
+                        ? cJSON_GetObjectItemCaseSensitive(ch_j, "scripted")
+                        : NULL);
+            }
             lua_bind_restore_scheduler(app,
                 cJSON_GetObjectItemCaseSensitive(state_j, "scheduler"));
         }
