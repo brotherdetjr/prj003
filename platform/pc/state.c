@@ -78,6 +78,6 @@ int json_to_world(world_t *w, const cJSON *json)
 
     w->has_character = 1;
 
-    world_rebuild_scheduler(w);
+    scheduler_clear(&w->scheduler);
     return 0;
 }

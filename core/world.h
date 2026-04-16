@@ -59,10 +59,5 @@ int world_poof_character(world_t *w);
  */
 advance_result_t world_advance(world_t *w, uint64_t ticks, int stop_on_event);
 
-/*
- * Rebuild the scheduler from current world state.
- * Call after restoring state via set_state so derived events are re-queued.
- */
-void world_rebuild_scheduler(world_t *w);
 
 #endif /* WORLD_H */

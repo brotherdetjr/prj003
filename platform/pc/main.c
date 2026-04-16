@@ -206,7 +206,7 @@ int main(int argc, char *argv[])
             /* explicit flags override values from the saved file */
             if (has_nowtick) {
                 app.world.now_tick = arg_nowtick;
-                world_rebuild_scheduler(&app.world);
+                scheduler_clear(&app.world.scheduler);
             }
             if (has_wallclock)
                 app.world.now_unix_sec = arg_wallclock;

@@ -16,7 +16,6 @@ int world_spawn_character(world_t *w, uint32_t id)
     if (w->has_character) return -1;
     character_init(&w->character, id, w->now_unix_sec, w->now_tick);
     w->has_character = 1;
-    /* Game events (energy drain, etc.) are registered by Lua on_spawn(). */
     return 0;
 }
 
@@ -66,11 +65,4 @@ advance_result_t world_advance(world_t *w, uint64_t ticks, int stop_on_event)
     w->now_tick = target_tick;
     r.now_tick  = target_tick;
     return r;
-}
-
-void world_rebuild_scheduler(world_t *w)
-{
-    scheduler_clear(&w->scheduler);
-    /* Game events are re-registered by the platform's on_restore() hook. */
-    (void)w;
 }
