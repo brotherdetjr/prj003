@@ -158,10 +158,8 @@ static void handle_command(struct mg_connection *c,
         else
             char_id = (uint32_t)rand();
         world_spawn_character(&app->world, char_id);
-        if (app->L) {
-            lua_bind_reset_scripted(app);
-            lua_bind_call(app, "on_spawn");
-        }
+        lua_bind_reset_scripted(app);
+        lua_bind_call(app, "on_spawn");
         reply_state(c, app);
 
     /* ---- poof ---- */
@@ -220,17 +218,15 @@ static void handle_command(struct mg_connection *c,
             goto done;
         }
         app->world = new_world;
-        if (app->L) {
-            if (app->world.has_character) {
-                cJSON *ch_j = cJSON_GetObjectItemCaseSensitive(state_j, "character");
-                lua_bind_restore_scripted(app,
-                    cJSON_IsObject(ch_j)
-                        ? cJSON_GetObjectItemCaseSensitive(ch_j, "scripted")
-                        : NULL);
-            }
-            lua_bind_restore_scheduler(app,
-                cJSON_GetObjectItemCaseSensitive(state_j, "scheduler"));
+        if (app->world.has_character) {
+            cJSON *ch_j = cJSON_GetObjectItemCaseSensitive(state_j, "character");
+            lua_bind_restore_scripted(app,
+                cJSON_IsObject(ch_j)
+                    ? cJSON_GetObjectItemCaseSensitive(ch_j, "scripted")
+                    : NULL);
         }
+        lua_bind_restore_scheduler(app,
+            cJSON_GetObjectItemCaseSensitive(state_j, "scheduler"));
         reply_ok(c);
 
     } else {

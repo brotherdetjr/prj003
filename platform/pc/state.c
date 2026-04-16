@@ -22,7 +22,7 @@ cJSON *app_state_to_json(app_t *app)
         cJSON_AddNumberToObject(c, "birth_unix_sec", (double)ch->birth_unix_sec);
         cJSON_AddNumberToObject(c, "birth_tick",     (double)ch->birth_tick);
 
-        cJSON *scripted = app->L ? lua_bind_scripted_to_cjson(app) : cJSON_CreateObject();
+        cJSON *scripted = lua_bind_scripted_to_cjson(app);
         cJSON_AddItemToObject(c, "scripted", scripted);
 
         cJSON_AddItemToObject(root, "character", c);
