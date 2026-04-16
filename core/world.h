@@ -19,7 +19,7 @@ typedef struct {
     int               has_character;
     character_t       character;
     scheduler_t       scheduler;
-    world_dispatch_fn dispatch_cb;  /* platform-supplied event handler; may be NULL */
+    world_dispatch_fn dispatch_cb;  /* platform-supplied event handler; must be set before world_advance */
     void             *dispatch_ud;  /* userdata forwarded to dispatch_cb */
 } world_t;
 

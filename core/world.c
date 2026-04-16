@@ -6,8 +6,6 @@ void world_init(world_t *w, uint64_t now_tick, uint64_t now_unix_sec)
     w->now_tick       = now_tick;
     w->now_unix_sec    = now_unix_sec;
     w->has_character  = 0;
-    w->dispatch_cb    = NULL;
-    w->dispatch_ud    = NULL;
     scheduler_init(&w->scheduler);
 }
 
@@ -47,8 +45,7 @@ advance_result_t world_advance(world_t *w, uint64_t ticks, int stop_on_event)
         scheduled_event_t ev;
         scheduler_pop(&w->scheduler, &ev);
         w->now_tick = ev.fire_at_ms;
-        if (w->dispatch_cb)
-            w->dispatch_cb(ev.tag, w->dispatch_ud);
+        w->dispatch_cb(ev.tag, w->dispatch_ud);
         r.now_tick = w->now_tick;
         if (stop_on_event) {
             r.stopped_on_event = 1;
