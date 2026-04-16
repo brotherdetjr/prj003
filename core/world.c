@@ -27,12 +27,6 @@ int world_poof_character(world_t *w)
     return 0;
 }
 
-static void dispatch(world_t *w, const scheduled_event_t *ev)
-{
-    if (w->dispatch_cb)
-        w->dispatch_cb(ev->tag, w->dispatch_ud);
-}
-
 advance_result_t world_advance(world_t *w, uint64_t ticks, int stop_on_event)
 {
     advance_result_t r = { w->now_tick, 0, 0 };
@@ -53,7 +47,8 @@ advance_result_t world_advance(world_t *w, uint64_t ticks, int stop_on_event)
         scheduled_event_t ev;
         scheduler_pop(&w->scheduler, &ev);
         w->now_tick = ev.fire_at_ms;
-        dispatch(w, &ev);
+        if (w->dispatch_cb)
+            w->dispatch_cb(ev.tag, w->dispatch_ud);
         r.now_tick = w->now_tick;
         if (stop_on_event) {
             r.stopped_on_event = 1;
