@@ -1,4 +1,3 @@
-#include <string.h>
 #include "character.h"
 
 void character_init(character_t *c, uint32_t id,
