@@ -11,9 +11,8 @@
 #define IS_SSE(c)   ((c)->data[0] == 'S')
 
 
-
 /* ------------------------------------------------------------------ */
-/* SSE                                                                  */
+/* SSE                                                                */
 /* ------------------------------------------------------------------ */
 
 void sse_push(struct mg_mgr *mgr, const char *event, const char *data)
@@ -25,7 +24,7 @@ void sse_push(struct mg_mgr *mgr, const char *event, const char *data)
 }
 
 /* ------------------------------------------------------------------ */
-/* Autotick timer                                                       */
+/* Autotick timer                                                     */
 /* ------------------------------------------------------------------ */
 
 void tick_timer_fn(void *arg)
