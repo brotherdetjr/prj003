@@ -55,6 +55,8 @@ Options:
   --wallclockutc=YYYY-MM-DDTHH:MM:SS        Initial wall-clock time (now_unix_sec).
                                            Defaults to system clock.
   --file=PATH                Load state from a previously saved JSON file.
+  --script=PATH              Lua game script. Defaults to scripts/energy.lua
+                             relative to the binary.
   --noautotick               Start in manual-tick mode. Default is auto-tick.
 ```
 
@@ -426,25 +428,31 @@ game mechanics are further defined.
 ```json
 {
   "instance_id": "DEADBEEF",
+  "script":      ".../scripts/energy.lua",
   "now_tick":    0,
   "now_unix_sec": 1744063205,
   "autotick":    true,
-  "character":   null
+  "character":   null,
+  "scheduler":   []
 }
 ```
 
 ```json
 {
   "instance_id": "DEADBEEF",
+  "script":      ".../scripts/energy.lua",
   "now_tick":    5000,
   "now_unix_sec": 1744063205,
   "autotick":    true,
   "character": {
-    "id":           "3F8A21CC",
+    "id":             "3F8A21CC",
     "birth_unix_sec": 1744063200,
-    "birth_tick": 0,
-    "energy":        255
-  }
+    "birth_tick":     0,
+    "scripted":       {"energy": 255}
+  },
+  "scheduler": [
+    {"fire_at_ms": 344000, "event": "energy_drain"}
+  ]
 }
 ```
 
@@ -453,10 +461,13 @@ game mechanics are further defined.
 
 | Field | Description |
 |---|---|
+| `script` | Path to the loaded Lua game script. |
 | `now_tick` | Virtual clock in ms. Advanced by `advance_time`. Drives game logic. |
 | `now_unix_sec` | Wall-clock UTC seconds. Set by `set_wall_clock` or system clock. Used for zodiac. |
 | `birth_unix_sec` | Wall-clock UTC seconds at character birth. Used to derive zodiac sign. |
 | `birth_tick` | Virtual clock at character birth. Virtual age = `now_tick − birth_tick`. |
+| `scripted` | Lua-owned state blob. Contents are defined by the game script. |
+| `scheduler` | Pending scheduled events: array of `{"fire_at_ms": N, "event": "name"}`. |
 
 ### Timestamps
 

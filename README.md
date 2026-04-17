@@ -71,7 +71,7 @@ core/               ← pure C, zero platform dependencies
 
 platform/
   common/
-    app.h           ← app_t (world + mongoose mgr + autotick flag + AUTOTICK constant)
+    app.h           ← app_t (world + mongoose mgr + lua state + AUTOTICK constant)
   esp32/
     main.ino        ← Arduino setup()/loop(), RTC + BLE
   pc/
@@ -79,7 +79,11 @@ platform/
     server.c/h      ← HTTP command dispatch, SSE game-event push
     peer.c/h        ← stdin/stdout peer channel
     state.c/h       ← world ↔ JSON serialisation
+    lua_bind.c/h    ← Lua VM init, gloxie module, event dispatch
     Makefile
+
+scripts/
+  energy.lua        ← game logic: energy drain, spawn hook
 
 tests/
   features/
@@ -96,6 +100,7 @@ tests/
 vendor/
   mongoose/         ← embedded HTTP server (single file, MIT)
   cjson/            ← JSON parser/writer (single file, MIT)
+  lua/              ← Lua 5.4 interpreter (MIT)
 ```
 
 ### Time model
@@ -112,8 +117,10 @@ and dispatches events in chronological order up to a target tick. Game logic
 (energy drain, future: hunger, sleep, …) registers recurring events rather than
 polling every tick.
 
-Business logic lives entirely in `core/`. Platform layers talk to it through
-the public API in `world.h` and `character.h`. The PC build is the primary
+Game logic lives in Lua scripts (`scripts/`). The Lua VM is embedded via
+`lua_bind.c`; scripts are loaded at startup and interact with the world through
+the `gloxie` module. `core/` provides the pure-C primitives (scheduler, world,
+character) that the platform and scripts build on. The PC build is the primary
 development target; behaviour is verified there before flashing to hardware.
 
 ## PC instance
@@ -157,6 +164,7 @@ Build the `emu` binary before running integration tests.
   --nowtick=N                               initial virtual clock in ms (now_tick)
   --wallclockutc=YYYY-MM-DDTHH:MM:SS        initial wall-clock time (now_unix_sec)
   --file=PATH                               load world state from JSON file
+  --script=PATH                             Lua game script (default: scripts/energy.lua)
   --noautotick                              start in manual-tick mode
   --help                                    show this help and exit
 ```
@@ -188,10 +196,12 @@ curl -s -X POST http://localhost:7070/command \
     "ok": true,
     "state": {
         "instance_id": "DEADBEEF",
+        "script": ".../scripts/energy.lua",
         "now_tick": 42,
         "now_unix_sec": 1775606400,
         "autotick": false,
-        "character": null
+        "character": null,
+        "scheduler": []
     }
 }
 ```
@@ -207,6 +217,7 @@ curl -s -X POST http://localhost:7070/command \
     "ok": true,
     "state": {
         "instance_id": "DEADBEEF",
+        "script": ".../scripts/energy.lua",
         "now_tick": 42,
         "now_unix_sec": 1775606400,
         "autotick": false,
@@ -214,8 +225,11 @@ curl -s -X POST http://localhost:7070/command \
             "id": "14FE67E1",
             "birth_unix_sec": 1775606400,
             "birth_tick": 42,
-            "energy": 255
-        }
+            "scripted": {"energy": 255}
+        },
+        "scheduler": [
+            {"fire_at_ms": 339042, "event": "energy_drain"}
+        ]
     }
 }
 ```
@@ -251,6 +265,7 @@ curl -s -X POST http://localhost:7070/command \
     "ok": true,
     "state": {
         "instance_id": "DEADBEEF",
+        "script": ".../scripts/energy.lua",
         "now_tick": 339042,
         "now_unix_sec": 1775606400,
         "autotick": false,
@@ -258,8 +273,11 @@ curl -s -X POST http://localhost:7070/command \
             "id": "14FE67E1",
             "birth_unix_sec": 1775606400,
             "birth_tick": 42,
-            "energy": 254
-        }
+            "scripted": {"energy": 254}
+        },
+        "scheduler": [
+            {"fire_at_ms": 678042, "event": "energy_drain"}
+        ]
     }
 }
 ```
