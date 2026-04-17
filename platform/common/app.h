@@ -7,8 +7,6 @@
 
 #define AUTOTICK 100U   /* virtual ms per timer tick; timer fires 10×/sec for ~10 FPS */
 
-/* Bit 31 set in a scheduler tag indicates a Lua-registered event. */
-#define LUA_EVENT_BIT   0x80000000U
 #define LUA_MAX_EVENTS  64U
 
 typedef struct {

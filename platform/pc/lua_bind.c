@@ -102,9 +102,8 @@ static int l_schedule(lua_State *L)
             sizeof(app->lua_events[slot].name) - 1);
     app->lua_events[slot].name[sizeof(app->lua_events[slot].name) - 1] = '\0';
 
-    uint32_t tag = LUA_EVENT_BIT | (uint32_t)slot;
     scheduler_add(&app->world.scheduler,
-                  app->world.now_tick + (uint64_t)delay, tag);
+                  app->world.now_tick + (uint64_t)delay, (uint32_t)slot);
     return 0;
 }
 
@@ -236,7 +235,7 @@ static void lua_bind_restore_scheduler(app_t *app, const cJSON *arr)
 
         uint64_t fire_at_ms = (uint64_t)fire_j->valuedouble;
         scheduler_add(&app->world.scheduler,
-                      fire_at_ms, LUA_EVENT_BIT | (uint32_t)slot);
+                      fire_at_ms, (uint32_t)slot);
     }
 }
 
@@ -260,9 +259,7 @@ void lua_bind_restore(app_t *app, const cJSON *state_json)
 void lua_bind_dispatch(uint32_t tag, void *ud)
 {
     app_t *app = (app_t *)ud;
-    if (!(tag & LUA_EVENT_BIT)) return;
-
-    uint32_t slot = tag & ~LUA_EVENT_BIT;
+    uint32_t slot = tag;
     if (slot >= LUA_MAX_EVENTS || app->lua_events[slot].name[0] == '\0') return;
 
     char name[32];

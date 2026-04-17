@@ -34,8 +34,7 @@ cJSON *app_state_to_json(app_t *app)
     cJSON *sched = cJSON_CreateArray();
     for (int i = 0; i < app->world.scheduler.count; i++) {
         const scheduled_event_t *ev = &app->world.scheduler.heap[i];
-        if (!(ev->tag & LUA_EVENT_BIT)) continue;
-        uint32_t slot = ev->tag & ~LUA_EVENT_BIT;
+        uint32_t slot = ev->tag;
         if (slot >= LUA_MAX_EVENTS || app->lua_events[slot].name[0] == '\0') continue;
         cJSON *entry = cJSON_CreateObject();
         cJSON_AddNumberToObject(entry, "fire_at_ms", (double)ev->fire_at_ms);
