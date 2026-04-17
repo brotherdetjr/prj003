@@ -15,9 +15,20 @@ ARGS_PORT = 17071
 # Given — start emu
 # ---------------------------------------------------------------------------
 
+DEFAULT_SCRIPT = os.path.abspath(
+    os.path.join(os.path.dirname(EMU), '../../scripts/energy.lua'))
+
+
 @given('emu starts with args "{args_str}"')
 def step_emu_starts(context, args_str):
     start_emu(context, shlex.split(args_str), ARGS_PORT)
+
+
+@given('emu starts with args "{args_str}" and the default script')
+def step_emu_starts_with_default_script(context, args_str):
+    start_emu(context,
+              shlex.split(args_str) + [f'--script={DEFAULT_SCRIPT}'],
+              ARGS_PORT)
 
 
 @given('emu starts on port {port:d} with args "{args_str}"')
@@ -30,13 +41,13 @@ def step_state_file_empty(context, nowtick):
     _make_state_file(context, nowtick, character=None)
 
 
-@given('a state file with a character "{char_id}" at energy {energy:d}')
+@given('a state file with a character "{char_id}" at scripted energy {energy:d}')
 def step_state_file_with_character(context, char_id, energy):
     character = {
         'id': char_id,
         'birth_unix_sec': 1775606400,
         'birth_tick': 0,
-        'energy': energy,
+        'scripted': {'energy': energy},
     }
     _make_state_file(context, 0, character=character)
 

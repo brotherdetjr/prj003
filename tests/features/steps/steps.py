@@ -105,10 +105,10 @@ def step_birth_tick(context, value):
     assert actual == value, f'expected birth_tick={value}, got {actual}'
 
 
-@then('energy is {value:d}')
-def step_energy(context, value):
-    actual = context.state['character']['energy']
-    assert actual == value, f'expected energy={value}, got {actual}'
+@then('scripted energy is {value:d}')
+def step_scripted_energy(context, value):
+    actual = context.state['character']['scripted']['energy']
+    assert actual == value, f'expected scripted.energy={value}, got {actual}'
 
 
 @then('stopped_on_event is {value}')
@@ -122,3 +122,26 @@ def step_stopped_on_event(context, value):
 def step_event_name(context, name):
     actual = context.resp.get('event')
     assert actual == name, f'expected event={name!r}, got {actual!r}'
+
+
+@then('the scheduler has an "{event}" event at tick {tick:d}')
+def step_scheduler_has_event(context, event, tick):
+    sched = context.state.get('scheduler', [])
+    for entry in sched:
+        if entry.get('event') == event and int(entry.get('fire_at_ms', -1)) == tick:
+            return
+    assert False, \
+        f'no {event!r} event at tick {tick} in scheduler: {sched}'
+
+
+@then('the scheduler is empty')
+def step_scheduler_empty(context):
+    sched = context.state.get('scheduler', [])
+    assert sched == [], f'expected empty scheduler, got: {sched}'
+
+
+@then('the script path ends with "{suffix}"')
+def step_script_ends_with(context, suffix):
+    actual = context.state.get('script', '')
+    assert actual.endswith(suffix), \
+        f'expected script ending with {suffix!r}, got {actual!r}'

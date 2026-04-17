@@ -9,6 +9,7 @@ Feature: Smoke — happy path from README
     And now_tick is 42
     And now_unix_sec is 1775606400
     And there is no character
+    And the script path ends with "scripts/energy.lua"
 
   Scenario: Wall clock can be set and read back independently
     When I set wall clock to 1775606401
@@ -22,7 +23,8 @@ Feature: Smoke — happy path from README
     And the character id is "14FE67E1"
     And birth_unix_sec is 1775606400
     And birth_tick is 42
-    And energy is 255
+    And scripted energy is 255
+    And the scheduler has an "energy_drain" event at tick 339042
 
     When I advance 1000 ticks
     Then the response is ok
@@ -37,10 +39,12 @@ Feature: Smoke — happy path from README
 
     When I get state
     Then now_tick is 339042
-    And energy is 254
+    And scripted energy is 254
+    And the scheduler has an "energy_drain" event at tick 678042
 
     When I poof the character
     Then the response is ok
 
     When I get state
     Then there is no character
+    And the scheduler is empty

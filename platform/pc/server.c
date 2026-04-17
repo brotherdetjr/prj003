@@ -4,6 +4,7 @@
 #include <time.h>
 #include "server.h"
 #include "state.h"
+#include "lua_bind.h"
 #include "../../vendor/cjson/cJSON.h"
 
 #define JSON_HDR    "Content-Type: application/json\r\n"
@@ -11,7 +12,7 @@
 
 
 /* ------------------------------------------------------------------ */
-/* SSE                                                                  */
+/* SSE                                                                */
 /* ------------------------------------------------------------------ */
 
 void sse_push(struct mg_mgr *mgr, const char *event, const char *data)
@@ -23,7 +24,7 @@ void sse_push(struct mg_mgr *mgr, const char *event, const char *data)
 }
 
 /* ------------------------------------------------------------------ */
-/* Autotick timer                                                       */
+/* Autotick timer                                                     */
 /* ------------------------------------------------------------------ */
 
 void tick_timer_fn(void *arg)
@@ -38,7 +39,8 @@ void tick_timer_fn(void *arg)
         uint64_t remaining = target - app->world.now_tick;
         advance_result_t r = world_advance(&app->world, remaining, 1);
         if (!r.stopped_on_event) break;
-        const char *evname = world_event_name(r.event_tag);
+        const char *evname = app->last_event_name[0]
+                             ? app->last_event_name : "unknown";
         fprintf(stderr, "event %s  now_tick=%llu\n",
                 evname, (unsigned long long)r.now_tick);
         char data[64];
@@ -127,7 +129,8 @@ static void handle_command(struct mg_connection *c,
         cJSON_AddNumberToObject(resp, "now_tick",         (double)r.now_tick);
         cJSON_AddBoolToObject  (resp, "stopped_on_event", r.stopped_on_event);
         if (r.stopped_on_event) {
-            const char *evname = world_event_name(r.event_tag);
+            const char *evname = app->last_event_name[0]
+                                 ? app->last_event_name : "unknown";
             fprintf(stderr, "event %s  now_tick=%llu\n",
                     evname, (unsigned long long)r.now_tick);
             cJSON_AddStringToObject(resp, "event", evname);
@@ -154,14 +157,17 @@ static void handle_command(struct mg_connection *c,
         else
             char_id = (uint32_t)rand();
         world_spawn_character(&app->world, char_id);
+        lua_bind_reset_scripted(app);
+        lua_bind_call(app, "on_spawn");
         reply_state(c, app);
 
     /* ---- poof ---- */
     } else if (strcmp(cmd, "poof") == 0) {
-        if (world_poof_character(&app->world) != 0) {
+        if (!app->world.has_character) {
             reply_error(c, "no character");
             goto done;
         }
+        world_poof_character(&app->world);
         reply_ok(c);
 
     /* ---- set_autotick ---- */
@@ -205,12 +211,13 @@ static void handle_command(struct mg_connection *c,
             reply_error(c, "state must be an object");
             goto done;
         }
-        world_t new_world;
+        world_t new_world = app->world; /* preserve dispatch_cb / dispatch_ud */
         if (json_to_world(&new_world, state_j) != 0) {
             reply_error(c, "invalid state");
             goto done;
         }
         app->world = new_world;
+        lua_bind_restore(app, state_j);
         reply_ok(c);
 
     } else {

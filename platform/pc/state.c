@@ -2,11 +2,13 @@
 #include <stdlib.h>
 #include <string.h>
 #include "state.h"
+#include "lua_bind.h"
 
-cJSON *app_state_to_json(const app_t *app)
+cJSON *app_state_to_json(app_t *app)
 {
     cJSON *root = cJSON_CreateObject();
     cJSON_AddStringToObject(root, "instance_id",  app->instance_id);
+    cJSON_AddStringToObject(root, "script",       app->script_path);
     cJSON_AddNumberToObject(root, "now_tick",      (double)app->world.now_tick);
     cJSON_AddNumberToObject(root, "now_unix_sec",   (double)app->world.now_unix_sec);
     cJSON_AddBoolToObject  (root, "autotick",      app->autotick);
@@ -18,12 +20,28 @@ cJSON *app_state_to_json(const app_t *app)
         cJSON *c = cJSON_CreateObject();
         cJSON_AddStringToObject(c, "id",            id_str);
         cJSON_AddNumberToObject(c, "birth_unix_sec", (double)ch->birth_unix_sec);
-        cJSON_AddNumberToObject(c, "birth_tick", (double)ch->birth_tick);
-        cJSON_AddNumberToObject(c, "energy",        ch->energy);
+        cJSON_AddNumberToObject(c, "birth_tick",     (double)ch->birth_tick);
+
+        cJSON *scripted = lua_bind_scripted_to_cjson(app);
+        cJSON_AddItemToObject(c, "scripted", scripted);
+
         cJSON_AddItemToObject(root, "character", c);
     } else {
         cJSON_AddNullToObject(root, "character");
     }
+
+    /* Scheduler: array of {fire_at_ms, event} for each pending Lua event */
+    cJSON *sched = cJSON_CreateArray();
+    for (int i = 0; i < app->world.scheduler.count; i++) {
+        const scheduled_event_t *ev = &app->world.scheduler.heap[i];
+        uint32_t slot = ev->tag;
+        if (slot >= LUA_MAX_EVENTS || app->lua_events[slot].name[0] == '\0') continue;
+        cJSON *entry = cJSON_CreateObject();
+        cJSON_AddNumberToObject(entry, "fire_at_ms", (double)ev->fire_at_ms);
+        cJSON_AddStringToObject(entry, "event",      app->lua_events[slot].name);
+        cJSON_AddItemToArray(sched, entry);
+    }
+    cJSON_AddItemToObject(root, "scheduler", sched);
 
     return root;
 }
@@ -45,21 +63,20 @@ int json_to_world(world_t *w, const cJSON *json)
     }
     if (!cJSON_IsObject(ch)) return -1;
 
-    cJSON *id_j       = cJSON_GetObjectItemCaseSensitive(ch, "id");
-    cJSON *b_unix_j   = cJSON_GetObjectItemCaseSensitive(ch, "birth_unix_sec");
-    cJSON *b_tick_j   = cJSON_GetObjectItemCaseSensitive(ch, "birth_tick");
-    cJSON *energy_j   = cJSON_GetObjectItemCaseSensitive(ch, "energy");
+    cJSON *id_j     = cJSON_GetObjectItemCaseSensitive(ch, "id");
+    cJSON *b_unix_j = cJSON_GetObjectItemCaseSensitive(ch, "birth_unix_sec");
+    cJSON *b_tick_j = cJSON_GetObjectItemCaseSensitive(ch, "birth_tick");
 
     if (!cJSON_IsString(id_j)     || !cJSON_IsNumber(b_unix_j) ||
-        !cJSON_IsNumber(b_tick_j) || !cJSON_IsNumber(energy_j))
+        !cJSON_IsNumber(b_tick_j))
         return -1;
 
-    w->character.id            = (uint32_t)strtoul(id_j->valuestring, NULL, 16);
-    w->character.birth_unix_sec = (uint64_t)b_unix_j->valuedouble;
-    w->character.birth_tick = (uint64_t)b_tick_j->valuedouble;
-    w->character.energy        = (uint8_t) energy_j->valueint;
+    w->character.id             = (uint32_t)strtoul(id_j->valuestring, NULL, 16);
+    w->character.birth_unix_sec  = (uint64_t)b_unix_j->valuedouble;
+    w->character.birth_tick      = (uint64_t)b_tick_j->valuedouble;
+
     w->has_character = 1;
 
-    world_rebuild_scheduler(w);
+    scheduler_clear(&w->scheduler);
     return 0;
 }
