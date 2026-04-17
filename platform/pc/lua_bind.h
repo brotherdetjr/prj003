@@ -31,18 +31,10 @@ cJSON *lua_bind_scripted_to_cjson(app_t *app);
 void lua_bind_reset_scripted(app_t *app);
 
 /*
- * Populate gloxie.scripted from a cJSON object.
- * Call after restoring state (set_state / --file load).
- * Passing NULL or a non-object resets scripted to an empty table.
+ * Restore full Lua state (scripted + scheduler) from a state JSON object.
+ * Call after json_to_world() when loading state from --file or set_state.
  */
-void lua_bind_restore_scripted(app_t *app, const cJSON *scripted);
-
-/*
- * Restore the scheduler from a JSON array of {fire_at_ms, event} objects.
- * Clears both lua_events[] and the scheduler first, then repopulates.
- * Passing NULL or a non-array is a no-op (leaves scheduler empty).
- */
-void lua_bind_restore_scheduler(app_t *app, const cJSON *arr);
+void lua_bind_restore(app_t *app, const cJSON *state_json);
 
 /*
  * Dispatch callback wired into world_t.dispatch_cb.

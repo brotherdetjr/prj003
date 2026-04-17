@@ -76,15 +76,7 @@ static int load_state_file(app_t *app, const char *path)
         return -1;
     }
 
-    if (app->world.has_character) {
-        cJSON *ch_j = cJSON_GetObjectItemCaseSensitive(json, "character");
-        lua_bind_restore_scripted(app,
-            cJSON_IsObject(ch_j)
-                ? cJSON_GetObjectItemCaseSensitive(ch_j, "scripted")
-                : NULL);
-    }
-    lua_bind_restore_scheduler(app,
-        cJSON_GetObjectItemCaseSensitive(json, "scheduler"));
+    lua_bind_restore(app, json);
 
     cJSON_Delete(json);
     return 0;

@@ -217,15 +217,7 @@ static void handle_command(struct mg_connection *c,
             goto done;
         }
         app->world = new_world;
-        if (app->world.has_character) {
-            cJSON *ch_j = cJSON_GetObjectItemCaseSensitive(state_j, "character");
-            lua_bind_restore_scripted(app,
-                cJSON_IsObject(ch_j)
-                    ? cJSON_GetObjectItemCaseSensitive(ch_j, "scripted")
-                    : NULL);
-        }
-        lua_bind_restore_scheduler(app,
-            cJSON_GetObjectItemCaseSensitive(state_j, "scheduler"));
+        lua_bind_restore(app, state_j);
         reply_ok(c);
 
     } else {

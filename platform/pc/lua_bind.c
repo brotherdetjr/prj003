@@ -192,7 +192,7 @@ static void cjson_to_lua_table(lua_State *L, const cJSON *obj)
     }
 }
 
-void lua_bind_restore_scripted(app_t *app, const cJSON *scripted)
+static void lua_bind_restore_scripted(app_t *app, const cJSON *scripted)
 {
     if (!app->world.has_character) return;
     lua_State *L = app->L;
@@ -209,7 +209,7 @@ void lua_bind_restore_scripted(app_t *app, const cJSON *scripted)
 /* Scheduler restore                                                    */
 /* ------------------------------------------------------------------ */
 
-void lua_bind_restore_scheduler(app_t *app, const cJSON *arr)
+static void lua_bind_restore_scheduler(app_t *app, const cJSON *arr)
 {
     /* Clear all slots and the scheduler */
     for (unsigned i = 0; i < LUA_MAX_EVENTS; i++)
@@ -238,6 +238,19 @@ void lua_bind_restore_scheduler(app_t *app, const cJSON *arr)
         scheduler_add(&app->world.scheduler,
                       fire_at_ms, LUA_EVENT_BIT | (uint32_t)slot);
     }
+}
+
+void lua_bind_restore(app_t *app, const cJSON *state_json)
+{
+    if (app->world.has_character) {
+        cJSON *ch_j = cJSON_GetObjectItemCaseSensitive(state_json, "character");
+        lua_bind_restore_scripted(app,
+            cJSON_IsObject(ch_j)
+                ? cJSON_GetObjectItemCaseSensitive(ch_j, "scripted")
+                : NULL);
+    }
+    lua_bind_restore_scheduler(app,
+        cJSON_GetObjectItemCaseSensitive(state_json, "scheduler"));
 }
 
 /* ------------------------------------------------------------------ */
