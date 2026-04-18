@@ -20,7 +20,7 @@ void peer_stdin_init(void)
 
 static void process_line(app_t *app, const char *line)
 {
-    if (!app->world.has_character) return; /* no character — ignore */
+    if (!app->has_character) return; /* no character — ignore */
 
     cJSON *msg = cJSON_Parse(line);
     if (!msg) {
@@ -69,7 +69,7 @@ void peer_stdin_poll(app_t *app)
 
 void peer_send(app_t *app, cJSON *msg)
 {
-    if (!app->world.has_character) return;
+    if (!app->has_character) return;
 
     char *s = cJSON_PrintUnformatted(msg);
     puts(s);          /* stdout — orchestrator reads and routes */

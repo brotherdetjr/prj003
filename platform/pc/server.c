@@ -32,12 +32,12 @@ void tick_timer_fn(void *arg)
     app_t *app = (app_t *)arg;
     if (!app->autotick) return;
 
-    app->world.now_unix_sec = (uint64_t)time(NULL);
+    app->now_unix_sec = (uint64_t)time(NULL);
 
-    uint64_t target = app->world.now_tick + AUTOTICK;
-    while (app->world.now_tick < target) {
-        uint64_t remaining = target - app->world.now_tick;
-        advance_result_t r = world_advance(&app->world, remaining, 1);
+    uint64_t target = app->now_tick + AUTOTICK;
+    while (app->now_tick < target) {
+        uint64_t remaining = target - app->now_tick;
+        advance_result_t r = world_advance(app, remaining, 1);
         if (!r.stopped_on_event) break;
         const char *evname = app->last_event_name[0]
                              ? app->last_event_name : "unknown";
@@ -122,7 +122,7 @@ static void handle_command(struct mg_connection *c,
             goto done;
         }
 
-        advance_result_t r = world_advance(&app->world, ticks, stop_on_event);
+        advance_result_t r = world_advance(app, ticks, stop_on_event);
 
         cJSON *resp = cJSON_CreateObject();
         cJSON_AddBoolToObject  (resp, "ok",               1);
@@ -146,7 +146,7 @@ static void handle_command(struct mg_connection *c,
 
     /* ---- spawn ---- */
     } else if (strcmp(cmd, "spawn") == 0) {
-        if (app->world.has_character) {
+        if (app->has_character) {
             reply_error(c, "character already exists");
             goto done;
         }
@@ -156,18 +156,18 @@ static void handle_command(struct mg_connection *c,
             char_id = (uint32_t)strtoul(cid_j->valuestring, NULL, 16);
         else
             char_id = (uint32_t)rand();
-        world_spawn_character(&app->world, char_id);
+        world_spawn_character(app, char_id);
         lua_bind_reset_scripted(app);
         lua_bind_call(app, "_on_spawn");
         reply_state(c, app);
 
     /* ---- poof ---- */
     } else if (strcmp(cmd, "poof") == 0) {
-        if (!app->world.has_character) {
+        if (!app->has_character) {
             reply_error(c, "no character");
             goto done;
         }
-        world_poof_character(&app->world);
+        world_poof_character(app);
         reply_ok(c);
 
     /* ---- set_autotick ---- */
@@ -190,14 +190,14 @@ static void handle_command(struct mg_connection *c,
             reply_error(c, "now_unix_sec must be a non-negative integer");
             goto done;
         }
-        app->world.now_unix_sec = wc;
+        app->now_unix_sec = wc;
         reply_ok(c);
 
     /* ---- get_wall_clock ---- */
     } else if (strcmp(cmd, "get_wall_clock") == 0) {
         mg_http_reply(c, 200, JSON_HDR,
                       "{\"ok\":true,\"now_unix_sec\":%llu}\n",
-                      (unsigned long long)app->world.now_unix_sec);
+                      (unsigned long long)app->now_unix_sec);
 
     /* ---- get_screen ---- */
     } else if (strcmp(cmd, "get_screen") == 0) {
@@ -211,12 +211,10 @@ static void handle_command(struct mg_connection *c,
             reply_error(c, "state must be an object");
             goto done;
         }
-        world_t new_world = app->world; /* preserve dispatch_cb / dispatch_ud */
-        if (json_to_world(&new_world, state_j) != 0) {
+        if (json_to_world(app, state_j) != 0) {
             reply_error(c, "invalid state");
             goto done;
         }
-        app->world = new_world;
         lua_bind_restore(app, state_j);
         reply_ok(c);
 

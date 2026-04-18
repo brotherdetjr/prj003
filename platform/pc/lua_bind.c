@@ -46,7 +46,7 @@ static int alloc_event_slot(app_t *app)
 static int l_now_tick(lua_State *L)
 {
     app_t *app = get_app(L);
-    lua_pushinteger(L, (lua_Integer)app->world.now_tick);
+    lua_pushinteger(L, (lua_Integer)app->now_tick);
     return 1;
 }
 
@@ -54,7 +54,7 @@ static int l_now_tick(lua_State *L)
 static int l_now_unix_sec(lua_State *L)
 {
     app_t *app = get_app(L);
-    lua_pushinteger(L, (lua_Integer)app->world.now_unix_sec);
+    lua_pushinteger(L, (lua_Integer)app->now_unix_sec);
     return 1;
 }
 
@@ -62,11 +62,11 @@ static int l_now_unix_sec(lua_State *L)
 static int l_character(lua_State *L)
 {
     app_t *app = get_app(L);
-    if (!app->world.has_character) {
+    if (!app->has_character) {
         lua_pushnil(L);
         return 1;
     }
-    const character_t *ch = &app->world.character;
+    const character_t *ch = &app->character;
     lua_createtable(L, 0, 3);
     char id_str[9];
     snprintf(id_str, sizeof(id_str), "%08X", ch->id);
@@ -104,8 +104,8 @@ static int l_schedule(lua_State *L)
             sizeof(app->lua_events[slot].name) - 1);
     app->lua_events[slot].name[sizeof(app->lua_events[slot].name) - 1] = '\0';
 
-    scheduler_add(&app->world.scheduler,
-                  app->world.now_tick + (uint64_t)delay, (uint32_t)slot);
+    scheduler_add(&app->scheduler,
+                  app->now_tick + (uint64_t)delay, (uint32_t)slot);
     return 0;
 }
 
@@ -195,7 +195,7 @@ static void cjson_to_lua_table(lua_State *L, const cJSON *obj)
 
 static void lua_bind_restore_scripted(app_t *app, const cJSON *scripted)
 {
-    if (!app->world.has_character) return;
+    if (!app->has_character) return;
     lua_State *L = app->L;
     push_gloxie(L);
     if (scripted && cJSON_IsObject(scripted))
@@ -215,7 +215,7 @@ static void lua_bind_restore_scheduler(app_t *app, const cJSON *arr)
     /* Clear all slots and the scheduler */
     for (unsigned i = 0; i < LUA_MAX_EVENTS; i++)
         app->lua_events[i].name[0] = '\0';
-    scheduler_clear(&app->world.scheduler);
+    scheduler_clear(&app->scheduler);
 
     if (!cJSON_IsArray(arr)) return;
 
@@ -236,14 +236,13 @@ static void lua_bind_restore_scheduler(app_t *app, const cJSON *arr)
         app->lua_events[slot].name[sizeof(app->lua_events[slot].name) - 1] = '\0';
 
         uint64_t fire_at_ms = (uint64_t)fire_j->valuedouble;
-        scheduler_add(&app->world.scheduler,
-                      fire_at_ms, (uint32_t)slot);
+        scheduler_add(&app->scheduler, fire_at_ms, (uint32_t)slot);
     }
 }
 
 void lua_bind_restore(app_t *app, const cJSON *state_json)
 {
-    if (app->world.has_character) {
+    if (app->has_character) {
         cJSON *ch_j = cJSON_GetObjectItemCaseSensitive(state_json, "character");
         lua_bind_restore_scripted(app,
             cJSON_IsObject(ch_j)
@@ -258,9 +257,8 @@ void lua_bind_restore(app_t *app, const cJSON *state_json)
 /* Dispatch                                                             */
 /* ------------------------------------------------------------------ */
 
-void lua_bind_dispatch(uint32_t tag, void *ud)
+void lua_bind_dispatch(uint32_t tag, app_t *app)
 {
-    app_t *app = (app_t *)ud;
     uint32_t slot = tag;
     if (slot >= LUA_MAX_EVENTS || app->lua_events[slot].name[0] == '\0') return;
 
@@ -343,8 +341,7 @@ int lua_bind_init(app_t *app, const char *script_path)
         app->lua_events[i].name[0] = '\0';
 
     /* Wire world dispatch */
-    app->world.dispatch_cb = lua_bind_dispatch;
-    app->world.dispatch_ud = app;
+    app->dispatch_cb = lua_bind_dispatch;
 
     app->L = L;
 
