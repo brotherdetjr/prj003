@@ -93,6 +93,8 @@ static int l_schedule(lua_State *L)
 
     if (delay < 0)
         return luaL_error(L, "schedule: delay_ms must be >= 0");
+    if (name[0] == '_')
+        return luaL_error(L, "schedule: event names starting with '_' are reserved");
 
     int slot = alloc_event_slot(app);
     if (slot < 0)

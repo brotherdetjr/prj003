@@ -24,7 +24,7 @@ Feature: Smoke — happy path from README
     And birth_unix_sec is 1775606400
     And birth_tick is 42
     And scripted energy is 255
-    And the scheduler has an "energy_drain" event at tick 339042
+    And the scheduler has an "on_energy_drain" event at tick 339042
 
     When I advance 1000 ticks
     Then the response is ok
@@ -35,12 +35,12 @@ Feature: Smoke — happy path from README
     Then the response is ok
     And now_tick is 339042
     And stopped_on_event is true
-    And event is "energy_drain"
+    And event is "on_energy_drain"
 
     When I get state
     Then now_tick is 339042
     And scripted energy is 254
-    And the scheduler has an "energy_drain" event at tick 678042
+    And the scheduler has an "on_energy_drain" event at tick 678042
 
     When I poof the character
     Then the response is ok

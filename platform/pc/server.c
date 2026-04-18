@@ -158,7 +158,7 @@ static void handle_command(struct mg_connection *c,
             char_id = (uint32_t)rand();
         world_spawn_character(&app->world, char_id);
         lua_bind_reset_scripted(app);
-        lua_bind_call(app, "on_spawn");
+        lua_bind_call(app, "_on_spawn");
         reply_state(c, app);
 
     /* ---- poof ---- */

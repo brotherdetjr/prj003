@@ -26,7 +26,7 @@ cJSON *lua_bind_scripted_to_cjson(app_t *app);
 
 /*
  * Reset gloxie.scripted to an empty table.
- * Call before on_spawn() so the script starts with a clean slate.
+ * Call before _on_spawn() so the script starts with a clean slate.
  */
 void lua_bind_reset_scripted(app_t *app);
 

@@ -139,7 +139,7 @@ Response:
 
 When `stopped_on_event` is `true`, an `"event"` field names what fired:
 ```json
-{ "ok": true, "now_tick": 339000, "stopped_on_event": true, "event": "energy_drain" }
+{ "ok": true, "now_tick": 339000, "stopped_on_event": true, "event": "on_energy_drain" }
 ```
 
 Also pushes a `tick` SSE event with the new `now_tick`.
@@ -305,14 +305,14 @@ data: <JSON>\n
 \n
 ```
 
-#### Game events (e.g. `energy_drain`)
+#### Game events (e.g. `on_energy_drain`)
 
 Fired when a scheduled game event is processed during an autotick or
 `advance_time` call. The SSE event name is the game event name; data carries
 the virtual tick at which it fired.
 
 ```
-event: energy_drain
+event: on_energy_drain
 data: {"now_tick": 339042}
 ```
 
@@ -451,7 +451,7 @@ game mechanics are further defined.
     "scripted":       {"energy": 255}
   },
   "scheduler": [
-    {"fire_at_ms": 344000, "event": "energy_drain"}
+    {"fire_at_ms": 344000, "event": "on_energy_drain"}
   ]
 }
 ```

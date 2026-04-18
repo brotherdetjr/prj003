@@ -123,6 +123,16 @@ the `gloxie` module. `core/` provides the pure-C primitives (scheduler, world,
 character) that the platform and scripts build on. The PC build is the primary
 development target; behaviour is verified there before flashing to hardware.
 
+### Lua callback naming conventions
+
+| Prefix | Meaning | Example |
+|---|---|---|
+| `_on_` | System lifecycle hook — called by the engine, not schedulable | `_on_spawn` |
+| `on_` | User-defined scheduled event callback (convention, not enforced) | `on_energy_drain` |
+
+Event names passed to `gloxie.schedule()` must not start with `_`; such names
+are reserved for system hooks and will be rejected with an error.
+
 ## PC instance
 
 ### Build
@@ -228,7 +238,7 @@ curl -s -X POST http://localhost:7070/command \
             "scripted": {"energy": 255}
         },
         "scheduler": [
-            {"fire_at_ms": 339042, "event": "energy_drain"}
+            {"fire_at_ms": 339042, "event": "on_energy_drain"}
         ]
     }
 }
@@ -251,7 +261,7 @@ curl -s -X POST http://localhost:7070/command \
   -d '{"cmd":"advance_time","ticks":0,"stop_on_event":true}' | python3 -m json.tool
 ```
 ```json
-{"ok": true, "now_tick": 339042, "stopped_on_event": true, "event": "energy_drain"}
+{"ok": true, "now_tick": 339042, "stopped_on_event": true, "event": "on_energy_drain"}
 ```
 
 **Check state (`now_tick` advanced to 339,042; `now_unix_sec` still 2026-04-08; energy 254):**
@@ -276,7 +286,7 @@ curl -s -X POST http://localhost:7070/command \
             "scripted": {"energy": 254}
         },
         "scheduler": [
-            {"fire_at_ms": 678042, "event": "energy_drain"}
+            {"fire_at_ms": 678042, "event": "on_energy_drain"}
         ]
     }
 }
@@ -307,16 +317,16 @@ curl -s -X POST http://localhost:7070/command \
 curl -N http://localhost:7070/events
 ```
 ```
-event: energy_drain
+event: on_energy_drain
 data: {"now_tick":678042}
 
-event: energy_drain
+event: on_energy_drain
 data: {"now_tick":1017042}
 ```
 
-Game events (`energy_drain`, …) are pushed as they fire. `peer_in` and
+Game events (`on_energy_drain`, …) are pushed as they fire. `peer_in` and
 `peer_out` appear when peer interactions occur. In autotick mode the virtual
-clock advances 1,000 ticks per real second, so `energy_drain` fires roughly
+clock advances 1,000 ticks per real second, so `on_energy_drain` fires roughly
 every 339 real seconds.
 
 **Save state, restore it into a fresh instance:**
