@@ -1,6 +1,6 @@
 #include "app.h"
 
-void world_init(app_t *app, uint64_t now_tick, uint64_t now_unix_sec)
+void app_init(app_t *app, uint64_t now_tick, uint64_t now_unix_sec)
 {
     app->now_tick      = now_tick;
     app->now_unix_sec  = now_unix_sec;
@@ -8,7 +8,7 @@ void world_init(app_t *app, uint64_t now_tick, uint64_t now_unix_sec)
     scheduler_init(&app->scheduler);
 }
 
-int world_spawn_character(app_t *app, uint32_t id)
+int app_spawn_character(app_t *app, uint32_t id)
 {
     if (app->has_character) return -1;
     character_init(&app->character, id, app->now_unix_sec, app->now_tick);
@@ -16,7 +16,7 @@ int world_spawn_character(app_t *app, uint32_t id)
     return 0;
 }
 
-int world_poof_character(app_t *app)
+int app_poof_character(app_t *app)
 {
     if (!app->has_character) return -1;
     app->has_character = 0;
@@ -24,7 +24,7 @@ int world_poof_character(app_t *app)
     return 0;
 }
 
-advance_result_t world_advance(app_t *app, uint64_t ticks, int stop_on_event)
+advance_result_t app_advance(app_t *app, uint64_t ticks, int stop_on_event)
 {
     advance_result_t r = { app->now_tick, 0, 0 };
 

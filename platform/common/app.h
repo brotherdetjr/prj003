@@ -20,15 +20,12 @@ typedef struct {
 } advance_result_t;
 
 typedef struct app_t {
-    /* world state — serialisable, drives game logic */
-    uint64_t          now_tick;       /* virtual clock in ms; advanced by world_advance */
+    uint64_t          now_tick;       /* virtual clock in ms; advanced by app_advance */
     uint64_t          now_unix_sec;   /* wall-clock UTC seconds; set by platform / set_wall_clock */
     int               has_character;
     character_t       character;
     scheduler_t       scheduler;
-    void            (*dispatch_cb)(uint32_t tag, struct app_t *app);  /* must be set before world_advance */
-
-    /* runtime state — not serialised */
+    void            (*dispatch_cb)(uint32_t tag, struct app_t *app);  /* must be set before app_advance */
     char          instance_id[9];
     uint32_t      instance_id_raw;
     int           autotick;
@@ -40,20 +37,20 @@ typedef struct app_t {
 } app_t;
 
 /* Initialise an empty world. now_tick and now_unix_sec are set by the caller. */
-void world_init(app_t *app, uint64_t now_tick, uint64_t now_unix_sec);
+void app_init(app_t *app, uint64_t now_tick, uint64_t now_unix_sec);
 
 /*
  * Spawn a character. Uses app->now_tick as birth_tick and
  * app->now_unix_sec as birth_unix_sec.
  * Returns 0 on success, -1 if a character already exists.
  */
-int world_spawn_character(app_t *app, uint32_t id);
+int app_spawn_character(app_t *app, uint32_t id);
 
 /*
  * Remove the current character and clear all scheduled events.
  * Returns 0 on success, -1 if no character exists.
  */
-int world_poof_character(app_t *app);
+int app_poof_character(app_t *app);
 
 /*
  * Advance virtual time by `ticks` milliseconds, firing scheduled events in order.
@@ -64,6 +61,6 @@ int world_poof_character(app_t *app);
  *   ticks = 0, stop_on_event=1  — advance to the next scheduled event; no-op if none.
  *   ticks = 0, stop_on_event=0  — no-op.
  */
-advance_result_t world_advance(app_t *app, uint64_t ticks, int stop_on_event);
+advance_result_t app_advance(app_t *app, uint64_t ticks, int stop_on_event);
 
 #endif /* APP_H */

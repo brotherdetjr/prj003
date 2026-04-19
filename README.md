@@ -111,10 +111,10 @@ Two independent clocks:
 
 | Field | Type | Description |
 |---|---|---|
-| `world.now_tick` | virtual ticks, similar to millisecond during the actual application execution, though can drift away from the wall clock time | Advances via `advance_time`. Drives all game logic and the scheduler. |
-| `world.now_unix_sec` | Unix Epoch seconds | Wall clock. Set from RTC (ESP32) or system clock / `set_wall_clock` (PC). Updated every real second in autotick mode. Used only for zodiac. |
+| `app.now_tick` | virtual ticks, similar to millisecond during the actual application execution, though can drift away from the wall clock time | Advances via `advance_time`. Drives all game logic and the scheduler. |
+| `app.now_unix_sec` | Unix Epoch seconds | Wall clock. Set from RTC (ESP32) or system clock / `set_wall_clock` (PC). Updated every real second in autotick mode. Used only for zodiac. |
 
-The scheduler is a min-heap of `(fire_at_ms, tag)` events. `world_advance` pops
+The scheduler is a min-heap of `(fire_at_ms, tag)` events. `app_advance` pops
 and dispatches events in chronological order up to a target tick. Game logic
 (energy drain, future: hunger, sleep, …) registers recurring events rather than
 polling every tick.
@@ -387,8 +387,8 @@ void setup() {
     WiFi.begin("ssid", "password");
     while (WiFi.status() != WL_CONNECTED) delay(100);
 
-    world_init(&s_world, rtc_now());
-    world_spawn_character(&s_world, esp_random());
+    app_init(&s_app, rtc_now(), 0);
+    app_spawn_character(&s_app, esp_random());
 
     mg_mgr_init(&app.mgr);
     mg_http_listen(&app.mgr, "http://0.0.0.0:80", mg_event_handler, &app);

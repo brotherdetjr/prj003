@@ -165,7 +165,7 @@ int main(int argc, char *argv[])
     /* virtual clock: --nowtick if given, else same as wall clock */
     uint64_t now_tick = has_nowtick ? arg_nowtick : now_unix_sec;
 
-    world_init(&app, now_tick, now_unix_sec);
+    app_init(&app, now_tick, now_unix_sec);
 
     /* Determine script path: --script overrides; otherwise relative to binary */
     char script_path[1024];

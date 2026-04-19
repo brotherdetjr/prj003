@@ -37,7 +37,7 @@ void tick_timer_fn(void *arg)
     uint64_t target = app->now_tick + AUTOTICK;
     while (app->now_tick < target) {
         uint64_t remaining = target - app->now_tick;
-        advance_result_t r = world_advance(app, remaining, 1);
+        advance_result_t r = app_advance(app, remaining, 1);
         if (!r.stopped_on_event) break;
         const char *evname = app->last_event_name[0]
                              ? app->last_event_name : "unknown";
@@ -122,7 +122,7 @@ static void handle_command(struct mg_connection *c,
             goto done;
         }
 
-        advance_result_t r = world_advance(app, ticks, stop_on_event);
+        advance_result_t r = app_advance(app, ticks, stop_on_event);
 
         cJSON *resp = cJSON_CreateObject();
         cJSON_AddBoolToObject  (resp, "ok",               1);
@@ -156,7 +156,7 @@ static void handle_command(struct mg_connection *c,
             char_id = (uint32_t)strtoul(cid_j->valuestring, NULL, 16);
         else
             char_id = (uint32_t)rand();
-        world_spawn_character(app, char_id);
+        app_spawn_character(app, char_id);
         lua_bind_reset_scripted(app);
         lua_bind_call(app, "_on_spawn");
         reply_state(c, app);
@@ -167,7 +167,7 @@ static void handle_command(struct mg_connection *c,
             reply_error(c, "no character");
             goto done;
         }
-        world_poof_character(app);
+        app_poof_character(app);
         reply_ok(c);
 
     /* ---- set_autotick ---- */
