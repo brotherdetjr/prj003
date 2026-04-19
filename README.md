@@ -7,11 +7,12 @@ the device, ages, needs care, and meets other creatures via Bluetooth.
 
 ## Hardware
 
-- **Target Device Candidate:** MaTouch ESP32-S3 Parallel TFT 3.16" (ST7701S)
+- **Target Device Candidate:** [MaTouch ESP32-S3 AMOLED with Touch 1.78” CHSC6417](https://www.makerfabs.com/matouch-esp32-s3-amoled-with-touch-1-8-ft3168.html)
 - **RAM:** 512 KB internal + 8 MB PSRAM
 - **Flash:** 16 MB
-- **Controls:** up to 3 buttons (touchscreen?), optional orientation sensor (accelerometer)
+- **Controls:** touchscreen
 - **Radio:** Bluetooth (BLE) for device-to-device discovery and interaction
+- **Screen:** 1.8”, 368*448 px
 
 ## Core mechanics - draft (!!!) ideas
 
