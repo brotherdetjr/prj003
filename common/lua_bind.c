@@ -7,8 +7,8 @@
 #include "../vendor/cjson/cJSON.h"
 
 /* Registry keys */
-#define REG_APP    "_gloxie_app"
-#define REG_GLOXIE "_gloxie_table"
+#define REG_APP "_gloxie_app"
+#define REG_RW  "_gloxie_rw"
 
 /* ------------------------------------------------------------------ */
 /* Helpers                                                              */
@@ -22,10 +22,39 @@ static app_t *get_app(lua_State *L)
     return app;
 }
 
-/* Push the gloxie table onto the Lua stack. */
-static void push_gloxie(lua_State *L)
+/* Push the rw table onto the Lua stack. */
+static void push_rw(lua_State *L)
 {
-    lua_getfield(L, LUA_REGISTRYINDEX, REG_GLOXIE);
+    lua_getfield(L, LUA_REGISTRYINDEX, REG_RW);
+}
+
+/* Push a fresh ro snapshot table onto the Lua stack. */
+static void push_ro(lua_State *L, app_t *app)
+{
+    lua_createtable(L, 0, 4);
+    lua_pushstring(L, app->instance_id);
+    lua_setfield(L, -2, "instance_id");
+    lua_pushinteger(L, (lua_Integer)app->now_tick);
+    lua_setfield(L, -2, "now_tick");
+    lua_pushinteger(L, (lua_Integer)app->now_unix_sec);
+    lua_setfield(L, -2, "now_unix_sec");
+
+    if (app->has_character) {
+        const character_t *ch = &app->character;
+        lua_createtable(L, 0, 3);
+        char id_str[9];
+        snprintf(id_str, sizeof(id_str), "%08X", ch->id);
+        lua_pushstring(L, id_str);
+        lua_setfield(L, -2, "id");
+        lua_pushinteger(L, (lua_Integer)ch->birth_unix_sec);
+        lua_setfield(L, -2, "birth_unix_sec");
+        lua_pushinteger(L, (lua_Integer)ch->birth_tick);
+        lua_setfield(L, -2, "birth_tick");
+        lua_setfield(L, -2, "character");
+    } else {
+        lua_pushnil(L);
+        lua_setfield(L, -2, "character");
+    }
 }
 
 /* Find a free slot in app->lua_events[]. Returns -1 if full. */
@@ -42,46 +71,9 @@ static int alloc_event_slot(app_t *app)
 /* gloxie module functions                                              */
 /* ------------------------------------------------------------------ */
 
-/* gloxie.now_tick() → integer */
-static int l_now_tick(lua_State *L)
-{
-    app_t *app = get_app(L);
-    lua_pushinteger(L, (lua_Integer)app->now_tick);
-    return 1;
-}
-
-/* gloxie.now_unix_sec() → integer */
-static int l_now_unix_sec(lua_State *L)
-{
-    app_t *app = get_app(L);
-    lua_pushinteger(L, (lua_Integer)app->now_unix_sec);
-    return 1;
-}
-
-/* gloxie.character() → table {id, birth_unix_sec, birth_tick} or nil */
-static int l_character(lua_State *L)
-{
-    app_t *app = get_app(L);
-    if (!app->has_character) {
-        lua_pushnil(L);
-        return 1;
-    }
-    const character_t *ch = &app->character;
-    lua_createtable(L, 0, 3);
-    char id_str[9];
-    snprintf(id_str, sizeof(id_str), "%08X", ch->id);
-    lua_pushstring(L, id_str);
-    lua_setfield(L, -2, "id");
-    lua_pushinteger(L, (lua_Integer)ch->birth_unix_sec);
-    lua_setfield(L, -2, "birth_unix_sec");
-    lua_pushinteger(L, (lua_Integer)ch->birth_tick);
-    lua_setfield(L, -2, "birth_tick");
-    return 1;
-}
-
 /*
  * gloxie.schedule(delay_ms, event_name)
- * Schedule a call to the Lua global `event_name(gloxie)` after
+ * Schedule a call to the Lua global `event_name(ro, rw)` after
  * `delay_ms` virtual milliseconds. `event_name` is also used as
  * the SSE event type when the scheduler fires it.
  */
@@ -110,7 +102,7 @@ static int l_schedule(lua_State *L)
 }
 
 /* ------------------------------------------------------------------ */
-/* scripted table → JSON and back                                       */
+/* rw table → JSON and back                                            */
 /* ------------------------------------------------------------------ */
 
 static cJSON *lua_table_to_cjson(lua_State *L, int idx);
@@ -148,23 +140,20 @@ static cJSON *lua_table_to_cjson(lua_State *L, int idx)
     return obj;
 }
 
-cJSON *lua_bind_scripted_to_cjson(app_t *app)
+cJSON *lua_bind_rw_to_cjson(app_t *app)
 {
     lua_State *L = app->L;
-    push_gloxie(L);
-    lua_getfield(L, -1, "scripted");
+    push_rw(L);
     cJSON *obj = lua_table_to_cjson(L, -1);
-    lua_pop(L, 2); /* scripted, gloxie */
+    lua_pop(L, 1);
     return obj;
 }
 
-void lua_bind_reset_scripted(app_t *app)
+void lua_bind_reset_rw(app_t *app)
 {
     lua_State *L = app->L;
-    push_gloxie(L);
     lua_newtable(L);
-    lua_setfield(L, -2, "scripted");
-    lua_pop(L, 1);
+    lua_setfield(L, LUA_REGISTRYINDEX, REG_RW);
 }
 
 static void cjson_to_lua_table(lua_State *L, const cJSON *obj)
@@ -193,17 +182,14 @@ static void cjson_to_lua_table(lua_State *L, const cJSON *obj)
     }
 }
 
-static void lua_bind_restore_scripted(app_t *app, const cJSON *scripted)
+static void lua_bind_restore_rw(app_t *app, const cJSON *rw_json)
 {
-    if (!app->has_character) return;
     lua_State *L = app->L;
-    push_gloxie(L);
-    if (scripted && cJSON_IsObject(scripted))
-        cjson_to_lua_table(L, scripted);
+    if (rw_json && cJSON_IsObject(rw_json))
+        cjson_to_lua_table(L, rw_json);
     else
         lua_newtable(L);
-    lua_setfield(L, -2, "scripted");
-    lua_pop(L, 1); /* gloxie */
+    lua_setfield(L, LUA_REGISTRYINDEX, REG_RW);
 }
 
 /* ------------------------------------------------------------------ */
@@ -242,13 +228,8 @@ static void lua_bind_restore_scheduler(app_t *app, const cJSON *arr)
 
 void lua_bind_restore(app_t *app, const cJSON *state_json)
 {
-    if (app->has_character) {
-        cJSON *ch_j = cJSON_GetObjectItemCaseSensitive(state_json, "character");
-        lua_bind_restore_scripted(app,
-            cJSON_IsObject(ch_j)
-                ? cJSON_GetObjectItemCaseSensitive(ch_j, "scripted")
-                : NULL);
-    }
+    lua_bind_restore_rw(app,
+        cJSON_GetObjectItemCaseSensitive(state_json, "rw"));
     lua_bind_restore_scheduler(app,
         cJSON_GetObjectItemCaseSensitive(state_json, "scheduler"));
 }
@@ -278,8 +259,9 @@ void lua_bind_dispatch(uint32_t tag, app_t *app)
         lua_pop(L, 1);
         return;
     }
-    push_gloxie(L);
-    if (lua_pcall(L, 1, 0, 0) != LUA_OK) {
+    push_ro(L, app);
+    push_rw(L);
+    if (lua_pcall(L, 2, 0, 0) != LUA_OK) {
         fprintf(stderr, "Lua error in %s: %s\n", name, lua_tostring(L, -1));
         lua_pop(L, 1);
     }
@@ -297,8 +279,9 @@ void lua_bind_call(app_t *app, const char *fn_name)
         lua_pop(L, 1);
         return;
     }
-    push_gloxie(L);
-    if (lua_pcall(L, 1, 0, 0) != LUA_OK) {
+    push_ro(L, app);
+    push_rw(L);
+    if (lua_pcall(L, 2, 0, 0) != LUA_OK) {
         fprintf(stderr, "Lua error in %s: %s\n", fn_name, lua_tostring(L, -1));
         lua_pop(L, 1);
     }
@@ -309,10 +292,7 @@ void lua_bind_call(app_t *app, const char *fn_name)
 /* ------------------------------------------------------------------ */
 
 static const luaL_Reg gloxie_funcs[] = {
-    {"now_tick",     l_now_tick},
-    {"now_unix_sec", l_now_unix_sec},
-    {"character",    l_character},
-    {"schedule",     l_schedule},
+    {"schedule", l_schedule},
     {NULL, NULL}
 };
 
@@ -329,12 +309,14 @@ int lua_bind_init(app_t *app, const char *script_path)
     lua_pushlightuserdata(L, app);
     lua_setfield(L, LUA_REGISTRYINDEX, REG_APP);
 
-    /* Build gloxie table and store it in the registry (not as a global) */
+    /* Build gloxie module table and expose as a global */
     lua_newtable(L);
     luaL_setfuncs(L, gloxie_funcs, 0);
-    lua_newtable(L);                        /* gloxie.scripted = {} */
-    lua_setfield(L, -2, "scripted");
-    lua_setfield(L, LUA_REGISTRYINDEX, REG_GLOXIE);
+    lua_setglobal(L, "gloxie");
+
+    /* Create rw table in the registry */
+    lua_newtable(L);
+    lua_setfield(L, LUA_REGISTRYINDEX, REG_RW);
 
     /* Initialise event slots */
     for (unsigned i = 0; i < LUA_MAX_EVENTS; i++)

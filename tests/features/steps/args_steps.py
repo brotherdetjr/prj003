@@ -50,15 +50,14 @@ def step_state_file_empty(context, nowtick):
     _make_state_file(context, nowtick, character=None)
 
 
-@given('a state file with a character "{char_id}" at scripted energy {energy:d}')
+@given('a state file with a character "{char_id}" at energy {energy:d}')
 def step_state_file_with_character(context, char_id, energy):
     character = {
         'id': char_id,
         'birth_unix_sec': 1775606400,
         'birth_tick': 0,
-        'scripted': {'energy': energy},
     }
-    _make_state_file(context, 0, character=character)
+    _make_state_file(context, 0, character=character, rw={'energy': energy})
 
 
 @given('emu starts with that state file and args "{args_str}"')
@@ -89,13 +88,13 @@ def step_emu_invoked(context, args_str):
 
 @then('instance_id is "{value}"')
 def step_instance_id(context, value):
-    actual = context.resp['state']['instance_id']
+    actual = context.resp['ro']['instance_id']
     assert actual == value, f'expected instance_id={value!r}, got {actual!r}'
 
 
 @then('instance_id is an 8-digit hex string')
 def step_instance_id_random(context):
-    actual = context.resp['state']['instance_id']
+    actual = context.resp['ro']['instance_id']
     assert re.fullmatch(r'[0-9A-F]{8}', actual), \
         f'expected 8-digit hex string, got {actual!r}'
 
@@ -103,7 +102,7 @@ def step_instance_id_random(context):
 @then('autotick is {value}')
 def step_autotick(context, value):
     expected = value.lower() == 'true'
-    actual = context.resp['state']['autotick']
+    actual = context.resp['autotick']
     assert actual is expected, f'expected autotick={expected}, got {actual}'
 
 
@@ -117,13 +116,17 @@ def step_exit_code(context, code):
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _make_state_file(context, now_tick, character=None):
+def _make_state_file(context, now_tick, character=None, rw=None):
     state = {
-        'instance_id': 'DEADBEEF',
-        'now_tick': now_tick,
-        'now_unix_sec': 1775606400,
+        'ro': {
+            'instance_id': 'DEADBEEF',
+            'now_tick': now_tick,
+            'now_unix_sec': 1775606400,
+            'character': character,
+        },
+        'rw': rw or {},
         'autotick': False,
-        'character': character,
+        'scheduler': [],
     }
     f = tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False)
     json.dump(state, f)

@@ -82,11 +82,12 @@ static void reply_error(struct mg_connection *c, const char *msg)
 
 static void reply_state(struct mg_connection *c, app_t *app)
 {
-    cJSON *state = app_state_to_json(app);
-    char  *s     = cJSON_PrintUnformatted(state);
-    mg_http_reply(c, 200, JSON_HDR, "{\"ok\":true,\"state\":%s}\n", s);
+    cJSON *resp = app_state_to_json(app);
+    cJSON_AddBoolToObject(resp, "ok", 1);
+    char *s = cJSON_PrintUnformatted(resp);
+    mg_http_reply(c, 200, JSON_HDR, "%s\n", s);
     cJSON_free(s);
-    cJSON_Delete(state);
+    cJSON_Delete(resp);
 }
 
 /* ------------------------------------------------------------------ */
@@ -157,7 +158,7 @@ static void handle_command(struct mg_connection *c,
         else
             char_id = (uint32_t)rand();
         app_spawn_character(app, char_id);
-        lua_bind_reset_scripted(app);
+        lua_bind_reset_rw(app);
         lua_bind_call(app, "_on_spawn");
         reply_state(c, app);
 
@@ -211,7 +212,7 @@ static void handle_command(struct mg_connection *c,
             reply_error(c, "state must be an object");
             goto done;
         }
-        if (json_to_world(app, state_j) != 0) {
+        if (json_to_state(app, state_j) != 0) {
             reply_error(c, "invalid state");
             goto done;
         }

@@ -24,8 +24,7 @@ def step_start_emu(context, emu_id, nowtick, wallclock):
 
 @when('I get state')
 def step_get_state(context):
-    resp = post(context, {'cmd': 'get_state'})
-    context.state = resp['state']
+    context.state = post(context, {'cmd': 'get_state'})
 
 
 @when('I get wall clock')
@@ -35,8 +34,7 @@ def step_get_wall_clock(context):
 
 @when('I spawn a character')
 def step_spawn(context):
-    resp = post(context, {'cmd': 'spawn'})
-    context.state = resp.get('state')
+    context.state = post(context, {'cmd': 'spawn'})
 
 
 @when('I advance {ticks:d} ticks')
@@ -71,7 +69,7 @@ def step_resp_ok(context):
 @then('now_tick is {value:d}')
 def step_now_tick(context, value):
     resp = context.resp
-    actual = resp['now_tick'] if 'now_tick' in resp else resp['state']['now_tick']
+    actual = resp['now_tick'] if 'now_tick' in resp else resp['ro']['now_tick']
     assert actual == value, f'expected now_tick={value}, got {actual}'
 
 
@@ -79,36 +77,36 @@ def step_now_tick(context, value):
 def step_now_unix_sec(context, value):
     resp = context.resp
     actual = (resp.get('now_unix_sec')
-              or resp.get('state', {}).get('now_unix_sec'))
+              or resp.get('ro', {}).get('now_unix_sec'))
     assert actual == value, f'expected now_unix_sec={value}, got {actual}'
 
 
 @then('there is no character')
 def step_no_character(context):
-    assert context.resp['state']['character'] is None, context.resp
+    assert context.resp['ro']['character'] is None, context.resp
 
 
 @then('the character id is "{char_id}"')
 def step_char_id(context, char_id):
-    assert context.resp['state']['character']['id'] == char_id, context.resp
+    assert context.resp['ro']['character']['id'] == char_id, context.resp
 
 
 @then('birth_unix_sec is {value:d}')
 def step_birth_unix_sec(context, value):
-    actual = context.resp['state']['character']['birth_unix_sec']
+    actual = context.resp['ro']['character']['birth_unix_sec']
     assert actual == value, f'expected birth_unix_sec={value}, got {actual}'
 
 
 @then('birth_tick is {value:d}')
 def step_birth_tick(context, value):
-    actual = context.resp['state']['character']['birth_tick']
+    actual = context.resp['ro']['character']['birth_tick']
     assert actual == value, f'expected birth_tick={value}, got {actual}'
 
 
-@then('scripted energy is {value:d}')
-def step_scripted_energy(context, value):
-    actual = context.state['character']['scripted']['energy']
-    assert actual == value, f'expected scripted.energy={value}, got {actual}'
+@then('energy is {value:d}')
+def step_energy(context, value):
+    actual = context.state['rw']['energy']
+    assert actual == value, f'expected rw.energy={value}, got {actual}'
 
 
 @then('stopped_on_event is {value}')

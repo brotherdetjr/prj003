@@ -69,7 +69,7 @@ static int load_state_file(app_t *app, const char *path)
     free(buf);
     if (!json) { fprintf(stderr, "%s: malformed JSON\n", path); return -1; }
 
-    int rc = json_to_world(app, json);
+    int rc = json_to_state(app, json);
     if (rc != 0) {
         cJSON_Delete(json);
         fprintf(stderr, "%s: invalid state\n", path);
