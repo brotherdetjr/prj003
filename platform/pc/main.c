@@ -3,11 +3,11 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
-#include "../common/app.h"
-#include "server.h"
+#include "../../common/app.h"
+#include "../../common/server.h"
 #include "peer.h"
-#include "state.h"
-#include "lua_bind.h"
+#include "../../common/state.h"
+#include "../../common/lua_bind.h"
 
 #define DEFAULT_PORT     "7070"
 
@@ -69,7 +69,7 @@ static int load_state_file(app_t *app, const char *path)
     free(buf);
     if (!json) { fprintf(stderr, "%s: malformed JSON\n", path); return -1; }
 
-    int rc = json_to_world(&app->world, json);
+    int rc = json_to_world(app, json);
     if (rc != 0) {
         cJSON_Delete(json);
         fprintf(stderr, "%s: invalid state\n", path);
@@ -165,7 +165,7 @@ int main(int argc, char *argv[])
     /* virtual clock: --nowtick if given, else same as wall clock */
     uint64_t now_tick = has_nowtick ? arg_nowtick : now_unix_sec;
 
-    world_init(&app.world, now_tick, now_unix_sec);
+    app_init(&app, now_tick, now_unix_sec);
 
     /* Determine script path: --script overrides; otherwise relative to binary */
     char script_path[1024];
@@ -195,11 +195,11 @@ int main(int argc, char *argv[])
         if (load_state_file(&app, load_file) == 0) {
             /* explicit flags override values from the saved file */
             if (has_nowtick) {
-                app.world.now_tick = arg_nowtick;
-                scheduler_clear(&app.world.scheduler);
+                app.now_tick = arg_nowtick;
+                scheduler_clear(&app.scheduler);
             }
             if (has_wallclock)
-                app.world.now_unix_sec = arg_wallclock;
+                app.now_unix_sec = arg_wallclock;
             fprintf(stderr, "Loaded state from '%s'\n", load_file);
         } else {
             return 1;
@@ -216,7 +216,7 @@ int main(int argc, char *argv[])
         return 1;
     }
     {
-        time_t t = (time_t)app.world.now_unix_sec;
+        time_t t = (time_t)app.now_unix_sec;
         char tbuf[32];
         strftime(tbuf, sizeof(tbuf), "%Y-%m-%dT%H:%M:%SZ", gmtime(&t));
         fprintf(stderr, "Gloxie %s  autotick %s  wall %s\n",

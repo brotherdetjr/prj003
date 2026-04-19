@@ -1,8 +1,8 @@
 #ifndef LUA_BIND_H
 #define LUA_BIND_H
 
-#include "../common/app.h"
-#include "../../vendor/cjson/cJSON.h"
+#include "app.h"
+#include "../vendor/cjson/cJSON.h"
 
 /*
  * Initialise the Lua VM for `app`, load the script at `script_path`,
@@ -37,9 +37,9 @@ void lua_bind_reset_scripted(app_t *app);
 void lua_bind_restore(app_t *app, const cJSON *state_json);
 
 /*
- * Dispatch callback wired into world_t.dispatch_cb.
+ * Dispatch callback wired into app_t.dispatch_cb.
  * Calls the named Lua global, passing the gloxie table as first argument.
  */
-void lua_bind_dispatch(uint32_t tag, void *ud);
+void lua_bind_dispatch(uint32_t tag, app_t *app);
 
 #endif /* LUA_BIND_H */

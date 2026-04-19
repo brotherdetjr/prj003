@@ -12,14 +12,17 @@ VCFLAGS  = -std=gnu11 -g -DMG_ENABLE_MBEDTLS=0 \
 
 TARGET   = emu
 
-APP_SRCS = main.c server.c peer.c state.c lua_bind.c \
-           ../../core/world.c ../../core/character.c ../../core/scheduler.c
+APP_SRCS = main.c peer.c \
+           ../../common/app.c ../../common/lua_bind.c \
+           ../../common/server.c ../../common/state.c \
+           ../../common/character.c ../../common/scheduler.c
 
 APP_OBJS = $(notdir $(APP_SRCS:.c=.o))
 
 # Headers that, when changed, require a full rebuild of all app objects
-APP_HDRS = ../common/app.h \
-           ../../core/world.h ../../core/character.h ../../core/scheduler.h
+APP_HDRS = ../../common/app.h ../../common/lua_bind.h \
+           ../../common/server.h ../../common/state.h \
+           ../../common/character.h ../../common/scheduler.h
 
 LUA_SRCS = $(wildcard ../../vendor/lua/*.c)
 LUA_OBJS = $(notdir $(LUA_SRCS:.c=.o))
@@ -34,13 +37,13 @@ $(TARGET): $(APP_OBJS) $(VENDOR_OBJS)
 # App object rules (with relative paths resolved)
 # All app objects depend on APP_HDRS so any header change triggers a rebuild
 main.o:      main.c      $(APP_HDRS) ; $(CC) $(CFLAGS) -c -o $@ $<
-server.o:    server.c    $(APP_HDRS) ; $(CC) $(CFLAGS) -c -o $@ $<
 peer.o:      peer.c      $(APP_HDRS) ; $(CC) $(CFLAGS) -c -o $@ $<
-state.o:     state.c     $(APP_HDRS) ; $(CC) $(CFLAGS) -c -o $@ $<
-lua_bind.o:  lua_bind.c  $(APP_HDRS) ; $(CC) $(CFLAGS) -c -o $@ $<
-world.o:     ../../core/world.c     $(APP_HDRS) ; $(CC) $(CFLAGS) -c -o $@ $<
-character.o: ../../core/character.c $(APP_HDRS) ; $(CC) $(CFLAGS) -c -o $@ $<
-scheduler.o: ../../core/scheduler.c $(APP_HDRS) ; $(CC) $(CFLAGS) -c -o $@ $<
+app.o:       ../../common/app.c       $(APP_HDRS) ; $(CC) $(CFLAGS) -c -o $@ $<
+lua_bind.o:  ../../common/lua_bind.c  $(APP_HDRS) ; $(CC) $(CFLAGS) -c -o $@ $<
+server.o:    ../../common/server.c    $(APP_HDRS) ; $(CC) $(CFLAGS) -c -o $@ $<
+state.o:     ../../common/state.c     $(APP_HDRS) ; $(CC) $(CFLAGS) -c -o $@ $<
+character.o: ../../common/character.c $(APP_HDRS) ; $(CC) $(CFLAGS) -c -o $@ $<
+scheduler.o: ../../common/scheduler.c $(APP_HDRS) ; $(CC) $(CFLAGS) -c -o $@ $<
 
 # Vendor object rules (warnings suppressed)
 mongoose.o: ../../vendor/mongoose/mongoose.c
@@ -56,7 +59,7 @@ $(notdir $(1:.c=.o)): $(1)
 endef
 $(foreach src,$(LUA_SRCS),$(eval $(call LUA_RULE,$(src))))
 
-test_scheduler: ../../core/test_scheduler.c ../../core/scheduler.c
+test_scheduler: ../../common/test_scheduler.c ../../common/scheduler.c
 	$(CC) $(CFLAGS) -o $@ $^
 
 test: test_scheduler

@@ -1,7 +1,7 @@
 #ifndef SERVER_H
 #define SERVER_H
 
-#include "../common/app.h"
+#include "app.h"
 
 /* Mongoose HTTP event handler — pass as fn to mg_http_listen. */
 void mg_event_handler(struct mg_connection *c, int ev, void *ev_data);

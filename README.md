@@ -64,24 +64,21 @@ game is not.
 ## Architecture
 
 ```
-core/               ← pure C, zero platform dependencies
-  scheduler.h/c     ← generic min-heap priority queue (opaque tag)
-  world.h/c         ← world container, event dispatch, character spawning
+common/             ← shared code (all platforms)
+  app.h/c           ← app_t struct; app_init/spawn/poof/advance
+  lua_bind.h/c      ← Lua VM init, gloxie module, event dispatch
+  server.h/c        ← HTTP command dispatch, SSE game-event push
+  state.h/c         ← app ↔ JSON serialisation
   character.h/c     ← character struct, initialisation
-  zodiac.h/c        ← sign cycle, compatibility matrix (TODO)
+  scheduler.h/c     ← generic min-heap priority queue (opaque tag)
   test_scheduler.c  ← scheduler unit tests (make test)
 
 platform/
-  common/
-    app.h           ← app_t (world + mongoose mgr + lua state + AUTOTICK constant)
   esp32/
     main.ino        ← Arduino setup()/loop(), RTC + BLE
   pc/
     main.c          ← argument parsing, entry point, main loop
-    server.c/h      ← HTTP command dispatch, SSE game-event push
     peer.c/h        ← stdin/stdout peer channel
-    state.c/h       ← world ↔ JSON serialisation
-    lua_bind.c/h    ← Lua VM init, gloxie module, event dispatch
     Makefile
 
 scripts/
@@ -92,6 +89,7 @@ tests/
     smoke.feature   ← happy-path scenarios from README smoke test
     args.feature    ← CLI argument parsing, defaults, invalid inputs
     api.feature     ← HTTP API edge cases (bad inputs, state errors)
+    scripting.feature ← Lua scripting behaviour
     environment.py  ← Behave hooks (emu lifecycle, temp-file cleanup)
     steps/
       steps.py      ← shared Given/When/Then step definitions
@@ -111,10 +109,10 @@ Two independent clocks:
 
 | Field | Type | Description |
 |---|---|---|
-| `world.now_tick` | virtual ticks, similar to millisecond during the actual application execution, though can drift away from the wall clock time | Advances via `advance_time`. Drives all game logic and the scheduler. |
-| `world.now_unix_sec` | Unix Epoch seconds | Wall clock. Set from RTC (ESP32) or system clock / `set_wall_clock` (PC). Updated every real second in autotick mode. Used only for zodiac. |
+| `app.now_tick` | virtual ticks, similar to millisecond during the actual application execution, though can drift away from the wall clock time | Advances via `advance_time`. Drives all game logic and the scheduler. |
+| `app.now_unix_sec` | Unix Epoch seconds | Wall clock. Set from RTC (ESP32) or system clock / `set_wall_clock` (PC). Updated every real second in autotick mode. Used only for zodiac. |
 
-The scheduler is a min-heap of `(fire_at_ms, tag)` events. `world_advance` pops
+The scheduler is a min-heap of `(fire_at_ms, tag)` events. `app_advance` pops
 and dispatches events in chronological order up to a target tick. Game logic
 (energy drain, future: hunger, sleep, …) registers recurring events rather than
 polling every tick.
@@ -368,10 +366,7 @@ WiFi-based debugging on real hardware without a separate debug protocol.
 
 ### What is reusable on ESP32 without changes
 
-- `core/` — pure C, zero platform dependencies
-- `platform/common/app.h` — `app_t` struct (world + Mongoose manager + autotick)
-- `platform/pc/server.c/h` — HTTP command dispatch and SSE push
-- `platform/pc/state.c/h` — world ↔ JSON serialisation
+- `common/` — everything: `app_t`, Lua binding, HTTP server, state serialisation, character, scheduler
 
 Mongoose (`vendor/mongoose/`) has explicit ESP32/Arduino support and compiles
 on that target without modification.
@@ -387,8 +382,8 @@ void setup() {
     WiFi.begin("ssid", "password");
     while (WiFi.status() != WL_CONNECTED) delay(100);
 
-    world_init(&s_world, rtc_now());
-    world_spawn_character(&s_world, esp_random());
+    app_init(&s_app, rtc_now(), 0);
+    app_spawn_character(&s_app, esp_random());
 
     mg_mgr_init(&app.mgr);
     mg_http_listen(&app.mgr, "http://0.0.0.0:80", mg_event_handler, &app);
