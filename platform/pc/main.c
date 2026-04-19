@@ -4,9 +4,9 @@
 #include <time.h>
 #include <unistd.h>
 #include "../../common/app.h"
-#include "server.h"
+#include "../../common/server.h"
 #include "peer.h"
-#include "state.h"
+#include "../../common/state.h"
 #include "../../common/lua_bind.h"
 
 #define DEFAULT_PORT     "7070"

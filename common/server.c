@@ -4,8 +4,8 @@
 #include <time.h>
 #include "server.h"
 #include "state.h"
-#include "../../common/lua_bind.h"
-#include "../../vendor/cjson/cJSON.h"
+#include "lua_bind.h"
+#include "../vendor/cjson/cJSON.h"
 
 #define JSON_HDR    "Content-Type: application/json\r\n"
 #define IS_SSE(c)   ((c)->data[0] == 'S')

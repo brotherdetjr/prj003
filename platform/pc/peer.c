@@ -4,7 +4,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include "peer.h"
-#include "server.h"
+#include "../../common/server.h"
 #include "../../vendor/cjson/cJSON.h"
 
 #define BUF_SIZE 4096

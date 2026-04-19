@@ -12,14 +12,16 @@ VCFLAGS  = -std=gnu11 -g -DMG_ENABLE_MBEDTLS=0 \
 
 TARGET   = emu
 
-APP_SRCS = main.c server.c peer.c state.c \
+APP_SRCS = main.c peer.c \
            ../../common/app.c ../../common/lua_bind.c \
+           ../../common/server.c ../../common/state.c \
            ../../common/character.c ../../common/scheduler.c
 
 APP_OBJS = $(notdir $(APP_SRCS:.c=.o))
 
 # Headers that, when changed, require a full rebuild of all app objects
 APP_HDRS = ../../common/app.h ../../common/lua_bind.h \
+           ../../common/server.h ../../common/state.h \
            ../../common/character.h ../../common/scheduler.h
 
 LUA_SRCS = $(wildcard ../../vendor/lua/*.c)
@@ -35,11 +37,11 @@ $(TARGET): $(APP_OBJS) $(VENDOR_OBJS)
 # App object rules (with relative paths resolved)
 # All app objects depend on APP_HDRS so any header change triggers a rebuild
 main.o:      main.c      $(APP_HDRS) ; $(CC) $(CFLAGS) -c -o $@ $<
-server.o:    server.c    $(APP_HDRS) ; $(CC) $(CFLAGS) -c -o $@ $<
 peer.o:      peer.c      $(APP_HDRS) ; $(CC) $(CFLAGS) -c -o $@ $<
-state.o:     state.c     $(APP_HDRS) ; $(CC) $(CFLAGS) -c -o $@ $<
 app.o:       ../../common/app.c       $(APP_HDRS) ; $(CC) $(CFLAGS) -c -o $@ $<
 lua_bind.o:  ../../common/lua_bind.c  $(APP_HDRS) ; $(CC) $(CFLAGS) -c -o $@ $<
+server.o:    ../../common/server.c    $(APP_HDRS) ; $(CC) $(CFLAGS) -c -o $@ $<
+state.o:     ../../common/state.c     $(APP_HDRS) ; $(CC) $(CFLAGS) -c -o $@ $<
 character.o: ../../common/character.c $(APP_HDRS) ; $(CC) $(CFLAGS) -c -o $@ $<
 scheduler.o: ../../common/scheduler.c $(APP_HDRS) ; $(CC) $(CFLAGS) -c -o $@ $<
 

@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "state.h"
-#include "../../common/lua_bind.h"
+#include "lua_bind.h"
 
 cJSON *app_state_to_json(app_t *app)
 {
