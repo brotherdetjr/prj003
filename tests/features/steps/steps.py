@@ -27,6 +27,11 @@ def step_get_state(context):
     context.state = post(context, {'cmd': 'get_state'})
 
 
+@when('I get autotick')
+def step_get_autotick(context):
+    post(context, {'cmd': 'get_autotick'})
+
+
 @when('I get wall clock')
 def step_get_wall_clock(context):
     post(context, {'cmd': 'get_wall_clock'})

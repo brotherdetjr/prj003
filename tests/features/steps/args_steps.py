@@ -125,7 +125,6 @@ def _make_state_file(context, now_tick, character=None, rw=None):
             'character': character,
         },
         'rw': rw or {},
-        'autotick': False,
         'scheduler': [],
     }
     f = tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False)

@@ -7,8 +7,7 @@
 cJSON *app_state_to_json(app_t *app)
 {
     cJSON *root = cJSON_CreateObject();
-    cJSON_AddStringToObject(root, "script",   app->script_path);
-    cJSON_AddBoolToObject  (root, "autotick", app->autotick);
+    cJSON_AddStringToObject(root, "script", app->script_path);
 
     /* ro: read-only snapshot */
     cJSON *ro = cJSON_CreateObject();

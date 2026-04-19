@@ -191,7 +191,7 @@ Request:
 
 Response: state fields at top level alongside `ok`:
 ```json
-{ "ok": true, "script": "...", "autotick": false, "ro": {...}, "rw": {...}, "scheduler": [...] }
+{ "ok": true, "script": "...", "ro": {...}, "rw": {...}, "scheduler": [...] }
 ```
 
 ---
@@ -230,6 +230,22 @@ Request:
 Response:
 ```json
 { "ok": true }
+```
+
+---
+
+#### `get_autotick`
+
+Return the current autotick mode.
+
+Request:
+```json
+{ "cmd": "get_autotick" }
+```
+
+Response:
+```json
+{ "ok": true, "autotick": true }
 ```
 
 ---
@@ -429,8 +445,7 @@ State fields appear at the top level of every `get_state` / `spawn` response
 No character spawned yet (or after `poof`):
 ```json
 {
-  "script":   ".../scripts/energy.lua",
-  "autotick": true,
+  "script": ".../scripts/energy.lua",
   "ro": {
     "instance_id": "DEADBEEF",
     "now_tick":    0,
@@ -445,8 +460,7 @@ No character spawned yet (or after `poof`):
 With an active character:
 ```json
 {
-  "script":   ".../scripts/energy.lua",
-  "autotick": true,
+  "script": ".../scripts/energy.lua",
   "ro": {
     "instance_id": "DEADBEEF",
     "now_tick":    5000,
@@ -469,7 +483,6 @@ With an active character:
 | Field | Description |
 |---|---|
 | `script` | Path to the loaded Lua game script. |
-| `autotick` | Whether the virtual clock advances automatically (1 000 ticks/real-second). |
 | `ro` | Read-only snapshot passed to Lua callbacks as the first argument. |
 | `ro.instance_id` | Device/process identity (8 hex digits). |
 | `ro.now_tick` | Virtual clock in ms. Advanced by `advance_time`. Drives game logic. |

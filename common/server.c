@@ -145,6 +145,12 @@ static void handle_command(struct mg_connection *c,
     } else if (strcmp(cmd, "get_state") == 0) {
         reply_state(c, app);
 
+    /* ---- get_autotick ---- */
+    } else if (strcmp(cmd, "get_autotick") == 0) {
+        mg_http_reply(c, 200, JSON_HDR,
+                      "{\"ok\":true,\"autotick\":%s}\n",
+                      app->autotick ? "true" : "false");
+
     /* ---- spawn ---- */
     } else if (strcmp(cmd, "spawn") == 0) {
         if (app->has_character) {

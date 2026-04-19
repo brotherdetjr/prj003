@@ -209,7 +209,6 @@ curl -s -X POST http://localhost:7070/command \
 {
     "ok": true,
     "script": ".../scripts/energy.lua",
-    "autotick": false,
     "ro": {
         "instance_id": "DEADBEEF",
         "now_tick": 42,
@@ -231,7 +230,6 @@ curl -s -X POST http://localhost:7070/command \
 {
     "ok": true,
     "script": ".../scripts/energy.lua",
-    "autotick": false,
     "ro": {
         "instance_id": "DEADBEEF",
         "now_tick": 42,
@@ -279,7 +277,6 @@ curl -s -X POST http://localhost:7070/command \
 {
     "ok": true,
     "script": ".../scripts/energy.lua",
-    "autotick": false,
     "ro": {
         "instance_id": "DEADBEEF",
         "now_tick": 339042,

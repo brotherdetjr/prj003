@@ -21,7 +21,7 @@ Feature: Command-line argument parsing
 
   Scenario: --noautotick disables autotick
     Given emu starts with args "--nowtick=0 --noautotick"
-    When I get state
+    When I get autotick
     Then autotick is false
 
   Scenario: --script appears in state JSON
@@ -54,7 +54,7 @@ Feature: Command-line argument parsing
 
   Scenario: autotick is on by default
     Given emu starts with args "--nowtick=0"
-    When I get state
+    When I get autotick
     Then autotick is true
 
   Scenario: random instance ID is generated when --id is omitted
