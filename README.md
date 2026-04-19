@@ -64,24 +64,21 @@ game is not.
 ## Architecture
 
 ```
-core/               ← pure C, zero platform dependencies
-  scheduler.h/c     ← generic min-heap priority queue (opaque tag)
-  world.h/c         ← world container, event dispatch, character spawning
+common/             ← shared code (all platforms)
+  app.h/c           ← app_t struct; app_init/spawn/poof/advance
+  lua_bind.h/c      ← Lua VM init, gloxie module, event dispatch
   character.h/c     ← character struct, initialisation
-  zodiac.h/c        ← sign cycle, compatibility matrix (TODO)
+  scheduler.h/c     ← generic min-heap priority queue (opaque tag)
   test_scheduler.c  ← scheduler unit tests (make test)
 
 platform/
-  common/
-    app.h           ← app_t (world + mongoose mgr + lua state + AUTOTICK constant)
   esp32/
     main.ino        ← Arduino setup()/loop(), RTC + BLE
   pc/
     main.c          ← argument parsing, entry point, main loop
     server.c/h      ← HTTP command dispatch, SSE game-event push
     peer.c/h        ← stdin/stdout peer channel
-    state.c/h       ← world ↔ JSON serialisation
-    lua_bind.c/h    ← Lua VM init, gloxie module, event dispatch
+    state.c/h       ← app ↔ JSON serialisation
     Makefile
 
 scripts/
@@ -92,6 +89,7 @@ tests/
     smoke.feature   ← happy-path scenarios from README smoke test
     args.feature    ← CLI argument parsing, defaults, invalid inputs
     api.feature     ← HTTP API edge cases (bad inputs, state errors)
+    scripting.feature ← Lua scripting behaviour
     environment.py  ← Behave hooks (emu lifecycle, temp-file cleanup)
     steps/
       steps.py      ← shared Given/When/Then step definitions
@@ -368,10 +366,9 @@ WiFi-based debugging on real hardware without a separate debug protocol.
 
 ### What is reusable on ESP32 without changes
 
-- `core/` — pure C, zero platform dependencies
-- `platform/common/app.h` — `app_t` struct (world + Mongoose manager + autotick)
+- `common/` — `app_t`, Lua binding, character, scheduler
 - `platform/pc/server.c/h` — HTTP command dispatch and SSE push
-- `platform/pc/state.c/h` — world ↔ JSON serialisation
+- `platform/pc/state.c/h` — app ↔ JSON serialisation
 
 Mongoose (`vendor/mongoose/`) has explicit ESP32/Arduino support and compiles
 on that target without modification.
