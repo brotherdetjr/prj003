@@ -1,4 +1,4 @@
-#include "../common/app.h"
+#include "../../common/app.h"
 
 /* TODO: replace with real Lua dispatch once Lua is wired up for ESP32 */
 static void noop_dispatch(uint32_t tag, app_t *app) { (void)tag; (void)app; }

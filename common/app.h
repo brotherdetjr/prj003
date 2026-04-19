@@ -2,10 +2,10 @@
 #define APP_H
 
 #include <stdint.h>
-#include "../../core/character.h"
-#include "../../core/scheduler.h"
-#include "../../vendor/mongoose/mongoose.h"
-#include "../../vendor/lua/lua.h"
+#include "character.h"
+#include "scheduler.h"
+#include "../vendor/mongoose/mongoose.h"
+#include "../vendor/lua/lua.h"
 
 #define AUTOTICK 100U   /* virtual ms per timer tick; timer fires 10×/sec for ~10 FPS */
 

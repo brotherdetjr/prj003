@@ -1,7 +1,7 @@
 #ifndef STATE_H
 #define STATE_H
 
-#include "../common/app.h"
+#include "../../common/app.h"
 #include "../../vendor/cjson/cJSON.h"
 
 /* Serialise full app state to a cJSON object (caller must cJSON_Delete). */

@@ -3,11 +3,11 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
-#include "../common/app.h"
+#include "../../common/app.h"
 #include "server.h"
 #include "peer.h"
 #include "state.h"
-#include "lua_bind.h"
+#include "../../common/lua_bind.h"
 
 #define DEFAULT_PORT     "7070"
 
