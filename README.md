@@ -119,10 +119,13 @@ and dispatches events in chronological order up to a target tick. Game logic
 polling every tick.
 
 Game logic lives in Lua scripts (`scripts/`). The Lua VM is embedded via
-`lua_bind.c`; scripts are loaded at startup and interact with the world through
-the `gloxie` module. `core/` provides the pure-C primitives (scheduler, world,
-character) that the platform and scripts build on. The PC build is the primary
-development target; behaviour is verified there before flashing to hardware.
+`lua_bind.c`; scripts are loaded at startup and expose event callbacks that
+receive two arguments: `ro` (read-only snapshot: `instance_id`, `now_tick`,
+`now_unix_sec`, `character`) and `rw` (read-write scripted state). The
+`gloxie` global module provides `gloxie.schedule()`. `common/` provides the
+pure-C primitives (scheduler, world, character) that the platform and scripts
+build on. The PC build is the primary development target; behaviour is verified
+there before flashing to hardware.
 
 ### Lua callback naming conventions
 
@@ -205,15 +208,16 @@ curl -s -X POST http://localhost:7070/command \
 ```json
 {
     "ok": true,
-    "state": {
+    "script": ".../scripts/energy.lua",
+    "autotick": false,
+    "ro": {
         "instance_id": "DEADBEEF",
-        "script": ".../scripts/energy.lua",
         "now_tick": 42,
         "now_unix_sec": 1775606400,
-        "autotick": false,
-        "character": null,
-        "scheduler": []
-    }
+        "character": null
+    },
+    "rw": {},
+    "scheduler": []
 }
 ```
 
@@ -226,22 +230,22 @@ curl -s -X POST http://localhost:7070/command \
 ```json
 {
     "ok": true,
-    "state": {
+    "script": ".../scripts/energy.lua",
+    "autotick": false,
+    "ro": {
         "instance_id": "DEADBEEF",
-        "script": ".../scripts/energy.lua",
         "now_tick": 42,
         "now_unix_sec": 1775606400,
-        "autotick": false,
         "character": {
             "id": "14FE67E1",
             "birth_unix_sec": 1775606400,
-            "birth_tick": 42,
-            "scripted": {"energy": 255}
-        },
-        "scheduler": [
-            {"fire_at_ms": 339042, "event": "on_energy_drain"}
-        ]
-    }
+            "birth_tick": 42
+        }
+    },
+    "rw": {"energy": 255},
+    "scheduler": [
+        {"fire_at_ms": 339042, "event": "on_energy_drain"}
+    ]
 }
 ```
 
@@ -274,22 +278,22 @@ curl -s -X POST http://localhost:7070/command \
 ```json
 {
     "ok": true,
-    "state": {
+    "script": ".../scripts/energy.lua",
+    "autotick": false,
+    "ro": {
         "instance_id": "DEADBEEF",
-        "script": ".../scripts/energy.lua",
         "now_tick": 339042,
         "now_unix_sec": 1775606400,
-        "autotick": false,
         "character": {
             "id": "14FE67E1",
             "birth_unix_sec": 1775606400,
-            "birth_tick": 42,
-            "scripted": {"energy": 254}
-        },
-        "scheduler": [
-            {"fire_at_ms": 678042, "event": "on_energy_drain"}
-        ]
-    }
+            "birth_tick": 42
+        }
+    },
+    "rw": {"energy": 254},
+    "scheduler": [
+        {"fire_at_ms": 678042, "event": "on_energy_drain"}
+    ]
 }
 ```
 
@@ -335,7 +339,7 @@ every 339 real seconds.
 # get current state
 STATE=$(curl -s -X POST http://localhost:7070/command \
   -H 'Content-Type: application/json' \
-  -d '{"cmd":"get_state"}' | python3 -c "import sys,json; print(json.dumps(json.load(sys.stdin)['state']))")
+  -d '{"cmd":"get_state"}' | python3 -c "import sys,json; d=json.load(sys.stdin); del d['ok']; print(json.dumps(d))")
 
 # push it back (round-trip check)
 curl -s -X POST http://localhost:7070/command \
