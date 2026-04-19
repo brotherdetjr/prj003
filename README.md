@@ -67,6 +67,8 @@ game is not.
 common/             ← shared code (all platforms)
   app.h/c           ← app_t struct; app_init/spawn/poof/advance
   lua_bind.h/c      ← Lua VM init, gloxie module, event dispatch
+  server.h/c        ← HTTP command dispatch, SSE game-event push
+  state.h/c         ← app ↔ JSON serialisation
   character.h/c     ← character struct, initialisation
   scheduler.h/c     ← generic min-heap priority queue (opaque tag)
   test_scheduler.c  ← scheduler unit tests (make test)
@@ -76,9 +78,7 @@ platform/
     main.ino        ← Arduino setup()/loop(), RTC + BLE
   pc/
     main.c          ← argument parsing, entry point, main loop
-    server.c/h      ← HTTP command dispatch, SSE game-event push
     peer.c/h        ← stdin/stdout peer channel
-    state.c/h       ← app ↔ JSON serialisation
     Makefile
 
 scripts/
@@ -366,9 +366,7 @@ WiFi-based debugging on real hardware without a separate debug protocol.
 
 ### What is reusable on ESP32 without changes
 
-- `common/` — `app_t`, Lua binding, character, scheduler
-- `platform/pc/server.c/h` — HTTP command dispatch and SSE push
-- `platform/pc/state.c/h` — app ↔ JSON serialisation
+- `common/` — everything: `app_t`, Lua binding, HTTP server, state serialisation, character, scheduler
 
 Mongoose (`vendor/mongoose/`) has explicit ESP32/Arduino support and compiles
 on that target without modification.
