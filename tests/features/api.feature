@@ -238,3 +238,170 @@ Feature: HTTP API edge cases
       {"cmd": "set_state", "state": {"garbage": true}}
       """
     Then the response has ok false
+
+  Scenario: set_state with missing ro.instance_id is rejected
+    When I post command:
+      """
+      {"cmd": "set_state", "state": {
+        "ro": {"now_tick": 100, "now_unix_sec": 1775606400,
+               "character": {"id": "CAFEBABE", "birth_unix_sec": 1775606400, "birth_tick": 0}},
+        "rw": {}, "scheduler": []
+      }}
+      """
+    Then the response has ok false
+
+  Scenario: set_state with missing ro.now_tick is rejected
+    When I post command:
+      """
+      {"cmd": "set_state", "state": {
+        "ro": {"instance_id": "DEADBEEF", "now_unix_sec": 1775606400,
+               "character": {"id": "CAFEBABE", "birth_unix_sec": 1775606400, "birth_tick": 0}},
+        "rw": {}, "scheduler": []
+      }}
+      """
+    Then the response has ok false
+
+  Scenario: set_state with missing ro.now_unix_sec is rejected
+    When I post command:
+      """
+      {"cmd": "set_state", "state": {
+        "ro": {"instance_id": "DEADBEEF", "now_tick": 100,
+               "character": {"id": "CAFEBABE", "birth_unix_sec": 1775606400, "birth_tick": 0}},
+        "rw": {}, "scheduler": []
+      }}
+      """
+    Then the response has ok false
+
+  Scenario: set_state with missing ro.character is rejected
+    When I post command:
+      """
+      {"cmd": "set_state", "state": {
+        "ro": {"instance_id": "DEADBEEF", "now_tick": 100, "now_unix_sec": 1775606400},
+        "rw": {}, "scheduler": []
+      }}
+      """
+    Then the response has ok false
+
+  Scenario: set_state with missing character.id is rejected
+    When I post command:
+      """
+      {"cmd": "set_state", "state": {
+        "ro": {"instance_id": "DEADBEEF", "now_tick": 100, "now_unix_sec": 1775606400,
+               "character": {"birth_unix_sec": 1775606400, "birth_tick": 0}},
+        "rw": {}, "scheduler": []
+      }}
+      """
+    Then the response has ok false
+
+  Scenario: set_state with missing character.birth_unix_sec is rejected
+    When I post command:
+      """
+      {"cmd": "set_state", "state": {
+        "ro": {"instance_id": "DEADBEEF", "now_tick": 100, "now_unix_sec": 1775606400,
+               "character": {"id": "CAFEBABE", "birth_tick": 0}},
+        "rw": {}, "scheduler": []
+      }}
+      """
+    Then the response has ok false
+
+  Scenario: set_state with missing character.birth_tick is rejected
+    When I post command:
+      """
+      {"cmd": "set_state", "state": {
+        "ro": {"instance_id": "DEADBEEF", "now_tick": 100, "now_unix_sec": 1775606400,
+               "character": {"id": "CAFEBABE", "birth_unix_sec": 1775606400}},
+        "rw": {}, "scheduler": []
+      }}
+      """
+    Then the response has ok false
+
+  Scenario: set_state with scheduler null treats it as empty
+    When I post command:
+      """
+      {"cmd": "set_state", "state": {
+        "ro": {"instance_id": "DEADBEEF", "now_tick": 100, "now_unix_sec": 1775606400,
+               "character": {"id": "CAFEBABE", "birth_unix_sec": 1775606400, "birth_tick": 0}},
+        "rw": {}, "scheduler": null
+      }}
+      """
+    Then the response is ok
+    When I get state
+    Then the scheduler is an empty array
+
+  Scenario: set_state with scheduler omitted treats it as empty
+    When I post command:
+      """
+      {"cmd": "set_state", "state": {
+        "ro": {"instance_id": "DEADBEEF", "now_tick": 100, "now_unix_sec": 1775606400,
+               "character": {"id": "CAFEBABE", "birth_unix_sec": 1775606400, "birth_tick": 0}},
+        "rw": {}
+      }}
+      """
+    Then the response is ok
+    When I get state
+    Then the scheduler is an empty array
+
+  Scenario: set_state with rw null treats it as empty
+    When I post command:
+      """
+      {"cmd": "set_state", "state": {
+        "ro": {"instance_id": "DEADBEEF", "now_tick": 100, "now_unix_sec": 1775606400,
+               "character": {"id": "CAFEBABE", "birth_unix_sec": 1775606400, "birth_tick": 0}},
+        "rw": null, "scheduler": []
+      }}
+      """
+    Then the response is ok
+    When I get state
+    Then rw is an empty object
+
+  Scenario: set_state with rw omitted treats it as empty
+    When I post command:
+      """
+      {"cmd": "set_state", "state": {
+        "ro": {"instance_id": "DEADBEEF", "now_tick": 100, "now_unix_sec": 1775606400,
+               "character": {"id": "CAFEBABE", "birth_unix_sec": 1775606400, "birth_tick": 0}},
+        "scheduler": []
+      }}
+      """
+    Then the response is ok
+    When I get state
+    Then rw is an empty object
+
+  Scenario: set_state with scheduler entry missing fire_at_ms is rejected
+    When I post command:
+      """
+      {"cmd": "set_state", "state": {
+        "ro": {"instance_id": "DEADBEEF", "now_tick": 100, "now_unix_sec": 1775606400,
+               "character": {"id": "CAFEBABE", "birth_unix_sec": 1775606400, "birth_tick": 0}},
+        "rw": {}, "scheduler": [{"event": "on_energy_drain"}]
+      }}
+      """
+    Then the response has ok false
+
+  Scenario: set_state with scheduler entry missing event is rejected
+    When I post command:
+      """
+      {"cmd": "set_state", "state": {
+        "ro": {"instance_id": "DEADBEEF", "now_tick": 100, "now_unix_sec": 1775606400,
+               "character": {"id": "CAFEBABE", "birth_unix_sec": 1775606400, "birth_tick": 0}},
+        "rw": {}, "scheduler": [{"fire_at_ms": 5000}]
+      }}
+      """
+    Then the response has ok false
+
+  Scenario: set_state completely replaces existing state rather than merging
+    When I spawn a character
+    And I post command:
+      """
+      {"cmd": "set_state", "state": {
+        "ro": {"instance_id": "DEADBEEF", "now_tick": 200, "now_unix_sec": 1775606400,
+               "character": {"id": "AABBCCDD", "birth_unix_sec": 1775606400, "birth_tick": 200}},
+        "rw": {"energy": 100}, "scheduler": []
+      }}
+      """
+    Then the response is ok
+    When I get state
+    Then now_tick is 200
+    And the character id is "AABBCCDD"
+    And energy is 100
+    And the scheduler is an empty array

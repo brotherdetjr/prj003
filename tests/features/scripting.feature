@@ -4,4 +4,4 @@ Feature: Lua scripting behaviour
     Given emu starts with test script "schedule_reserved.lua" and args "--nowtick=0 --noautotick"
     When I spawn a character
     And I get state
-    Then the scheduler is empty
+    Then the scheduler is an empty array

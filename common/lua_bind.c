@@ -196,25 +196,26 @@ static void lua_bind_restore_rw(app_t *app, const cJSON *rw_json)
 /* Scheduler restore                                                    */
 /* ------------------------------------------------------------------ */
 
-static void lua_bind_restore_scheduler(app_t *app, const cJSON *arr)
+static int lua_bind_restore_scheduler(app_t *app, const cJSON *arr)
 {
     /* Clear all slots and the scheduler */
     for (unsigned i = 0; i < LUA_MAX_EVENTS; i++)
         app->lua_events[i].name[0] = '\0';
     scheduler_clear(&app->scheduler);
 
-    if (!cJSON_IsArray(arr)) return;
+    if (cJSON_IsNull(arr) || arr == NULL) return 0;
+    if (!cJSON_IsArray(arr)) return -1;
 
     const cJSON *entry;
     cJSON_ArrayForEach(entry, arr) {
         cJSON *fire_j = cJSON_GetObjectItemCaseSensitive(entry, "fire_at_ms");
         cJSON *name_j = cJSON_GetObjectItemCaseSensitive(entry, "event");
-        if (!cJSON_IsNumber(fire_j) || !cJSON_IsString(name_j)) continue;
+        if (!cJSON_IsNumber(fire_j) || !cJSON_IsString(name_j)) return -1;
 
         int slot = alloc_event_slot(app);
         if (slot < 0) {
             fprintf(stderr, "lua_bind_restore_scheduler: event table full\n");
-            break;
+            return -1;
         }
 
         strncpy(app->lua_events[slot].name, name_j->valuestring,
@@ -224,13 +225,14 @@ static void lua_bind_restore_scheduler(app_t *app, const cJSON *arr)
         uint64_t fire_at_ms = (uint64_t)fire_j->valuedouble;
         scheduler_add(&app->scheduler, fire_at_ms, (uint32_t)slot);
     }
+    return 0;
 }
 
-void lua_bind_restore(app_t *app, const cJSON *state_json)
+int lua_bind_restore(app_t *app, const cJSON *state_json)
 {
     lua_bind_restore_rw(app,
         cJSON_GetObjectItemCaseSensitive(state_json, "rw"));
-    lua_bind_restore_scheduler(app,
+    return lua_bind_restore_scheduler(app,
         cJSON_GetObjectItemCaseSensitive(state_json, "scheduler"));
 }
 

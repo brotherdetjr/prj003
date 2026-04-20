@@ -222,11 +222,11 @@ static void handle_command(struct mg_connection *c,
             reply_error(c, "state must be an object");
             goto done;
         }
-        if (json_to_state(app, state_j) != 0) {
+        if (json_to_state(app, state_j) != 0 ||
+            lua_bind_restore(app, state_j) != 0) {
             reply_error(c, "invalid state");
             goto done;
         }
-        lua_bind_restore(app, state_j);
         reply_ok(c);
 
     } else {

@@ -137,7 +137,13 @@ def step_scheduler_has_event(context, event, tick):
         f'no {event!r} event at tick {tick} in scheduler: {sched}'
 
 
-@then('the scheduler is empty')
+@then('the scheduler is an empty array')
 def step_scheduler_empty(context):
-    sched = context.state.get('scheduler', [])
-    assert sched == [], f'expected empty scheduler, got: {sched}'
+    sched = context.state.get('scheduler')
+    assert sched == [], f'expected scheduler=[], got: {sched!r}'
+
+
+@then('rw is an empty object')
+def step_rw_empty(context):
+    rw = context.state.get('rw')
+    assert rw == {}, f'expected rw={{}}, got {rw!r}'

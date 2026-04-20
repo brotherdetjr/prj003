@@ -33,8 +33,9 @@ void lua_bind_reset_rw(app_t *app);
 /*
  * Restore full Lua state (rw + scheduler) from a state JSON object.
  * Call after json_to_state() when loading state from --file or set_state.
+ * Returns 0 on success, -1 if the scheduler array contains invalid entries.
  */
-void lua_bind_restore(app_t *app, const cJSON *state_json);
+int lua_bind_restore(app_t *app, const cJSON *state_json);
 
 /*
  * Dispatch callback wired into app_t.dispatch_cb.

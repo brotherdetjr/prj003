@@ -46,4 +46,4 @@ Feature: Smoke — happy path from README
 
     When I get state
     Then there is no character
-    And the scheduler is empty
+    And the scheduler is an empty array

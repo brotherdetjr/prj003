@@ -52,15 +52,18 @@ int json_to_state(app_t *app, const cJSON *json)
     cJSON *ro = cJSON_GetObjectItemCaseSensitive(json, "ro");
     if (!cJSON_IsObject(ro)) return -1;
 
-    cJSON *now_tick_j    = cJSON_GetObjectItemCaseSensitive(ro, "now_tick");
+    cJSON *instance_id_j  = cJSON_GetObjectItemCaseSensitive(ro, "instance_id");
+    cJSON *now_tick_j     = cJSON_GetObjectItemCaseSensitive(ro, "now_tick");
     cJSON *now_unix_sec_j = cJSON_GetObjectItemCaseSensitive(ro, "now_unix_sec");
-    if (!cJSON_IsNumber(now_tick_j) || !cJSON_IsNumber(now_unix_sec_j)) return -1;
+    if (!cJSON_IsString(instance_id_j) ||
+        !cJSON_IsNumber(now_tick_j) || !cJSON_IsNumber(now_unix_sec_j)) return -1;
 
     app->now_tick     = (uint64_t)now_tick_j->valuedouble;
     app->now_unix_sec = (uint64_t)now_unix_sec_j->valuedouble;
 
     cJSON *ch = cJSON_GetObjectItemCaseSensitive(ro, "character");
-    if (cJSON_IsNull(ch) || ch == NULL) {
+    if (ch == NULL) return -1;  /* field must be present; null is valid, absence is not */
+    if (cJSON_IsNull(ch)) {
         app->has_character = 0;
         scheduler_init(&app->scheduler);
         return 0;

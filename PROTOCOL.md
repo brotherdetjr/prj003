@@ -298,6 +298,31 @@ Response:
 { "ok": true }
 ```
 
+**Replacement semantics — no merging:**
+
+`set_state` replaces the entire state in one atomic write. Fields are **not**
+merged with the current state; every top-level key in `State` is overwritten
+completely.
+
+| Field | Required / optional | Null behaviour |
+|---|---|---|
+| `ro` | **Required** — all sub-fields must be present | — |
+| `ro.instance_id` | Required | — |
+| `ro.now_tick` | Required | — |
+| `ro.now_unix_sec` | Required | — |
+| `ro.character` | Required | `null` means no character is present |
+| `ro.character.id` | Required when `character` is non-null | — |
+| `ro.character.birth_unix_sec` | Required when `character` is non-null | — |
+| `ro.character.birth_tick` | Required when `character` is non-null | — |
+| `scheduler` | Optional | `null` or omitted → treated as `[]` (no pending events) |
+| `scheduler[].fire_at_ms` | Required per entry | — |
+| `scheduler[].event` | Required per entry | — |
+| `rw` | Optional | `null` or omitted → treated as `{}` (empty script state) |
+
+A `set_state` that supplies only a subset of `ro` fields (or a non-null
+`character` object missing any of its fields) returns
+`{"ok": false, "error": "..."}` naming the missing field.
+
 ---
 
 ### 2.2 Push events — `GET /events`
