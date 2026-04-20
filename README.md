@@ -83,7 +83,7 @@ platform/
     Makefile
 
 scripts/
-  energy.lua        ← game logic: energy drain, spawn hook
+  main.lua          ← game logic: energy drain, spawn hook
 
 tests/
   features/
@@ -178,7 +178,7 @@ Build the `emu` binary before running integration tests.
   --nowtick=N                               initial virtual clock in ms (now_tick)
   --wallclockutc=YYYY-MM-DDTHH:MM:SS        initial wall-clock time (now_unix_sec)
   --file=PATH                               load world state from JSON file
-  --script=PATH                             Lua game script (default: scripts/energy.lua)
+  --script=PATH                             Lua game script (default: scripts/main.lua)
   --noautotick                              start in manual-tick mode
   --help                                    show this help and exit
 ```
@@ -208,7 +208,6 @@ curl -s -X POST http://localhost:7070/command \
 ```json
 {
     "ok": true,
-    "script": ".../scripts/energy.lua",
     "ro": {
         "instance_id": "DEADBEEF",
         "now_tick": 42,
@@ -229,7 +228,6 @@ curl -s -X POST http://localhost:7070/command \
 ```json
 {
     "ok": true,
-    "script": ".../scripts/energy.lua",
     "ro": {
         "instance_id": "DEADBEEF",
         "now_tick": 42,
@@ -276,7 +274,6 @@ curl -s -X POST http://localhost:7070/command \
 ```json
 {
     "ok": true,
-    "script": ".../scripts/energy.lua",
     "ro": {
         "instance_id": "DEADBEEF",
         "now_tick": 339042,

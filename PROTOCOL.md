@@ -55,7 +55,7 @@ Options:
   --wallclockutc=YYYY-MM-DDTHH:MM:SS        Initial wall-clock time (now_unix_sec).
                                            Defaults to system clock.
   --file=PATH                Load state from a previously saved JSON file.
-  --script=PATH              Lua game script. Defaults to scripts/energy.lua
+  --script=PATH              Lua game script. Defaults to scripts/main.lua
                              relative to the binary.
   --noautotick               Start in manual-tick mode. Default is auto-tick.
 ```
@@ -445,7 +445,6 @@ State fields appear at the top level of every `get_state` / `spawn` response
 No character spawned yet (or after `poof`):
 ```json
 {
-  "script": ".../scripts/energy.lua",
   "ro": {
     "instance_id": "DEADBEEF",
     "now_tick":    0,
@@ -460,7 +459,6 @@ No character spawned yet (or after `poof`):
 With an active character:
 ```json
 {
-  "script": ".../scripts/energy.lua",
   "ro": {
     "instance_id": "DEADBEEF",
     "now_tick":    5000,

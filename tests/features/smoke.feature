@@ -9,7 +9,6 @@ Feature: Smoke — happy path from README
     And now_tick is 42
     And now_unix_sec is 1775606400
     And there is no character
-    And the script path ends with "scripts/energy.lua"
 
   Scenario: Wall clock can be set and read back independently
     When I set wall clock to 1775606401

@@ -16,7 +16,7 @@ ARGS_PORT = 17071
 # ---------------------------------------------------------------------------
 
 DEFAULT_SCRIPT = os.path.abspath(
-    os.path.join(os.path.dirname(EMU), '../../scripts/energy.lua'))
+    os.path.join(os.path.dirname(EMU), '../../scripts/main.lua'))
 
 TEST_SCRIPTS_DIR = os.path.abspath(
     os.path.join(os.path.dirname(__file__), '../../scripts'))
