@@ -142,7 +142,7 @@ When `stopped_on_event` is `true`, an `"event"` field names what fired:
 { "ok": true, "now_tick": 339000, "stopped_on_event": true, "event": "on_energy_drain" }
 ```
 
-Also pushes a `tick` SSE event with the new `now_tick`.
+When `stopped_on_event` is `true`, also pushes an SSE event named after the fired game event, with `{"now_tick": N}` as data.
 
 ---
 

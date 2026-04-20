@@ -160,6 +160,71 @@ Feature: HTTP API edge cases
   # set_state
   # ---------------------------------------------------------------------------
 
+  Scenario: set_state restores now_tick and clears character
+    When I post command:
+      """
+      {"cmd": "set_state", "state": {
+        "ro": {"instance_id": "DEADBEEF", "now_tick": 9000, "now_unix_sec": 1775606400, "character": null},
+        "rw": {}, "scheduler": []
+      }}
+      """
+    Then the response is ok
+    When I get state
+    Then now_tick is 9000
+    And there is no character
+
+  Scenario: set_state restores a character with rw state
+    When I post command:
+      """
+      {"cmd": "set_state", "state": {
+        "ro": {"instance_id": "DEADBEEF", "now_tick": 500, "now_unix_sec": 1775606400,
+               "character": {"id": "CAFEBABE", "birth_unix_sec": 1775606400, "birth_tick": 0}},
+        "rw": {"energy": 200}, "scheduler": []
+      }}
+      """
+    Then the response is ok
+    When I get state
+    Then now_tick is 500
+    And the character id is "CAFEBABE"
+    And energy is 200
+
+  Scenario: set_state restores scheduler
+    When I post command:
+      """
+      {"cmd": "set_state", "state": {
+        "ro": {"instance_id": "DEADBEEF", "now_tick": 100, "now_unix_sec": 1775606400,
+               "character": {"id": "CAFEBABE", "birth_unix_sec": 1775606400, "birth_tick": 0}},
+        "rw": {"energy": 200},
+        "scheduler": [{"fire_at_ms": 5000, "event": "on_energy_drain"}]
+      }}
+      """
+    Then the response is ok
+    When I get state
+    Then the scheduler has an "on_energy_drain" event at tick 5000
+
+  Scenario: set_state restores scheduler and fires events on advance
+    Given I subscribe to SSE events
+    When I post command:
+      """
+      {"cmd": "set_state", "state": {
+        "ro": {"instance_id": "DEADBEEF", "now_tick": 100, "now_unix_sec": 1775606400,
+               "character": {"id": "CAFEBABE", "birth_unix_sec": 1775606400, "birth_tick": 0}},
+        "rw": {"energy": 200},
+        "scheduler": [{"fire_at_ms": 5000, "event": "on_energy_drain"}]
+      }}
+      """
+    Then the response is ok
+    When I post command:
+      """
+      {"cmd": "advance_time", "ticks": 4900, "stop_on_event": true}
+      """
+    Then the response is ok
+    And stopped_on_event is true
+    And event is "on_energy_drain"
+    And I receive an SSE "on_energy_drain" event at now_tick 5000
+    When I get state
+    Then energy is 199
+
   Scenario: set_state with missing state field
     When I post command:
       """

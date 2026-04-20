@@ -19,7 +19,7 @@ void sse_push(struct mg_mgr *mgr, const char *event, const char *data)
 {
     for (struct mg_connection *c = mgr->conns; c != NULL; c = c->next) {
         if (!IS_SSE(c)) continue;
-        mg_printf(c, "event: %s\ndata: %s\n\n", event, data);
+        mg_http_printf_chunk(c, "event: %s\ndata: %s\n\n", event, data);
     }
 }
 
@@ -135,6 +135,10 @@ static void handle_command(struct mg_connection *c,
             fprintf(stderr, "event %s  now_tick=%llu\n",
                     evname, (unsigned long long)r.now_tick);
             cJSON_AddStringToObject(resp, "event", evname);
+            char ev_data[64];
+            snprintf(ev_data, sizeof(ev_data), "{\"now_tick\":%llu}",
+                     (unsigned long long)r.now_tick);
+            sse_push(&app->mgr, evname, ev_data);
         }
         char *resp_s = cJSON_PrintUnformatted(resp);
         mg_http_reply(c, 200, JSON_HDR, "%s\n", resp_s);
@@ -257,7 +261,8 @@ void mg_event_handler(struct mg_connection *c, int ev, void *ev_data)
             "HTTP/1.1 200 OK\r\n"
             "Content-Type: text/event-stream\r\n"
             "Cache-Control: no-cache\r\n"
-            "Connection: keep-alive\r\n\r\n");
+            "Transfer-Encoding: chunked\r\n"
+            "\r\n");
         c->data[0] = 'S'; /* mark as SSE subscriber */
 
     } else {
