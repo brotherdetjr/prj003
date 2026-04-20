@@ -12,33 +12,33 @@
 int lua_bind_init(app_t *app, const char *script_path);
 
 /*
- * Call the global Lua function `fn_name(gloxie)`.
+ * Call the global Lua function `fn_name(ro, rw)`.
  * Non-existent functions are silently ignored; errors go to stderr.
  */
 void lua_bind_call(app_t *app, const char *fn_name);
 
 /*
- * Return gloxie.scripted as a cJSON object (caller must cJSON_Delete).
- * Used by app_state_to_json to embed scripted state without an intermediate
+ * Return the rw table as a cJSON object (caller must cJSON_Delete).
+ * Used by app_state_to_json to embed rw state without an intermediate
  * string buffer.
  */
-cJSON *lua_bind_scripted_to_cjson(app_t *app);
+cJSON *lua_bind_rw_to_cjson(app_t *app);
 
 /*
- * Reset gloxie.scripted to an empty table.
+ * Reset the rw table to an empty table.
  * Call before _on_spawn() so the script starts with a clean slate.
  */
-void lua_bind_reset_scripted(app_t *app);
+void lua_bind_reset_rw(app_t *app);
 
 /*
- * Restore full Lua state (scripted + scheduler) from a state JSON object.
- * Call after json_to_world() when loading state from --file or set_state.
+ * Restore full Lua state (rw + scheduler) from a state JSON object.
+ * Call after json_to_state() when loading state from --file or set_state.
  */
 void lua_bind_restore(app_t *app, const cJSON *state_json);
 
 /*
  * Dispatch callback wired into app_t.dispatch_cb.
- * Calls the named Lua global, passing the gloxie table as first argument.
+ * Calls the named Lua global, passing ro and rw as arguments.
  */
 void lua_bind_dispatch(uint32_t tag, app_t *app);
 

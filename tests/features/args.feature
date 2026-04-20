@@ -21,13 +21,8 @@ Feature: Command-line argument parsing
 
   Scenario: --noautotick disables autotick
     Given emu starts with args "--nowtick=0 --noautotick"
-    When I get state
+    When I get autotick
     Then autotick is false
-
-  Scenario: --script appears in state JSON
-    Given emu starts with args "--nowtick=0 --noautotick" and the default script
-    When I get state
-    Then the script path ends with "scripts/energy.lua"
 
   Scenario: --port changes the listening port
     Given emu starts on port 17072 with args "--nowtick=0 --noautotick"
@@ -42,11 +37,11 @@ Feature: Command-line argument parsing
     And there is no character
 
   Scenario: --file restores a character
-    Given a state file with a character "CAFEBABE" at scripted energy 200
+    Given a state file with a character "CAFEBABE" at energy 200
     And emu starts with that state file and args "--noautotick"
     When I get state
     Then the character id is "CAFEBABE"
-    And scripted energy is 200
+    And energy is 200
 
   # ---------------------------------------------------------------------------
   # Defaults
@@ -54,7 +49,7 @@ Feature: Command-line argument parsing
 
   Scenario: autotick is on by default
     Given emu starts with args "--nowtick=0"
-    When I get state
+    When I get autotick
     Then autotick is true
 
   Scenario: random instance ID is generated when --id is omitted

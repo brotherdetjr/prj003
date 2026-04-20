@@ -55,7 +55,7 @@ Options:
   --wallclockutc=YYYY-MM-DDTHH:MM:SS        Initial wall-clock time (now_unix_sec).
                                            Defaults to system clock.
   --file=PATH                Load state from a previously saved JSON file.
-  --script=PATH              Lua game script. Defaults to scripts/energy.lua
+  --script=PATH              Lua game script. Defaults to scripts/main.lua
                              relative to the binary.
   --noautotick               Start in manual-tick mode. Default is auto-tick.
 ```
@@ -189,9 +189,9 @@ Request:
 { "cmd": "get_state" }
 ```
 
-Response:
+Response: state fields at top level alongside `ok`:
 ```json
-{ "ok": true, "state": <State> }
+{ "ok": true, "script": "...", "ro": {...}, "rw": {...}, "scheduler": [...] }
 ```
 
 ---
@@ -213,10 +213,7 @@ The instance ID and character ID are independent: the instance ID identifies
 the device/process; the character ID identifies the creature and survives
 save/load/transfer across devices.
 
-Response:
-```json
-{ "ok": true, "state": <State> }
-```
+Response: state fields at top level alongside `ok` (same shape as `get_state`).
 
 ---
 
@@ -233,6 +230,22 @@ Request:
 Response:
 ```json
 { "ok": true }
+```
+
+---
+
+#### `get_autotick`
+
+Return the current autotick mode.
+
+Request:
+```json
+{ "cmd": "get_autotick" }
+```
+
+Response:
+```json
+{ "ok": true, "autotick": true }
 ```
 
 ---
@@ -425,48 +438,56 @@ game mechanics are further defined.
 
 ### `State`
 
+State fields appear at the top level of every `get_state` / `spawn` response
+(alongside `"ok": true`), and are passed as the value of the `"state"` key in
+`set_state` requests.
+
+No character spawned yet (or after `poof`):
 ```json
 {
-  "instance_id": "DEADBEEF",
-  "script":      ".../scripts/energy.lua",
-  "now_tick":    0,
-  "now_unix_sec": 1744063205,
-  "autotick":    true,
-  "character":   null,
-  "scheduler":   []
+  "ro": {
+    "instance_id": "DEADBEEF",
+    "now_tick":    0,
+    "now_unix_sec": 1744063205,
+    "character":   null
+  },
+  "rw": {},
+  "scheduler": []
 }
 ```
 
+With an active character:
 ```json
 {
-  "instance_id": "DEADBEEF",
-  "script":      ".../scripts/energy.lua",
-  "now_tick":    5000,
-  "now_unix_sec": 1744063205,
-  "autotick":    true,
-  "character": {
-    "id":             "3F8A21CC",
-    "birth_unix_sec": 1744063200,
-    "birth_tick":     0,
-    "scripted":       {"energy": 255}
+  "ro": {
+    "instance_id": "DEADBEEF",
+    "now_tick":    5000,
+    "now_unix_sec": 1744063205,
+    "character": {
+      "id":             "3F8A21CC",
+      "birth_unix_sec": 1744063200,
+      "birth_tick":     0
+    }
   },
+  "rw": {"energy": 255},
   "scheduler": [
     {"fire_at_ms": 344000, "event": "on_energy_drain"}
   ]
 }
 ```
 
-`character` is `null` when no character has been spawned yet, or after a
-`poof`.
+`ro.character` is `null` when no character is present.
 
 | Field | Description |
 |---|---|
 | `script` | Path to the loaded Lua game script. |
-| `now_tick` | Virtual clock in ms. Advanced by `advance_time`. Drives game logic. |
-| `now_unix_sec` | Wall-clock UTC seconds. Set by `set_wall_clock` or system clock. Used for zodiac. |
-| `birth_unix_sec` | Wall-clock UTC seconds at character birth. Used to derive zodiac sign. |
-| `birth_tick` | Virtual clock at character birth. Virtual age = `now_tick − birth_tick`. |
-| `scripted` | Lua-owned state blob. Contents are defined by the game script. |
+| `ro` | Read-only snapshot passed to Lua callbacks as the first argument. |
+| `ro.instance_id` | Device/process identity (8 hex digits). |
+| `ro.now_tick` | Virtual clock in ms. Advanced by `advance_time`. Drives game logic. |
+| `ro.now_unix_sec` | Wall-clock UTC seconds. Set by `set_wall_clock` or system clock. Used for zodiac. |
+| `ro.character.birth_unix_sec` | Wall-clock UTC seconds at character birth. Used to derive zodiac sign. |
+| `ro.character.birth_tick` | Virtual clock at character birth. Virtual age = `now_tick − birth_tick`. |
+| `rw` | Lua-owned read-write state. Contents are defined by the game script. Passed to callbacks as the second argument. |
 | `scheduler` | Pending scheduled events: array of `{"fire_at_ms": N, "event": "name"}`. |
 
 ### Timestamps

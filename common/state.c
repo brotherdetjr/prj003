@@ -7,11 +7,12 @@
 cJSON *app_state_to_json(app_t *app)
 {
     cJSON *root = cJSON_CreateObject();
-    cJSON_AddStringToObject(root, "instance_id",  app->instance_id);
-    cJSON_AddStringToObject(root, "script",       app->script_path);
-    cJSON_AddNumberToObject(root, "now_tick",      (double)app->now_tick);
-    cJSON_AddNumberToObject(root, "now_unix_sec",   (double)app->now_unix_sec);
-    cJSON_AddBoolToObject  (root, "autotick",      app->autotick);
+
+    /* ro: read-only snapshot */
+    cJSON *ro = cJSON_CreateObject();
+    cJSON_AddStringToObject(ro, "instance_id",  app->instance_id);
+    cJSON_AddNumberToObject(ro, "now_tick",      (double)app->now_tick);
+    cJSON_AddNumberToObject(ro, "now_unix_sec",  (double)app->now_unix_sec);
 
     if (app->has_character) {
         const character_t *ch = &app->character;
@@ -21,16 +22,16 @@ cJSON *app_state_to_json(app_t *app)
         cJSON_AddStringToObject(c, "id",            id_str);
         cJSON_AddNumberToObject(c, "birth_unix_sec", (double)ch->birth_unix_sec);
         cJSON_AddNumberToObject(c, "birth_tick",     (double)ch->birth_tick);
-
-        cJSON *scripted = lua_bind_scripted_to_cjson(app);
-        cJSON_AddItemToObject(c, "scripted", scripted);
-
-        cJSON_AddItemToObject(root, "character", c);
+        cJSON_AddItemToObject(ro, "character", c);
     } else {
-        cJSON_AddNullToObject(root, "character");
+        cJSON_AddNullToObject(ro, "character");
     }
+    cJSON_AddItemToObject(root, "ro", ro);
 
-    /* Scheduler: array of {fire_at_ms, event} for each pending Lua event */
+    /* rw: read-write scripted state */
+    cJSON_AddItemToObject(root, "rw", lua_bind_rw_to_cjson(app));
+
+    /* scheduler: pending Lua events */
     cJSON *sched = cJSON_CreateArray();
     for (int i = 0; i < app->scheduler.count; i++) {
         const scheduled_event_t *ev = &app->scheduler.heap[i];
@@ -46,16 +47,19 @@ cJSON *app_state_to_json(app_t *app)
     return root;
 }
 
-int json_to_world(app_t *app, const cJSON *json)
+int json_to_state(app_t *app, const cJSON *json)
 {
-    cJSON *now_tick_j    = cJSON_GetObjectItemCaseSensitive(json, "now_tick");
-    cJSON *now_unix_sec_j = cJSON_GetObjectItemCaseSensitive(json, "now_unix_sec");
+    cJSON *ro = cJSON_GetObjectItemCaseSensitive(json, "ro");
+    if (!cJSON_IsObject(ro)) return -1;
+
+    cJSON *now_tick_j    = cJSON_GetObjectItemCaseSensitive(ro, "now_tick");
+    cJSON *now_unix_sec_j = cJSON_GetObjectItemCaseSensitive(ro, "now_unix_sec");
     if (!cJSON_IsNumber(now_tick_j) || !cJSON_IsNumber(now_unix_sec_j)) return -1;
 
-    app->now_tick    = (uint64_t)now_tick_j->valuedouble;
+    app->now_tick     = (uint64_t)now_tick_j->valuedouble;
     app->now_unix_sec = (uint64_t)now_unix_sec_j->valuedouble;
 
-    cJSON *ch = cJSON_GetObjectItemCaseSensitive(json, "character");
+    cJSON *ch = cJSON_GetObjectItemCaseSensitive(ro, "character");
     if (cJSON_IsNull(ch) || ch == NULL) {
         app->has_character = 0;
         scheduler_init(&app->scheduler);
@@ -71,9 +75,9 @@ int json_to_world(app_t *app, const cJSON *json)
         !cJSON_IsNumber(b_tick_j))
         return -1;
 
-    app->character.id             = (uint32_t)strtoul(id_j->valuestring, NULL, 16);
-    app->character.birth_unix_sec  = (uint64_t)b_unix_j->valuedouble;
-    app->character.birth_tick      = (uint64_t)b_tick_j->valuedouble;
+    app->character.id            = (uint32_t)strtoul(id_j->valuestring, NULL, 16);
+    app->character.birth_unix_sec = (uint64_t)b_unix_j->valuedouble;
+    app->character.birth_tick     = (uint64_t)b_tick_j->valuedouble;
 
     app->has_character = 1;
 

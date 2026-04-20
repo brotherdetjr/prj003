@@ -20,7 +20,7 @@ static void usage(const char *prog)
         "  --nowtick=N                               initial virtual clock in ms (now_tick)\n"
         "  --wallclockutc=YYYY-MM-DDTHH:MM:SS        initial wall-clock time (now_unix_sec)\n"
         "  --file=PATH                               load world state from JSON file\n"
-        "  --script=PATH                             Lua game script (default: scripts/energy.lua\n"
+        "  --script=PATH                             Lua game script (default: scripts/main.lua\n"
         "                                            relative to this binary)\n"
         "  --noautotick                              start in manual-tick mode\n"
         "  --help                                    show this help and exit\n",
@@ -69,7 +69,7 @@ static int load_state_file(app_t *app, const char *path)
     free(buf);
     if (!json) { fprintf(stderr, "%s: malformed JSON\n", path); return -1; }
 
-    int rc = json_to_world(app, json);
+    int rc = json_to_state(app, json);
     if (rc != 0) {
         cJSON_Delete(json);
         fprintf(stderr, "%s: invalid state\n", path);
@@ -179,13 +179,17 @@ int main(int argc, char *argv[])
             char *slash = strrchr(binary_path, '/');
             if (slash) *slash = '\0';
             snprintf(script_path, sizeof(script_path),
-                     "%s/../../scripts/energy.lua", binary_path);
+                     "%s/../../scripts/main.lua", binary_path);
         } else {
-            snprintf(script_path, sizeof(script_path), "scripts/energy.lua");
+            snprintf(script_path, sizeof(script_path), "scripts/main.lua");
         }
     }
 
-    strncpy(app.script_path, script_path, sizeof(app.script_path) - 1);
+    {
+        char canon[4096];
+        const char *resolved = realpath(script_path, canon);
+        fprintf(stderr, "Script: %s\n", resolved ? resolved : script_path);
+    }
     if (lua_bind_init(&app, script_path) != 0) {
         fprintf(stderr, "Failed to initialise Lua from: %s\n", script_path);
         return 1;

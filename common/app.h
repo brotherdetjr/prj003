@@ -33,7 +33,6 @@ typedef struct app_t {
     lua_State    *L;
     lua_event_t   lua_events[LUA_MAX_EVENTS];
     char          last_event_name[32];
-    char          script_path[512];
 } app_t;
 
 /* Initialise an empty world. now_tick and now_unix_sec are set by the caller. */
