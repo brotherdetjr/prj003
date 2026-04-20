@@ -26,7 +26,7 @@ cJSON *lua_bind_rw_to_cjson(app_t *app);
 
 /*
  * Reset the rw table to an empty table.
- * Call before _on_spawn() so the script starts with a clean slate.
+ * Call before on_spawn() so the script starts with a clean slate.
  */
 void lua_bind_reset_rw(app_t *app);
 

@@ -1,10 +1,8 @@
--- Energy drain script for Gloxie
--- Energy: 255 (full) → 0 (exhausted) over 24 hours.
--- One unit drains every 339,000 virtual milliseconds.
+-- Main script for Gloxie
 
 local DRAIN_MS = 339000
 
-function on_energy_drain(api, rw, ro)
+function on_energy_drain(api, rw)
     local e = rw.energy or 0
     if e > 0 then
         rw.energy = e - 1
@@ -12,7 +10,7 @@ function on_energy_drain(api, rw, ro)
     api.schedule(DRAIN_MS, "on_energy_drain")
 end
 
-function _on_spawn(api, rw, ro)
+function on_spawn(api, rw)
     rw.energy = 255
     api.schedule(DRAIN_MS, "on_energy_drain")
 end

@@ -132,11 +132,7 @@ flashing to hardware.
 
 | Prefix | Meaning | Example |
 |---|---|---|
-| `_on_` | System lifecycle hook — called by the engine, not schedulable | `_on_spawn` |
-| `on_` | User-defined scheduled event callback (convention, not enforced) | `on_energy_drain` |
-
-Event names passed to `api.schedule()` must not start with `_`; such names
-are reserved for system hooks and will be rejected with an error.
+| `on_` | Engine lifecycle hook or scheduled event callback | `on_spawn`, `on_energy_drain` |
 
 ## PC instance
 
