@@ -9,6 +9,7 @@
 /* Registry keys */
 #define REG_APP "_gloxie_app"
 #define REG_RW  "_gloxie_rw"
+#define REG_API "_gloxie_api"
 
 /* ------------------------------------------------------------------ */
 /* Helpers                                                              */
@@ -26,6 +27,12 @@ static app_t *get_app(lua_State *L)
 static void push_rw(lua_State *L)
 {
     lua_getfield(L, LUA_REGISTRYINDEX, REG_RW);
+}
+
+/* Push the api table onto the Lua stack. */
+static void push_api(lua_State *L)
+{
+    lua_getfield(L, LUA_REGISTRYINDEX, REG_API);
 }
 
 /* Push a fresh ro snapshot table onto the Lua stack. */
@@ -68,12 +75,12 @@ static int alloc_event_slot(app_t *app)
 }
 
 /* ------------------------------------------------------------------ */
-/* gloxie module functions                                              */
+/* api table functions (passed as 3rd arg to every callback)           */
 /* ------------------------------------------------------------------ */
 
 /*
- * gloxie.schedule(delay_ms, event_name)
- * Schedule a call to the Lua global `event_name(ro, rw)` after
+ * api.schedule(delay_ms, event_name)
+ * Schedule a call to the Lua global `event_name(ro, rw, api)` after
  * `delay_ms` virtual milliseconds. `event_name` is also used as
  * the SSE event type when the scheduler fires it.
  */
@@ -263,7 +270,8 @@ void lua_bind_dispatch(uint32_t tag, app_t *app)
     }
     push_ro(L, app);
     push_rw(L);
-    if (lua_pcall(L, 2, 0, 0) != LUA_OK) {
+    push_api(L);
+    if (lua_pcall(L, 3, 0, 0) != LUA_OK) {
         fprintf(stderr, "Lua error in %s: %s\n", name, lua_tostring(L, -1));
         lua_pop(L, 1);
     }
@@ -283,7 +291,8 @@ void lua_bind_call(app_t *app, const char *fn_name)
     }
     push_ro(L, app);
     push_rw(L);
-    if (lua_pcall(L, 2, 0, 0) != LUA_OK) {
+    push_api(L);
+    if (lua_pcall(L, 3, 0, 0) != LUA_OK) {
         fprintf(stderr, "Lua error in %s: %s\n", fn_name, lua_tostring(L, -1));
         lua_pop(L, 1);
     }
@@ -293,7 +302,7 @@ void lua_bind_call(app_t *app, const char *fn_name)
 /* Init                                                                 */
 /* ------------------------------------------------------------------ */
 
-static const luaL_Reg gloxie_funcs[] = {
+static const luaL_Reg api_funcs[] = {
     {"schedule", l_schedule},
     {NULL, NULL}
 };
@@ -311,10 +320,10 @@ int lua_bind_init(app_t *app, const char *script_path)
     lua_pushlightuserdata(L, app);
     lua_setfield(L, LUA_REGISTRYINDEX, REG_APP);
 
-    /* Build gloxie module table and expose as a global */
+    /* Build api table and store in registry; passed as 3rd arg to callbacks */
     lua_newtable(L);
-    luaL_setfuncs(L, gloxie_funcs, 0);
-    lua_setglobal(L, "gloxie");
+    luaL_setfuncs(L, api_funcs, 0);
+    lua_setfield(L, LUA_REGISTRYINDEX, REG_API);
 
     /* Create rw table in the registry */
     lua_newtable(L);

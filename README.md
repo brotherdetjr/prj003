@@ -67,7 +67,7 @@ game is not.
 ```
 common/             ← shared code (all platforms)
   app.h/c           ← app_t struct; app_init/spawn/poof/advance
-  lua_bind.h/c      ← Lua VM init, gloxie module, event dispatch
+  lua_bind.h/c      ← Lua VM init, api table, event dispatch
   server.h/c        ← HTTP command dispatch, SSE game-event push
   state.h/c         ← app ↔ JSON serialisation
   character.h/c     ← character struct, initialisation
@@ -120,12 +120,12 @@ polling every tick.
 
 Game logic lives in Lua scripts (`scripts/`). The Lua VM is embedded via
 `lua_bind.c`; scripts are loaded at startup and expose event callbacks that
-receive two arguments: `ro` (read-only snapshot: `instance_id`, `now_tick`,
-`now_unix_sec`, `character`) and `rw` (read-write scripted state). The
-`gloxie` global module provides `gloxie.schedule()`. `common/` provides the
-pure-C primitives (scheduler, world, character) that the platform and scripts
-build on. The PC build is the primary development target; behaviour is verified
-there before flashing to hardware.
+receive three arguments: `ro` (read-only snapshot: `instance_id`, `now_tick`,
+`now_unix_sec`, `character`), `rw` (read-write scripted state), and `api`
+(engine functions: `api.schedule()`). `common/` provides the pure-C primitives
+(scheduler, world, character) that the platform and scripts build on. The PC
+build is the primary development target; behaviour is verified there before
+flashing to hardware.
 
 ### Lua callback naming conventions
 
@@ -134,7 +134,7 @@ there before flashing to hardware.
 | `_on_` | System lifecycle hook — called by the engine, not schedulable | `_on_spawn` |
 | `on_` | User-defined scheduled event callback (convention, not enforced) | `on_energy_drain` |
 
-Event names passed to `gloxie.schedule()` must not start with `_`; such names
+Event names passed to `api.schedule()` must not start with `_`; such names
 are reserved for system hooks and will be rejected with an error.
 
 ## PC instance
