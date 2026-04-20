@@ -268,9 +268,9 @@ void lua_bind_dispatch(uint32_t tag, app_t *app)
         lua_pop(L, 1);
         return;
     }
-    push_ro(L, app);
-    push_rw(L);
     push_api(L);
+    push_rw(L);
+    push_ro(L, app);
     if (lua_pcall(L, 3, 0, 0) != LUA_OK) {
         fprintf(stderr, "Lua error in %s: %s\n", name, lua_tostring(L, -1));
         lua_pop(L, 1);
@@ -289,9 +289,9 @@ void lua_bind_call(app_t *app, const char *fn_name)
         lua_pop(L, 1);
         return;
     }
-    push_ro(L, app);
-    push_rw(L);
     push_api(L);
+    push_rw(L);
+    push_ro(L, app);
     if (lua_pcall(L, 3, 0, 0) != LUA_OK) {
         fprintf(stderr, "Lua error in %s: %s\n", fn_name, lua_tostring(L, -1));
         lua_pop(L, 1);

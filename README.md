@@ -120,9 +120,10 @@ polling every tick.
 
 Game logic lives in Lua scripts (`scripts/`). The Lua VM is embedded via
 `lua_bind.c`; scripts are loaded at startup and expose event callbacks that
-receive three arguments: `ro` (read-only snapshot: `instance_id`, `now_tick`,
-`now_unix_sec`, `character`), `rw` (read-write scripted state), and `api`
-(engine functions: `api.schedule()`). `common/` provides the pure-C primitives
+receive three arguments in order of likely use: `api` (engine functions:
+`api.schedule()`), `rw` (read-write scripted state), and `ro` (read-only
+snapshot: `instance_id`, `now_tick`, `now_unix_sec`, `character`). Callbacks
+that don't need all three may simply declare fewer parameters. `common/` provides the pure-C primitives
 (scheduler, world, character) that the platform and scripts build on. The PC
 build is the primary development target; behaviour is verified there before
 flashing to hardware.
