@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <time.h>
 #include <unistd.h>
 #include "../../common/app.h"
@@ -233,9 +234,24 @@ int main(int argc, char *argv[])
     /* peer stdin (non-blocking) */
     peer_stdin_init();
 
+    /* seed script watcher mtime */
+    struct stat script_st;
+    time_t script_mtime = (stat(script_path, &script_st) == 0)
+                          ? script_st.st_mtime : 0;
+
     /* main loop */
     for (;;) {
         mg_mgr_poll(&app.mgr, 100); /* 100 ms */
         peer_stdin_poll(&app);
+
+        if (stat(script_path, &script_st) == 0 &&
+                script_st.st_mtime != script_mtime) {
+            script_mtime = script_st.st_mtime;
+            fprintf(stderr, "Hot-reloading: %s\n", script_path);
+            if (lua_bind_reload(&app, script_path) == 0)
+                fprintf(stderr, "Script reloaded\n");
+            else
+                fprintf(stderr, "Reload failed, previous script still running\n");
+        }
     }
 }

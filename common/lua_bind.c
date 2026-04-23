@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "lua_bind.h"
+#include "state.h"
 #include "../vendor/lua/lua.h"
 #include "../vendor/lua/lualib.h"
 #include "../vendor/lua/lauxlib.h"
@@ -297,6 +298,34 @@ void lua_bind_call(app_t *app, const char *fn_name)
 }
 
 /* ------------------------------------------------------------------ */
+/* Reload                                                               */
+/* ------------------------------------------------------------------ */
+
+int lua_bind_reload(app_t *app, const char *script_path)
+{
+    cJSON *snap = app_state_to_json(app);  /* lua_bind_restore ignores "ro" */
+
+    /* Stash old state; lua_bind_init clears lua_events so save them too */
+    lua_State      *old_L = app->L;
+    lua_event_t     saved_events[LUA_MAX_EVENTS];
+    memcpy(saved_events, app->lua_events, sizeof(saved_events));
+
+    app->L = NULL;
+    if (lua_bind_init(app, script_path) != 0) {
+        /* Load failed — restore old state intact */
+        app->L = old_L;
+        memcpy(app->lua_events, saved_events, sizeof(saved_events));
+        cJSON_Delete(snap);
+        return -1;
+    }
+
+    lua_close(old_L);
+    lua_bind_restore(app, snap);
+    cJSON_Delete(snap);
+    return 0;
+}
+
+/* ------------------------------------------------------------------ */
 /* Init                                                                 */
 /* ------------------------------------------------------------------ */
 
@@ -304,6 +333,37 @@ static const luaL_Reg api_funcs[] = {
     {"schedule", l_schedule},
     {NULL, NULL}
 };
+
+static void setup_package(lua_State *L, const char *script_path)
+{
+    /* Derive directory containing the main script */
+    char dir[1024];
+    const char *slash = strrchr(script_path, '/');
+    if (slash) {
+        size_t n = (size_t)(slash - script_path);
+        if (n >= sizeof(dir)) n = sizeof(dir) - 1;
+        memcpy(dir, script_path, n);
+        dir[n] = '\0';
+    } else {
+        dir[0] = '.'; dir[1] = '\0';
+    }
+
+    /* package.path = "<dir>/?.lua" */
+    char pkg_path[1024 + 8];
+    snprintf(pkg_path, sizeof(pkg_path), "%s/?.lua", dir);
+    lua_getglobal(L, "package");
+    lua_pushstring(L, pkg_path);
+    lua_setfield(L, -2, "path");
+
+    /* package.searchers = { package.searchers[2] }  — file loader only */
+    lua_getfield(L, -1, "searchers");   /* package, searchers */
+    lua_rawgeti(L, -1, 2);              /* package, searchers, file_searcher */
+    lua_newtable(L);                    /* package, searchers, file_searcher, {} */
+    lua_pushvalue(L, -2);               /* ..., {}, file_searcher */
+    lua_rawseti(L, -2, 1);             /* ..., {file_searcher} */
+    lua_setfield(L, -4, "searchers");  /* package.searchers = {file_searcher} */
+    lua_pop(L, 3);                      /* clean */
+}
 
 int lua_bind_init(app_t *app, const char *script_path)
 {
@@ -313,6 +373,7 @@ int lua_bind_init(app_t *app, const char *script_path)
         return -1;
     }
     luaL_openlibs(L);
+    setup_package(L, script_path);
 
     /* Store app pointer in registry */
     lua_pushlightuserdata(L, app);
