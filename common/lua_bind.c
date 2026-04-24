@@ -246,12 +246,42 @@ int lua_bind_restore(app_t *app, const cJSON *state_json)
 /* Dispatch                                                             */
 /* ------------------------------------------------------------------ */
 
+/*
+ * Push the value reached by a dot-separated path of global table keys.
+ * "foo"         -> _G["foo"]
+ * "foo.bar.baz" -> _G["foo"]["bar"]["baz"]
+ * Leaves exactly one value on the stack (nil if any step fails).
+ */
+static void lua_push_by_path(lua_State *L, const char *path)
+{
+    char buf[64];
+    strncpy(buf, path, sizeof(buf) - 1);
+    buf[sizeof(buf) - 1] = '\0';
+
+    char *p = buf;
+    char *dot = strchr(p, '.');
+    if (dot) *dot = '\0';
+    lua_getglobal(L, p);
+    if (!dot) return;
+
+    p = dot + 1;
+    while (1) {
+        if (!lua_istable(L, -1)) { lua_pop(L, 1); lua_pushnil(L); return; }
+        dot = strchr(p, '.');
+        if (dot) *dot = '\0';
+        lua_getfield(L, -1, p);
+        lua_remove(L, -2);
+        if (!dot) return;
+        p = dot + 1;
+    }
+}
+
 void lua_bind_dispatch(uint32_t tag, app_t *app)
 {
     uint32_t slot = tag;
     if (slot >= LUA_MAX_EVENTS || app->lua_events[slot].name[0] == '\0') return;
 
-    char name[32];
+    char name[64];
     strncpy(name, app->lua_events[slot].name, sizeof(name) - 1);
     name[sizeof(name) - 1] = '\0';
 
@@ -261,9 +291,9 @@ void lua_bind_dispatch(uint32_t tag, app_t *app)
     app->lua_events[slot].name[0] = '\0';
 
     lua_State *L = app->L;
-    lua_getglobal(L, name);
+    lua_push_by_path(L, name);
     if (!lua_isfunction(L, -1)) {
-        fprintf(stderr, "Lua: no global function '%s' for scheduled event\n", name);
+        fprintf(stderr, "Lua: no function '%s' for scheduled event\n", name);
         lua_pop(L, 1);
         return;
     }
@@ -283,7 +313,7 @@ void lua_bind_dispatch(uint32_t tag, app_t *app)
 void lua_bind_call(app_t *app, const char *fn_name)
 {
     lua_State *L = app->L;
-    lua_getglobal(L, fn_name);
+    lua_push_by_path(L, fn_name);
     if (!lua_isfunction(L, -1)) {
         lua_pop(L, 1);
         return;

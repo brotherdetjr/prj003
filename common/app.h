@@ -11,7 +11,7 @@
 
 #define LUA_MAX_EVENTS  64U
 
-typedef struct { char name[32]; } lua_event_t;
+typedef struct { char name[64]; } lua_event_t;
 
 typedef struct {
     uint64_t now_tick;
@@ -32,7 +32,7 @@ typedef struct app_t {
     struct mg_mgr mgr;
     lua_State    *L;
     lua_event_t   lua_events[LUA_MAX_EVENTS];
-    char          last_event_name[32];
+    char          last_event_name[64];
 } app_t;
 
 /* Initialise an empty world. now_tick and now_unix_sec are set by the caller. */
