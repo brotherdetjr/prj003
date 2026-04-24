@@ -137,6 +137,12 @@ def step_scheduler_has_event(context, event, tick):
         f'no {event!r} event at tick {tick} in scheduler: {sched}'
 
 
+@then('the scheduler has {count:d} event(s)')
+def step_scheduler_count(context, count):
+    sched = context.state.get('scheduler', [])
+    assert len(sched) == count, f'expected {count} event(s) in scheduler, got {len(sched)}: {sched}'
+
+
 @then('the scheduler is an empty array')
 def step_scheduler_empty(context):
     sched = context.state.get('scheduler')

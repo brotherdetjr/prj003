@@ -1,4 +1,5 @@
 import os
+import shutil
 
 
 def after_scenario(context, scenario):
@@ -13,3 +14,6 @@ def after_scenario(context, scenario):
         except OSError:
             pass
     context.temp_files = []
+    for path in getattr(context, 'temp_dirs', []):
+        shutil.rmtree(path, ignore_errors=True)
+    context.temp_dirs = []

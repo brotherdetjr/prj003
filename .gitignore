@@ -6,3 +6,6 @@ platform/pc/*.o
 # State save files
 platform/pc/*.json
 tests/features/steps/__pycache__/
+
+# Dynamically created test directories (created/deleted per test run)
+tests/scripts/tmp/

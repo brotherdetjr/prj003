@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "lua_bind.h"
+#include "state.h"
 #include "../vendor/lua/lua.h"
 #include "../vendor/lua/lualib.h"
 #include "../vendor/lua/lauxlib.h"
@@ -92,6 +93,10 @@ static int l_schedule(lua_State *L)
 
     if (delay < 0)
         return luaL_error(L, "schedule: delay_ms must be >= 0");
+
+    if (strlen(name) >= sizeof(app->lua_events[0].name))
+        return luaL_error(L, "schedule: event name too long (max %d chars)",
+                          (int)(sizeof(app->lua_events[0].name) - 1));
 
     int slot = alloc_event_slot(app);
     if (slot < 0)
@@ -245,12 +250,42 @@ int lua_bind_restore(app_t *app, const cJSON *state_json)
 /* Dispatch                                                             */
 /* ------------------------------------------------------------------ */
 
+/*
+ * Push the value reached by a dot-separated path of global table keys.
+ * "foo"         -> _G["foo"]
+ * "foo.bar.baz" -> _G["foo"]["bar"]["baz"]
+ * Leaves exactly one value on the stack (nil if any step fails).
+ */
+static void lua_push_by_path(lua_State *L, const char *path)
+{
+    char buf[64];
+    strncpy(buf, path, sizeof(buf) - 1);
+    buf[sizeof(buf) - 1] = '\0';
+
+    char *p = buf;
+    char *dot = strchr(p, '.');
+    if (dot) *dot = '\0';
+    lua_getglobal(L, p);
+    if (!dot) return;
+
+    p = dot + 1;
+    while (1) {
+        if (!lua_istable(L, -1)) { lua_pop(L, 1); lua_pushnil(L); return; }
+        dot = strchr(p, '.');
+        if (dot) *dot = '\0';
+        lua_getfield(L, -1, p);
+        lua_remove(L, -2);
+        if (!dot) return;
+        p = dot + 1;
+    }
+}
+
 void lua_bind_dispatch(uint32_t tag, app_t *app)
 {
     uint32_t slot = tag;
     if (slot >= LUA_MAX_EVENTS || app->lua_events[slot].name[0] == '\0') return;
 
-    char name[32];
+    char name[64];
     strncpy(name, app->lua_events[slot].name, sizeof(name) - 1);
     name[sizeof(name) - 1] = '\0';
 
@@ -260,9 +295,9 @@ void lua_bind_dispatch(uint32_t tag, app_t *app)
     app->lua_events[slot].name[0] = '\0';
 
     lua_State *L = app->L;
-    lua_getglobal(L, name);
+    lua_push_by_path(L, name);
     if (!lua_isfunction(L, -1)) {
-        fprintf(stderr, "Lua: no global function '%s' for scheduled event\n", name);
+        fprintf(stderr, "Lua: no function '%s' for scheduled event\n", name);
         lua_pop(L, 1);
         return;
     }
@@ -282,7 +317,7 @@ void lua_bind_dispatch(uint32_t tag, app_t *app)
 void lua_bind_call(app_t *app, const char *fn_name)
 {
     lua_State *L = app->L;
-    lua_getglobal(L, fn_name);
+    lua_push_by_path(L, fn_name);
     if (!lua_isfunction(L, -1)) {
         lua_pop(L, 1);
         return;
@@ -297,6 +332,34 @@ void lua_bind_call(app_t *app, const char *fn_name)
 }
 
 /* ------------------------------------------------------------------ */
+/* Reload                                                               */
+/* ------------------------------------------------------------------ */
+
+int lua_bind_reload(app_t *app, const char *script_path)
+{
+    cJSON *snap = app_state_to_json(app);  /* lua_bind_restore ignores "ro" */
+
+    /* Stash old state; lua_bind_init clears lua_events so save them too */
+    lua_State      *old_L = app->L;
+    lua_event_t     saved_events[LUA_MAX_EVENTS];
+    memcpy(saved_events, app->lua_events, sizeof(saved_events));
+
+    app->L = NULL;
+    if (lua_bind_init(app, script_path) != 0) {
+        /* Load failed — restore old state intact */
+        app->L = old_L;
+        memcpy(app->lua_events, saved_events, sizeof(saved_events));
+        cJSON_Delete(snap);
+        return -1;
+    }
+
+    lua_close(old_L);
+    lua_bind_restore(app, snap);
+    cJSON_Delete(snap);
+    return 0;
+}
+
+/* ------------------------------------------------------------------ */
 /* Init                                                                 */
 /* ------------------------------------------------------------------ */
 
@@ -304,6 +367,37 @@ static const luaL_Reg api_funcs[] = {
     {"schedule", l_schedule},
     {NULL, NULL}
 };
+
+static void setup_package(lua_State *L, const char *script_path)
+{
+    /* Derive directory containing the main script */
+    char dir[1024];
+    const char *slash = strrchr(script_path, '/');
+    if (slash) {
+        size_t n = (size_t)(slash - script_path);
+        if (n >= sizeof(dir)) n = sizeof(dir) - 1;
+        memcpy(dir, script_path, n);
+        dir[n] = '\0';
+    } else {
+        dir[0] = '.'; dir[1] = '\0';
+    }
+
+    /* package.path = "<dir>/?.lua" */
+    char pkg_path[1024 + 8];
+    snprintf(pkg_path, sizeof(pkg_path), "%s/?.lua", dir);
+    lua_getglobal(L, "package");
+    lua_pushstring(L, pkg_path);
+    lua_setfield(L, -2, "path");
+
+    /* package.searchers = { package.searchers[2] }  — file loader only */
+    lua_getfield(L, -1, "searchers");   /* package, searchers */
+    lua_rawgeti(L, -1, 2);              /* package, searchers, file_searcher */
+    lua_newtable(L);                    /* package, searchers, file_searcher, {} */
+    lua_pushvalue(L, -2);               /* ..., {}, file_searcher */
+    lua_rawseti(L, -2, 1);             /* ..., {file_searcher} */
+    lua_setfield(L, -4, "searchers");  /* package.searchers = {file_searcher} */
+    lua_pop(L, 3);                      /* clean */
+}
 
 int lua_bind_init(app_t *app, const char *script_path)
 {
@@ -313,6 +407,7 @@ int lua_bind_init(app_t *app, const char *script_path)
         return -1;
     }
     luaL_openlibs(L);
+    setup_package(L, script_path);
 
     /* Store app pointer in registry */
     lua_pushlightuserdata(L, app);

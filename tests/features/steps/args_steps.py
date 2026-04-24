@@ -2,8 +2,11 @@ import json
 import os
 import re
 import shlex
+import shutil
 import subprocess
 import tempfile
+import time
+import uuid
 
 from behave import given, when, then
 from utils import EMU, post, start_emu
@@ -58,6 +61,39 @@ def step_state_file_with_character(context, char_id, energy):
         'birth_tick': 0,
     }
     _make_state_file(context, 0, character=character, rw={'energy': energy})
+
+
+@given('the hot-reload test directory is set up from "{src_name}"')
+def step_setup_hot_reload(context, src_name):
+    src_dir = os.path.join(TEST_SCRIPTS_DIR, src_name)
+    tmp_dir = os.path.join(TEST_SCRIPTS_DIR, 'tmp',
+                           'hot_reload_' + uuid.uuid4().hex[:8])
+    os.makedirs(tmp_dir)
+    for fname in os.listdir(src_dir):
+        if not fname.endswith('.lua.template'):
+            shutil.copy(os.path.join(src_dir, fname), os.path.join(tmp_dir, fname))
+    context.hot_reload_src_dir = src_dir
+    context.hot_reload_dir     = tmp_dir
+    context.temp_dirs = getattr(context, 'temp_dirs', []) + [tmp_dir]
+
+
+@given('emu starts with the hot-reload test script and args "{args_str}"')
+def step_emu_hot_reload_script(context, args_str):
+    script = os.path.join(context.hot_reload_dir, 'main.lua')
+    start_emu(context, shlex.split(args_str) + [f'--script={script}'], ARGS_PORT)
+
+
+@given('"{src}" is copied to "{dst}"')
+@when('"{src}" is copied to "{dst}"')
+def step_copy_file(context, src, dst):
+    if getattr(context, 'emu_proc', None):
+        time.sleep(1.1)   # ensure mtime advances by at least one second
+    shutil.copy(
+        os.path.join(context.hot_reload_src_dir, src),
+        os.path.join(context.hot_reload_dir, dst),
+    )
+    if getattr(context, 'emu_proc', None):
+        time.sleep(0.3)   # wait for emu's 100 ms poll to detect the change
 
 
 @given('emu starts with that state file and args "{args_str}"')

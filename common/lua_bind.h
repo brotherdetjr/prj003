@@ -38,6 +38,13 @@ void lua_bind_reset_rw(app_t *app);
 int lua_bind_restore(app_t *app, const cJSON *state_json);
 
 /*
+ * Reload the Lua script from script_path, preserving rw and scheduler state.
+ * Returns 0 on success. On load error the old Lua state is kept intact and
+ * -1 is returned (error already printed to stderr).
+ */
+int lua_bind_reload(app_t *app, const char *script_path);
+
+/*
  * Dispatch callback wired into app_t.dispatch_cb.
  * Calls the named Lua global, passing ro and rw as arguments.
  */
