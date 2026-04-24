@@ -1,0 +1,23 @@
+Feature: Hot-reload — changes to Lua files in the script directory take effect without restart
+
+  Scenario: replacing a required module updates the drain interval
+    Given the hot-reload test directory is set up from "hot_reload_src" with args "--id=DEADBEEF --nowtick=0 --noautotick"
+    When I spawn a character
+    Then the response is ok
+    And energy is 10
+    And the scheduler has an "energy.on_drain" event at tick 5000
+
+    When I advance to the next event
+    Then now_tick is 5000
+    And event is "energy.on_drain"
+
+    # energy2.lua has DRAIN_INTERVAL = 9000; the pre-scheduled event at tick
+    # 10000 fires using the new code and reschedules at 10000 + 9000 = 19000
+    When energy.lua is replaced with "energy2.lua"
+    And I advance to the next event
+    Then now_tick is 10000
+    And event is "energy.on_drain"
+
+    When I advance to the next event
+    Then now_tick is 19000
+    And event is "energy.on_drain"

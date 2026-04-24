@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <dirent.h>
 #include <sys/stat.h>
 #include <time.h>
 #include <unistd.h>
@@ -11,6 +12,41 @@
 #include "../../common/lua_bind.h"
 
 #define DEFAULT_PORT     "7070"
+
+/* Scan all .lua files in the directory containing script_path and return the
+ * latest mtime found. Triggers reload when any Lua file in the directory
+ * changes, covering required modules without needing to track them explicitly. */
+static time_t dir_lua_max_mtime(const char *script_path)
+{
+    char dir[1024];
+    const char *slash = strrchr(script_path, '/');
+    if (slash) {
+        size_t n = (size_t)(slash - script_path);
+        if (n >= sizeof(dir)) n = sizeof(dir) - 1;
+        memcpy(dir, script_path, n);
+        dir[n] = '\0';
+    } else {
+        dir[0] = '.'; dir[1] = '\0';
+    }
+
+    DIR *d = opendir(dir);
+    if (!d) return 0;
+
+    time_t latest = 0;
+    struct dirent *ent;
+    while ((ent = readdir(d)) != NULL) {
+        const char *name = ent->d_name;
+        size_t n = strlen(name);
+        if (n < 4 || strcmp(name + n - 4, ".lua") != 0) continue;
+        char path[1280];
+        snprintf(path, sizeof(path), "%s/%s", dir, name);
+        struct stat st;
+        if (stat(path, &st) == 0 && st.st_mtime > latest)
+            latest = st.st_mtime;
+    }
+    closedir(d);
+    return latest;
+}
 
 static void usage(const char *prog)
 {
@@ -234,19 +270,17 @@ int main(int argc, char *argv[])
     /* peer stdin (non-blocking) */
     peer_stdin_init();
 
-    /* seed script watcher mtime */
-    struct stat script_st;
-    time_t script_mtime = (stat(script_path, &script_st) == 0)
-                          ? script_st.st_mtime : 0;
+    /* seed script directory watcher (all .lua files) */
+    time_t lua_mtime = dir_lua_max_mtime(script_path);
 
     /* main loop */
     for (;;) {
         mg_mgr_poll(&app.mgr, 100); /* 100 ms */
         peer_stdin_poll(&app);
 
-        if (stat(script_path, &script_st) == 0 &&
-                script_st.st_mtime != script_mtime) {
-            script_mtime = script_st.st_mtime;
+        time_t cur = dir_lua_max_mtime(script_path);
+        if (cur != lua_mtime) {
+            lua_mtime = cur;
             fprintf(stderr, "Hot-reloading: %s\n", script_path);
             if (lua_bind_reload(&app, script_path) == 0)
                 fprintf(stderr, "Script reloaded\n");

@@ -2,8 +2,11 @@ import json
 import os
 import re
 import shlex
+import shutil
 import subprocess
 import tempfile
+import time
+import uuid
 
 from behave import given, when, then
 from utils import EMU, post, start_emu
@@ -58,6 +61,30 @@ def step_state_file_with_character(context, char_id, energy):
         'birth_tick': 0,
     }
     _make_state_file(context, 0, character=character, rw={'energy': energy})
+
+
+@given('the hot-reload test directory is set up from "{src_name}" with args "{args_str}"')
+def step_setup_hot_reload(context, src_name, args_str):
+    src_dir = os.path.join(TEST_SCRIPTS_DIR, src_name)
+    dyn_dir = os.path.join(TEST_SCRIPTS_DIR, 'dynamic',
+                           'hot_reload_' + uuid.uuid4().hex[:8])
+    os.makedirs(dyn_dir)
+    shutil.copy(os.path.join(src_dir, 'main.lua'),    os.path.join(dyn_dir, 'main.lua'))
+    shutil.copy(os.path.join(src_dir, 'energy1.lua'), os.path.join(dyn_dir, 'energy.lua'))
+    context.hot_reload_src_dir = src_dir
+    context.hot_reload_dir     = dyn_dir
+    context.temp_dirs = getattr(context, 'temp_dirs', []) + [dyn_dir]
+    script = os.path.join(dyn_dir, 'main.lua')
+    start_emu(context, shlex.split(args_str) + [f'--script={script}'], ARGS_PORT)
+
+
+@when('energy.lua is replaced with "{filename}"')
+def step_replace_energy(context, filename):
+    src = os.path.join(context.hot_reload_src_dir, filename)
+    dst = os.path.join(context.hot_reload_dir, 'energy.lua')
+    time.sleep(1.1)   # ensure mtime advances by at least one second
+    shutil.copy(src, dst)
+    time.sleep(0.3)   # wait for emu's 100 ms poll to detect the change
 
 
 @given('emu starts with that state file and args "{args_str}"')
