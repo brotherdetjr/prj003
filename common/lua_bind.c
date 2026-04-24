@@ -94,6 +94,10 @@ static int l_schedule(lua_State *L)
     if (delay < 0)
         return luaL_error(L, "schedule: delay_ms must be >= 0");
 
+    if (strlen(name) >= sizeof(app->lua_events[0].name))
+        return luaL_error(L, "schedule: event name too long (max %d chars)",
+                          (int)(sizeof(app->lua_events[0].name) - 1));
+
     int slot = alloc_event_slot(app);
     if (slot < 0)
         return luaL_error(L, "schedule: lua_events table full");
