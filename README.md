@@ -84,13 +84,16 @@ platform/
 
 scripts/
   main.lua          ← game logic: energy drain, spawn hook
+                       (may require additional .lua files in the same directory)
 
 tests/
   features/
-    smoke.feature   ← happy-path scenarios from README smoke test
-    args.feature    ← CLI argument parsing, defaults, invalid inputs
-    api.feature     ← HTTP API edge cases (bad inputs, state errors)
-    scripting.feature ← Lua scripting behaviour
+    smoke.feature             ← happy-path scenarios from README smoke test
+    args.feature              ← CLI argument parsing, defaults, invalid inputs
+    api.feature               ← HTTP API edge cases (bad inputs, state errors)
+    require.feature           ← Lua require and dotted callback paths
+    schedule_validation.feature ← api.schedule argument validation
+    hot_reload.feature        ← live reload when any .lua file in the script directory changes
     environment.py  ← Behave hooks (emu lifecycle, temp-file cleanup)
     steps/
       steps.py      ← shared Given/When/Then step definitions
@@ -123,10 +126,26 @@ Game logic lives in Lua scripts (`scripts/`). The Lua VM is embedded via
 receive three arguments in order of likely use: `api` (engine functions:
 `api.schedule()`), `rw` (read-write scripted state), and `ro` (read-only
 snapshot: `instance_id`, `now_tick`, `now_unix_sec`, `character`). Callbacks
-that don't need all three may simply declare fewer parameters. `common/` provides the pure-C primitives
-(scheduler, world, character) that the platform and scripts build on. The PC
-build is the primary development target; behaviour is verified there before
-flashing to hardware.
+that don't need all three may simply declare fewer parameters.
+
+Scripts may be split across multiple files using `require`. The search path is
+set to the directory containing the main script, so `require("energy")` loads
+`energy.lua` from the same directory. Transitive requires work as expected.
+Callback names passed to `api.schedule()` support dot-separated paths
+(`"mod.fn"`, `"a.b.fn"`) resolved by traversing the global table chain at
+dispatch time — meaning the module must be assigned to a global, not a local:
+
+```lua
+energy = require("energy")          -- global so "energy.on_drain" resolves
+api.schedule(5000, "energy.on_drain")
+```
+
+Event names are limited to 63 characters; `api.schedule` raises a Lua error if
+the limit is exceeded.
+
+`common/` provides the pure-C primitives (scheduler, world, character) that the
+platform and scripts build on. The PC build is the primary development target;
+behaviour is verified there before flashing to hardware.
 
 ### Lua callback naming conventions
 
@@ -135,6 +154,20 @@ flashing to hardware.
 | `on_` | Engine lifecycle hook or scheduled event callback | `on_spawn`, `on_energy_drain` |
 
 ## PC instance
+
+### Hot-reload
+
+The emulator watches all `.lua` files in the script directory (not just the
+main script). When any of them changes, the Lua VM is torn down, rebuilt from
+the main script, and the previous `rw` state and scheduler are restored — so
+scheduled events keep firing and game variables are preserved across reloads.
+
+> **TODO — improve reload tracking (pick one):**
+> 1. Track only the files actually loaded by `require` (and transitively by
+>    `require` within those files), rather than the whole directory. This
+>    avoids false-positive reloads when unrelated `.lua` files are touched.
+> 2. Keep the directory-based scan but make it recursive so that `.lua` files
+>    in subdirectories are also tracked.
 
 ### Build
 
