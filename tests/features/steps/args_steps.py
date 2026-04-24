@@ -63,28 +63,37 @@ def step_state_file_with_character(context, char_id, energy):
     _make_state_file(context, 0, character=character, rw={'energy': energy})
 
 
-@given('the hot-reload test directory is set up from "{src_name}" with args "{args_str}"')
-def step_setup_hot_reload(context, src_name, args_str):
+@given('the hot-reload test directory is set up from "{src_name}"')
+def step_setup_hot_reload(context, src_name):
     src_dir = os.path.join(TEST_SCRIPTS_DIR, src_name)
-    dyn_dir = os.path.join(TEST_SCRIPTS_DIR, 'dynamic',
+    tmp_dir = os.path.join(TEST_SCRIPTS_DIR, 'tmp',
                            'hot_reload_' + uuid.uuid4().hex[:8])
-    os.makedirs(dyn_dir)
-    shutil.copy(os.path.join(src_dir, 'main.lua'),    os.path.join(dyn_dir, 'main.lua'))
-    shutil.copy(os.path.join(src_dir, 'energy1.lua'), os.path.join(dyn_dir, 'energy.lua'))
+    os.makedirs(tmp_dir)
+    for fname in os.listdir(src_dir):
+        if not fname.endswith('.lua.template'):
+            shutil.copy(os.path.join(src_dir, fname), os.path.join(tmp_dir, fname))
     context.hot_reload_src_dir = src_dir
-    context.hot_reload_dir     = dyn_dir
-    context.temp_dirs = getattr(context, 'temp_dirs', []) + [dyn_dir]
-    script = os.path.join(dyn_dir, 'main.lua')
+    context.hot_reload_dir     = tmp_dir
+    context.temp_dirs = getattr(context, 'temp_dirs', []) + [tmp_dir]
+
+
+@given('emu starts with the hot-reload test script and args "{args_str}"')
+def step_emu_hot_reload_script(context, args_str):
+    script = os.path.join(context.hot_reload_dir, 'main.lua')
     start_emu(context, shlex.split(args_str) + [f'--script={script}'], ARGS_PORT)
 
 
-@when('energy.lua is replaced with "{filename}"')
-def step_replace_energy(context, filename):
-    src = os.path.join(context.hot_reload_src_dir, filename)
-    dst = os.path.join(context.hot_reload_dir, 'energy.lua')
-    time.sleep(1.1)   # ensure mtime advances by at least one second
-    shutil.copy(src, dst)
-    time.sleep(0.3)   # wait for emu's 100 ms poll to detect the change
+@given('"{src}" is copied to "{dst}"')
+@when('"{src}" is copied to "{dst}"')
+def step_copy_file(context, src, dst):
+    if getattr(context, 'emu_proc', None):
+        time.sleep(1.1)   # ensure mtime advances by at least one second
+    shutil.copy(
+        os.path.join(context.hot_reload_src_dir, src),
+        os.path.join(context.hot_reload_dir, dst),
+    )
+    if getattr(context, 'emu_proc', None):
+        time.sleep(0.3)   # wait for emu's 100 ms poll to detect the change
 
 
 @given('emu starts with that state file and args "{args_str}"')
