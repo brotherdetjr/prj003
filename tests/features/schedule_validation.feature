@@ -20,3 +20,17 @@ Feature: api.schedule argument validation
     Then the response is ok
     When I get state
     Then the scheduler is an empty array
+
+  Scenario: negative delay_ms is rejected with a Lua error
+    Given emu starts with test script "schedule_delay_negative/main.lua" and args "--nowtick=0 --noautotick"
+    When I spawn a character
+    Then the response is ok
+    When I get state
+    Then the scheduler is an empty array
+
+  Scenario: exhausting the event table is rejected with a Lua error
+    Given emu starts with test script "schedule_table_full/main.lua" and args "--nowtick=0 --noautotick"
+    When I spawn a character
+    Then the response is ok
+    When I get state
+    Then the scheduler has 64 event(s)
