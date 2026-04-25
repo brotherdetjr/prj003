@@ -1,12 +1,12 @@
 CC       = gcc
-CFLAGS   = -Wall -Wextra -std=gnu11 -g \
+CFLAGS   = -Wall -Wextra -std=gnu11 \
            -DMG_ENABLE_MBEDTLS=0 \
            -I../../vendor/mongoose \
            -I../../vendor/cjson \
            -I../../vendor/lua
 
 # Vendor files compiled without -Wall to avoid noise from third-party code
-VCFLAGS  = -std=gnu11 -g -DMG_ENABLE_MBEDTLS=0 \
+VCFLAGS  = -std=gnu11 -DMG_ENABLE_MBEDTLS=0 \
            -I../../vendor/mongoose \
            -I../../vendor/lua
 
