@@ -10,11 +10,11 @@
 
 /* Registry keys */
 #define REG_APP "_gloxie_app"
-#define REG_RW  "_gloxie_rw"
+#define REG_RW "_gloxie_rw"
 #define REG_API "_gloxie_api"
 
 /* ------------------------------------------------------------------ */
-/* Helpers                                                              */
+/* Helpers                                                            */
 /* ------------------------------------------------------------------ */
 
 static app_t *get_app(lua_State *L)
@@ -77,7 +77,7 @@ static int alloc_event_slot(app_t *app)
 }
 
 /* ------------------------------------------------------------------ */
-/* api table functions (passed as 3rd arg to every callback)           */
+/* api table functions (passed as 3rd arg to every callback)          */
 /* ------------------------------------------------------------------ */
 
 static void set_api_prefix(lua_State *L, const char *prefix)
@@ -100,7 +100,7 @@ static int l_schedule(lua_State *L)
 {
     app_t *app = get_app(L);
     lua_Integer delay = luaL_checkinteger(L, 1);
-    const char *name  = luaL_checkstring(L, 2);
+    const char *name = luaL_checkstring(L, 2);
 
     if (delay < 0)
         return luaL_error(L, "schedule: delay_ms must be >= 0");
@@ -134,7 +134,7 @@ static int l_schedule(lua_State *L)
 }
 
 /* ------------------------------------------------------------------ */
-/* rw table → JSON and back                                            */
+/* rw table → JSON and back                                           */
 /* ------------------------------------------------------------------ */
 
 static cJSON *lua_table_to_cjson(lua_State *L, int idx);
@@ -142,18 +142,18 @@ static cJSON *lua_table_to_cjson(lua_State *L, int idx);
 static cJSON *lua_value_to_cjson(lua_State *L, int idx)
 {
     switch (lua_type(L, idx)) {
-        case LUA_TBOOLEAN:
-            return lua_toboolean(L, idx) ? cJSON_CreateTrue() : cJSON_CreateFalse();
-        case LUA_TNUMBER:
-            if (lua_isinteger(L, idx))
-                return cJSON_CreateNumber((double)lua_tointeger(L, idx));
-            return cJSON_CreateNumber(lua_tonumber(L, idx));
-        case LUA_TSTRING:
-            return cJSON_CreateString(lua_tostring(L, idx));
-        case LUA_TTABLE:
-            return lua_table_to_cjson(L, idx);
-        default:
-            return cJSON_CreateNull();
+    case LUA_TBOOLEAN:
+        return lua_toboolean(L, idx) ? cJSON_CreateTrue() : cJSON_CreateFalse();
+    case LUA_TNUMBER:
+        if (lua_isinteger(L, idx))
+            return cJSON_CreateNumber((double)lua_tointeger(L, idx));
+        return cJSON_CreateNumber(lua_tonumber(L, idx));
+    case LUA_TSTRING:
+        return cJSON_CreateString(lua_tostring(L, idx));
+    case LUA_TTABLE:
+        return lua_table_to_cjson(L, idx);
+    default:
+        return cJSON_CreateNull();
     }
 }
 
@@ -192,7 +192,8 @@ static void cjson_to_lua_table(lua_State *L, const cJSON *obj)
 {
     lua_newtable(L);
     const cJSON *item = NULL;
-    cJSON_ArrayForEach(item, obj) {
+    cJSON_ArrayForEach(item, obj)
+    {
         if (!item->string) continue;
         if (cJSON_IsNumber(item)) {
             double v = item->valuedouble;
@@ -225,7 +226,7 @@ static void lua_bind_restore_rw(app_t *app, const cJSON *rw_json)
 }
 
 /* ------------------------------------------------------------------ */
-/* Scheduler restore                                                    */
+/* Scheduler restore                                                  */
 /* ------------------------------------------------------------------ */
 
 static int lua_bind_restore_scheduler(app_t *app, const cJSON *arr)
@@ -239,7 +240,8 @@ static int lua_bind_restore_scheduler(app_t *app, const cJSON *arr)
     if (!cJSON_IsArray(arr)) return -1;
 
     const cJSON *entry;
-    cJSON_ArrayForEach(entry, arr) {
+    cJSON_ArrayForEach(entry, arr)
+    {
         cJSON *fire_j = cJSON_GetObjectItemCaseSensitive(entry, "fire_at_ms");
         cJSON *name_j = cJSON_GetObjectItemCaseSensitive(entry, "event");
         if (!cJSON_IsNumber(fire_j) || !cJSON_IsString(name_j)) return -1;
@@ -263,13 +265,13 @@ static int lua_bind_restore_scheduler(app_t *app, const cJSON *arr)
 int lua_bind_restore(app_t *app, const cJSON *state_json)
 {
     lua_bind_restore_rw(app,
-        cJSON_GetObjectItemCaseSensitive(state_json, "rw"));
+                        cJSON_GetObjectItemCaseSensitive(state_json, "rw"));
     return lua_bind_restore_scheduler(app,
-        cJSON_GetObjectItemCaseSensitive(state_json, "scheduler"));
+                                      cJSON_GetObjectItemCaseSensitive(state_json, "scheduler"));
 }
 
 /* ------------------------------------------------------------------ */
-/* Dispatch                                                             */
+/* Dispatch                                                           */
 /* ------------------------------------------------------------------ */
 
 /*
@@ -292,7 +294,11 @@ static void lua_push_by_path(lua_State *L, const char *path)
 
     p = dot + 1;
     while (1) {
-        if (!lua_istable(L, -1)) { lua_pop(L, 1); lua_pushnil(L); return; }
+        if (!lua_istable(L, -1)) {
+            lua_pop(L, 1);
+            lua_pushnil(L);
+            return;
+        }
         dot = strchr(p, '.');
         if (dot) *dot = '\0';
         lua_getfield(L, -1, p);
@@ -346,7 +352,7 @@ void lua_bind_dispatch(uint32_t tag, app_t *app)
 }
 
 /* ------------------------------------------------------------------ */
-/* Call helper                                                          */
+/* Call helper                                                        */
 /* ------------------------------------------------------------------ */
 
 void lua_bind_call(app_t *app, const char *fn_name)
@@ -368,16 +374,16 @@ void lua_bind_call(app_t *app, const char *fn_name)
 }
 
 /* ------------------------------------------------------------------ */
-/* Reload                                                               */
+/* Reload                                                             */
 /* ------------------------------------------------------------------ */
 
 int lua_bind_reload(app_t *app, const char *script_path)
 {
-    cJSON *snap = app_state_to_json(app);  /* lua_bind_restore ignores "ro" */
+    cJSON *snap = app_state_to_json(app); /* lua_bind_restore ignores "ro" */
 
     /* Stash old state; lua_bind_init clears lua_events so save them too */
-    lua_State      *old_L = app->L;
-    lua_event_t     saved_events[LUA_MAX_EVENTS];
+    lua_State *old_L = app->L;
+    lua_event_t saved_events[LUA_MAX_EVENTS];
     memcpy(saved_events, app->lua_events, sizeof(saved_events));
 
     app->L = NULL;
@@ -396,7 +402,7 @@ int lua_bind_reload(app_t *app, const char *script_path)
 }
 
 /* ------------------------------------------------------------------ */
-/* Loaded-file enumeration                                              */
+/* Loaded-file enumeration                                            */
 /* ------------------------------------------------------------------ */
 
 int lua_bind_get_loaded_files(app_t *app, char (*out)[1024], int max_count)
@@ -459,13 +465,12 @@ int lua_bind_get_loaded_files(app_t *app, char (*out)[1024], int max_count)
 }
 
 /* ------------------------------------------------------------------ */
-/* Init                                                                 */
+/* Init                                                               */
 /* ------------------------------------------------------------------ */
 
 static const luaL_Reg api_funcs[] = {
     {"schedule", l_schedule},
-    {NULL, NULL}
-};
+    {NULL, NULL}};
 
 static void setup_package(lua_State *L, const char *script_path)
 {
@@ -478,7 +483,8 @@ static void setup_package(lua_State *L, const char *script_path)
         memcpy(dir, script_path, n);
         dir[n] = '\0';
     } else {
-        dir[0] = '.'; dir[1] = '\0';
+        dir[0] = '.';
+        dir[1] = '\0';
     }
 
     /* package.path = "<dir>/?.lua" */
@@ -489,13 +495,13 @@ static void setup_package(lua_State *L, const char *script_path)
     lua_setfield(L, -2, "path");
 
     /* package.searchers = { package.searchers[2] }  — file loader only */
-    lua_getfield(L, -1, "searchers");   /* package, searchers */
-    lua_rawgeti(L, -1, 2);              /* package, searchers, file_searcher */
-    lua_newtable(L);                    /* package, searchers, file_searcher, {} */
-    lua_pushvalue(L, -2);               /* ..., {}, file_searcher */
-    lua_rawseti(L, -2, 1);             /* ..., {file_searcher} */
-    lua_setfield(L, -4, "searchers");  /* package.searchers = {file_searcher} */
-    lua_pop(L, 3);                      /* clean */
+    lua_getfield(L, -1, "searchers"); /* package, searchers */
+    lua_rawgeti(L, -1, 2);            /* package, searchers, file_searcher */
+    lua_newtable(L);                  /* package, searchers, file_searcher, {} */
+    lua_pushvalue(L, -2);             /* ..., {}, file_searcher */
+    lua_rawseti(L, -2, 1);            /* ..., {file_searcher} */
+    lua_setfield(L, -4, "searchers"); /* package.searchers = {file_searcher} */
+    lua_pop(L, 3);                    /* clean */
 }
 
 int lua_bind_init(app_t *app, const char *script_path)

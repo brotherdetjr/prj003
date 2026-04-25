@@ -48,9 +48,12 @@ static void test_ordering(void)
     scheduler_add(&s, 200, 2);
 
     scheduled_event_t ev;
-    scheduler_pop(&s, &ev); CHECK(ev.fire_at_ms == 100 && ev.tag == 1);
-    scheduler_pop(&s, &ev); CHECK(ev.fire_at_ms == 200 && ev.tag == 2);
-    scheduler_pop(&s, &ev); CHECK(ev.fire_at_ms == 300 && ev.tag == 3);
+    scheduler_pop(&s, &ev);
+    CHECK(ev.fire_at_ms == 100 && ev.tag == 1);
+    scheduler_pop(&s, &ev);
+    CHECK(ev.fire_at_ms == 200 && ev.tag == 2);
+    scheduler_pop(&s, &ev);
+    CHECK(ev.fire_at_ms == 300 && ev.tag == 3);
     CHECK(s.count == 0);
 }
 
@@ -92,7 +95,7 @@ static void test_full(void)
     scheduler_init(&s);
     for (int i = 0; i < SCHEDULER_MAX_EVENTS; i++)
         CHECK(scheduler_add(&s, (uint64_t)i + 1, 0) == 0);
-    CHECK(scheduler_add(&s, 999, 0) == -1);  /* full */
+    CHECK(scheduler_add(&s, 999, 0) == -1); /* full */
 }
 
 static void test_reverse_insert_ordering(void)
@@ -114,13 +117,20 @@ static void test_reverse_insert_ordering(void)
 
 int main(void)
 {
-    test_empty();                   puts("OK  empty");
-    test_single();                  puts("OK  single");
-    test_ordering();                puts("OK  ordering");
-    test_equal_timestamps();        puts("OK  equal_timestamps");
-    test_clear();                   puts("OK  clear");
-    test_full();                    puts("OK  full");
-    test_reverse_insert_ordering(); puts("OK  reverse_insert_ordering");
+    test_empty();
+    puts("OK  empty");
+    test_single();
+    puts("OK  single");
+    test_ordering();
+    puts("OK  ordering");
+    test_equal_timestamps();
+    puts("OK  equal_timestamps");
+    test_clear();
+    puts("OK  clear");
+    test_full();
+    puts("OK  full");
+    test_reverse_insert_ordering();
+    puts("OK  reverse_insert_ordering");
     puts("All tests passed.");
     return 0;
 }

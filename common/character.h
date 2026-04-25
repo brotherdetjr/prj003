@@ -6,7 +6,7 @@
 typedef struct {
     uint32_t id;
     uint64_t birth_unix_sec; /* wall-clock UTC seconds at birth; used for zodiac */
-    uint64_t birth_tick;    /* world now_tick at birth; virtual age = now_tick - birth_tick */
+    uint64_t birth_tick;     /* world now_tick at birth; virtual age = now_tick - birth_tick */
 } character_t;
 
 /*

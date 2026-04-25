@@ -7,32 +7,34 @@
 #include "../vendor/mongoose/mongoose.h"
 #include "../vendor/lua/lua.h"
 
-#define AUTOTICK 100U   /* virtual ms per timer tick; timer fires 10×/sec for ~10 FPS */
+#define AUTOTICK 100U /* virtual ms per timer tick; timer fires 10×/sec for ~10 FPS */
 
-#define LUA_MAX_EVENTS  64U
+#define LUA_MAX_EVENTS 64U
 
-typedef struct { char name[64]; } lua_event_t;
+typedef struct {
+    char name[64];
+} lua_event_t;
 
 typedef struct {
     uint64_t now_tick;
-    int      stopped_on_event;
+    int stopped_on_event;
     uint32_t event_tag;
 } advance_result_t;
 
 typedef struct app_t {
-    uint64_t          now_tick;       /* virtual clock in ms; advanced by app_advance */
-    uint64_t          now_unix_sec;   /* wall-clock UTC seconds; set by platform / set_wall_clock */
-    int               has_character;
-    character_t       character;
-    scheduler_t       scheduler;
-    void            (*dispatch_cb)(uint32_t tag, struct app_t *app);  /* must be set before app_advance */
-    char          instance_id[9];
-    uint32_t      instance_id_raw;
-    int           autotick;
+    uint64_t now_tick;     /* virtual clock in ms; advanced by app_advance */
+    uint64_t now_unix_sec; /* wall-clock UTC seconds; set by platform / set_wall_clock */
+    int has_character;
+    character_t character;
+    scheduler_t scheduler;
+    void (*dispatch_cb)(uint32_t tag, struct app_t *app); /* must be set before app_advance */
+    char instance_id[9];
+    uint32_t instance_id_raw;
+    int autotick;
     struct mg_mgr mgr;
-    lua_State    *L;
-    lua_event_t   lua_events[LUA_MAX_EVENTS];
-    char          last_event_name[64];
+    lua_State *L;
+    lua_event_t lua_events[LUA_MAX_EVENTS];
+    char last_event_name[64];
 } app_t;
 
 /* Initialise an empty world. now_tick and now_unix_sec are set by the caller. */

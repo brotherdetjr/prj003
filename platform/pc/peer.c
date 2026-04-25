@@ -10,7 +10,7 @@
 #define BUF_SIZE 4096
 
 static char s_buf[BUF_SIZE];
-static int  s_len = 0;
+static int s_len = 0;
 
 void peer_stdin_init(void)
 {
@@ -72,7 +72,7 @@ void peer_send(app_t *app, cJSON *msg)
     if (!app->has_character) return;
 
     char *s = cJSON_PrintUnformatted(msg);
-    puts(s);          /* stdout — orchestrator reads and routes */
+    puts(s); /* stdout — orchestrator reads and routes */
     fflush(stdout);
     sse_push(&app->mgr, "peer_out", s);
     cJSON_free(s);

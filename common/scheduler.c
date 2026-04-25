@@ -11,7 +11,7 @@ static void sift_up(scheduler_t *s, int i)
         if (s->heap[parent].fire_at_ms > s->heap[i].fire_at_ms) {
             scheduled_event_t tmp = s->heap[parent];
             s->heap[parent] = s->heap[i];
-            s->heap[i]      = tmp;
+            s->heap[i] = tmp;
             i = parent;
         } else {
             break;
@@ -33,7 +33,7 @@ static void sift_down(scheduler_t *s, int i)
         if (smallest == i) break;
         scheduled_event_t tmp = s->heap[smallest];
         s->heap[smallest] = s->heap[i];
-        s->heap[i]        = tmp;
+        s->heap[i] = tmp;
         i = smallest;
     }
 }
@@ -43,7 +43,7 @@ int scheduler_add(scheduler_t *s, uint64_t fire_at_ms, uint32_t tag)
     if (s->count >= SCHEDULER_MAX_EVENTS) return -1;
     int i = s->count++;
     s->heap[i].fire_at_ms = fire_at_ms;
-    s->heap[i].tag        = tag;
+    s->heap[i].tag = tag;
     sift_up(s, i);
     return 0;
 }
