@@ -94,12 +94,13 @@ tests/
     require.feature           ← Lua require and module-relative callback names
     diamond_require.feature   ← same module required via two paths (diamond DAG)
     schedule_validation.feature ← api.schedule argument validation
-    hot_reload.feature        ← live reload when any .lua file in the script directory changes
+    hot_reload.feature        ← live reload when a loaded Lua file changes; _on_reload SSE event
     environment.py  ← Behave hooks (emu lifecycle, temp-file cleanup)
     steps/
       steps.py      ← shared Given/When/Then step definitions
       args_steps.py ← steps specific to CLI argument scenarios
       api_steps.py  ← steps specific to HTTP API scenarios
+      sse_steps.py  ← SSE subscription and event assertion steps
       utils.py      ← shared helpers (EMU path, post, raw_request, start_emu)
 
 vendor/
@@ -114,13 +115,18 @@ Two independent clocks:
 
 | Field | Type | Description |
 |---|---|---|
-| `app.now_tick` | virtual ticks, similar to millisecond during the actual application execution, though can drift away from the wall clock time | Advances via `advance_time`. Drives all game logic and the scheduler. |
-| `app.now_unix_sec` | Unix Epoch seconds | Wall clock. Set from RTC (ESP32) or system clock / `set_wall_clock` (PC). Updated every real second in autotick mode. Used only for zodiac. |
+| `app.now_tick` | virtual ms (can drift from wall clock) | Advances via `advance_time`. Drives all game logic and the scheduler. |
+| `app.now_unix_sec` | Unix epoch seconds | Wall clock. Set from RTC (ESP32) or system clock / `set_wall_clock` (PC). Updated every real second in autotick mode. Used only for zodiac. |
 
 The scheduler is a min-heap of `(fire_at_ms, tag)` events. `app_advance` pops
 and dispatches events in chronological order up to a target tick. Game logic
-(energy drain, future: hunger, sleep, …) registers recurring events rather than
-polling every tick.
+registers recurring events rather than polling every tick.
+
+`common/` provides the pure-C primitives (scheduler, world, character) that the
+platform and scripts build on. The PC build is the primary development target;
+behaviour is verified there before flashing to hardware.
+
+### Lua scripting
 
 Game logic lives in Lua scripts (`scripts/`). The Lua VM is embedded via
 `lua_bind.c`; scripts are loaded at startup and expose event callbacks that
@@ -163,18 +169,22 @@ end
 The same module may be required under multiple names (diamond dependency) — each
 path dispatches and reschedules independently and correctly.
 
-Event names are limited to 63 characters (after prefix expansion); `api.schedule`
-raises a Lua error if the limit is exceeded.
+Event names are limited to 63 characters (after prefix expansion) and must not
+start with `_` (reserved for system events); `api.schedule` raises a Lua error
+if either constraint is violated.
 
-`common/` provides the pure-C primitives (scheduler, world, character) that the
-platform and scripts build on. The PC build is the primary development target;
-behaviour is verified there before flashing to hardware.
-
-### Lua callback naming conventions
+#### Naming conventions
 
 | Prefix | Meaning | Example |
 |---|---|---|
-| `on_` | Engine lifecycle hook or scheduled event callback | `on_spawn`, `on_energy_drain` |
+| `on_` | Engine lifecycle hook or schedulable event callback | `on_spawn`, `on_energy_drain` |
+| `_on_` | System event emitted by the engine; not schedulable by scripts | `_on_reload` |
+
+#### System events
+
+| Event | Fired when | SSE data |
+|---|---|---|
+| `_on_reload` | Lua VM successfully reloaded after a source file change | `{"now_tick": N}` |
 
 ## PC instance
 
