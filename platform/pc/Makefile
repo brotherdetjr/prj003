@@ -10,6 +10,9 @@ VCFLAGS  = -std=gnu11 -g -DMG_ENABLE_MBEDTLS=0 \
            -I../../vendor/mongoose \
            -I../../vendor/lua
 
+# LUA_USE_POSIX makes lua_tmpnam use mkstemp instead of the deprecated tmpnam
+LUA_VCFLAGS = $(VCFLAGS) -DLUA_USE_POSIX
+
 TARGET   = emu
 
 APP_SRCS = main.c peer.c \
@@ -55,7 +58,7 @@ cJSON.o: ../../vendor/cjson/cJSON.c
 # Lua library sources — compile each .c in vendor/lua/
 define LUA_RULE
 $(notdir $(1:.c=.o)): $(1)
-	$(CC) $(VCFLAGS) -c -o $$@ $$<
+	$(CC) $(LUA_VCFLAGS) -c -o $$@ $$<
 endef
 $(foreach src,$(LUA_SRCS),$(eval $(call LUA_RULE,$(src))))
 
