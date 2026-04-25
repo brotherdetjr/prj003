@@ -1,0 +1,3 @@
+-- not required by any module; touching this file must not trigger a reload
+local M = {}
+return M

@@ -45,6 +45,14 @@ int lua_bind_restore(app_t *app, const cJSON *state_json);
 int lua_bind_reload(app_t *app, const char *script_path);
 
 /*
+ * Populate `out` with the absolute paths of all Lua files currently loaded
+ * via require (derived from package.loaded). Returns the number of paths
+ * written; never exceeds max_count. Does not include the main script itself
+ * (caller should add it at index 0 before calling this).
+ */
+int lua_bind_get_loaded_files(app_t *app, char (*out)[1024], int max_count);
+
+/*
  * Dispatch callback wired into app_t.dispatch_cb.
  * Calls the named Lua global, passing ro and rw as arguments.
  */

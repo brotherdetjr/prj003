@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <dirent.h>
 #include <sys/stat.h>
 #include <time.h>
 #include <unistd.h>
@@ -11,40 +10,28 @@
 #include "../../common/state.h"
 #include "../../common/lua_bind.h"
 
-#define DEFAULT_PORT     "7070"
+#define DEFAULT_PORT      "7070"
+#define MAX_WATCHED_FILES 32
 
-/* Scan all .lua files in the directory containing script_path and return the
- * latest mtime found. Triggers reload when any Lua file in the directory
- * changes, covering required modules without needing to track them explicitly. */
-static time_t dir_lua_max_mtime(const char *script_path)
+static char   s_watched[MAX_WATCHED_FILES][1024];
+static int    s_n_watched;
+
+static void refresh_watched_files(app_t *app, const char *script_path)
 {
-    char dir[1024];
-    const char *slash = strrchr(script_path, '/');
-    if (slash) {
-        size_t n = (size_t)(slash - script_path);
-        if (n >= sizeof(dir)) n = sizeof(dir) - 1;
-        memcpy(dir, script_path, n);
-        dir[n] = '\0';
-    } else {
-        dir[0] = '.'; dir[1] = '\0';
-    }
+    strncpy(s_watched[0], script_path, 1023);
+    s_watched[0][1023] = '\0';
+    s_n_watched = 1 + lua_bind_get_loaded_files(app, s_watched + 1,
+                                                 MAX_WATCHED_FILES - 1);
+}
 
-    DIR *d = opendir(dir);
-    if (!d) return 0;
-
+static time_t watched_max_mtime(void)
+{
     time_t latest = 0;
-    struct dirent *ent;
-    while ((ent = readdir(d)) != NULL) {
-        const char *name = ent->d_name;
-        size_t n = strlen(name);
-        if (n < 4 || strcmp(name + n - 4, ".lua") != 0) continue;
-        char path[1280];
-        snprintf(path, sizeof(path), "%s/%s", dir, name);
+    for (int i = 0; i < s_n_watched; i++) {
         struct stat st;
-        if (stat(path, &st) == 0 && st.st_mtime > latest)
+        if (stat(s_watched[i], &st) == 0 && st.st_mtime > latest)
             latest = st.st_mtime;
     }
-    closedir(d);
     return latest;
 }
 
@@ -270,22 +257,30 @@ int main(int argc, char *argv[])
     /* peer stdin (non-blocking) */
     peer_stdin_init();
 
-    /* seed script directory watcher (all .lua files) */
-    time_t lua_mtime = dir_lua_max_mtime(script_path);
+    /* seed watcher with the exact set of Lua files loaded at startup */
+    refresh_watched_files(&app, script_path);
+    time_t lua_mtime = watched_max_mtime();
 
     /* main loop */
     for (;;) {
         mg_mgr_poll(&app.mgr, 100); /* 100 ms */
         peer_stdin_poll(&app);
 
-        time_t cur = dir_lua_max_mtime(script_path);
+        time_t cur = watched_max_mtime();
         if (cur != lua_mtime) {
             lua_mtime = cur;
             fprintf(stderr, "Hot-reloading: %s\n", script_path);
-            if (lua_bind_reload(&app, script_path) == 0)
+            if (lua_bind_reload(&app, script_path) == 0) {
+                refresh_watched_files(&app, script_path);
+                char reload_data[64];
+                snprintf(reload_data, sizeof(reload_data),
+                         "{\"now_tick\":%llu}",
+                         (unsigned long long)app.now_tick);
+                sse_push(&app.mgr, "_on_reload", reload_data);
                 fprintf(stderr, "Script reloaded\n");
-            else
+            } else {
                 fprintf(stderr, "Reload failed, previous script still running\n");
+            }
         }
     }
 }
