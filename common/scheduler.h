@@ -7,12 +7,12 @@
 
 typedef struct {
     uint64_t fire_at_ms;
-    uint32_t tag;           /* opaque; interpreted by the caller */
+    uint32_t tag; /* opaque; interpreted by the caller */
 } scheduled_event_t;
 
 typedef struct {
     scheduled_event_t heap[SCHEDULER_MAX_EVENTS];
-    int               count;
+    int count;
 } scheduler_t;
 
 void scheduler_init(scheduler_t *s);

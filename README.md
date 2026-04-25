@@ -205,7 +205,12 @@ cd platform/pc
 make
 ```
 
-Requires GCC on Linux or macOS. No system libraries beyond libc.
+Requires GCC and `clang-format` on Linux or macOS. No system libraries beyond libc.
+
+```sh
+make format-check   # verify formatting (run in CI)
+make format         # apply formatting in-place
+```
 
 ### Tests
 

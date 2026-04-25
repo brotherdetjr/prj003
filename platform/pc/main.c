@@ -10,18 +10,18 @@
 #include "../../common/state.h"
 #include "../../common/lua_bind.h"
 
-#define DEFAULT_PORT      "7070"
+#define DEFAULT_PORT "7070"
 #define MAX_WATCHED_FILES 32
 
-static char   s_watched[MAX_WATCHED_FILES][1024];
-static int    s_n_watched;
+static char s_watched[MAX_WATCHED_FILES][1024];
+static int s_n_watched;
 
 static void refresh_watched_files(app_t *app, const char *script_path)
 {
     strncpy(s_watched[0], script_path, 1023);
     s_watched[0][1023] = '\0';
     s_n_watched = 1 + lua_bind_get_loaded_files(app, s_watched + 1,
-                                                 MAX_WATCHED_FILES - 1);
+                                                MAX_WATCHED_FILES - 1);
 }
 
 static struct timespec watched_max_mtime(void)
@@ -42,17 +42,17 @@ static struct timespec watched_max_mtime(void)
 static void usage(const char *prog)
 {
     fprintf(stderr,
-        "Usage: %s [OPTIONS]\n"
-        "  --id=XXXXXXXX                             instance ID (8 hex digits); seeds PRNG\n"
-        "  --port=N                                  HTTP port (default: " DEFAULT_PORT ")\n"
-        "  --nowtick=N                               initial virtual clock in ms (now_tick)\n"
-        "  --wallclockutc=YYYY-MM-DDTHH:MM:SS        initial wall-clock time (now_unix_sec)\n"
-        "  --file=PATH                               load world state from JSON file\n"
-        "  --script=PATH                             Lua game script (default: scripts/main.lua\n"
-        "                                            relative to this binary)\n"
-        "  --noautotick                              start in manual-tick mode\n"
-        "  --help                                    show this help and exit\n",
-        prog);
+            "Usage: %s [OPTIONS]\n"
+            "  --id=XXXXXXXX                             instance ID (8 hex digits); seeds PRNG\n"
+            "  --port=N                                  HTTP port (default: " DEFAULT_PORT ")\n"
+            "  --nowtick=N                               initial virtual clock in ms (now_tick)\n"
+            "  --wallclockutc=YYYY-MM-DDTHH:MM:SS        initial wall-clock time (now_unix_sec)\n"
+            "  --file=PATH                               load world state from JSON file\n"
+            "  --script=PATH                             Lua game script (default: scripts/main.lua\n"
+            "                                            relative to this binary)\n"
+            "  --noautotick                              start in manual-tick mode\n"
+            "  --help                                    show this help and exit\n",
+            prog);
 }
 
 static uint64_t parse_wallclockutc(const char *s)
@@ -66,7 +66,7 @@ static uint64_t parse_wallclockutc(const char *s)
         exit(1);
     }
     tm.tm_year -= 1900;
-    tm.tm_mon  -= 1;
+    tm.tm_mon -= 1;
     tm.tm_isdst = 0;
     time_t t = timegm(&tm);
     if (t == (time_t)-1) {
@@ -79,14 +79,18 @@ static uint64_t parse_wallclockutc(const char *s)
 static int load_state_file(app_t *app, const char *path)
 {
     FILE *f = fopen(path, "r");
-    if (!f) { perror(path); return -1; }
+    if (!f) {
+        perror(path);
+        return -1;
+    }
 
     fseek(f, 0, SEEK_END);
     long sz = ftell(f);
     rewind(f);
     if (sz <= 0 || sz > 65536) {
         fprintf(stderr, "%s: file too large or empty\n", path);
-        fclose(f); return -1;
+        fclose(f);
+        return -1;
     }
     char *buf = malloc((size_t)sz + 1);
     fread(buf, 1, (size_t)sz, f);
@@ -95,7 +99,10 @@ static int load_state_file(app_t *app, const char *path)
 
     cJSON *json = cJSON_Parse(buf);
     free(buf);
-    if (!json) { fprintf(stderr, "%s: malformed JSON\n", path); return -1; }
+    if (!json) {
+        fprintf(stderr, "%s: malformed JSON\n", path);
+        return -1;
+    }
 
     int rc = json_to_state(app, json);
     if (rc != 0) {
@@ -115,13 +122,15 @@ int main(int argc, char *argv[])
     app_t app = {0};
     app.autotick = 1;
 
-    const char *port           = DEFAULT_PORT;
-    uint64_t    arg_nowtick    = 0;   int has_nowtick    = 0;
-    uint64_t    arg_wallclock  = 0;   int has_wallclock  = 0;
-    char        load_file[256] = {0};
-    char        script_arg[1024] = {0};
-    uint32_t    given_id       = 0;
-    int         has_id         = 0;
+    const char *port = DEFAULT_PORT;
+    uint64_t arg_nowtick = 0;
+    int has_nowtick = 0;
+    uint64_t arg_wallclock = 0;
+    int has_wallclock = 0;
+    char load_file[256] = {0};
+    char script_arg[1024] = {0};
+    uint32_t given_id = 0;
+    int has_id = 0;
 
     for (int i = 1; i < argc; i++) {
         if (strncmp(argv[i], "--id=", 5) == 0) {
@@ -187,8 +196,8 @@ int main(int argc, char *argv[])
 
     /* wall clock: --wallclockutc if given, else real system time */
     uint64_t now_unix_sec = has_wallclock
-                           ? arg_wallclock
-                           : (uint64_t)time(NULL);
+                                ? arg_wallclock
+                                : (uint64_t)time(NULL);
 
     /* virtual clock: --nowtick if given, else same as wall clock */
     uint64_t now_tick = has_nowtick ? arg_nowtick : now_unix_sec;

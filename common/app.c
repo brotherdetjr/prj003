@@ -2,8 +2,8 @@
 
 void app_init(app_t *app, uint64_t now_tick, uint64_t now_unix_sec)
 {
-    app->now_tick      = now_tick;
-    app->now_unix_sec  = now_unix_sec;
+    app->now_tick = now_tick;
+    app->now_unix_sec = now_unix_sec;
     app->has_character = 0;
     scheduler_init(&app->scheduler);
 }
@@ -26,7 +26,7 @@ int app_poof_character(app_t *app)
 
 advance_result_t app_advance(app_t *app, uint64_t ticks, int stop_on_event)
 {
-    advance_result_t r = { app->now_tick, 0, 0 };
+    advance_result_t r = {app->now_tick, 0, 0};
 
     uint64_t target_tick;
     if (ticks == 0) {
@@ -39,8 +39,7 @@ advance_result_t app_advance(app_t *app, uint64_t ticks, int stop_on_event)
     }
 
     const scheduled_event_t *next;
-    while ((next = scheduler_peek(&app->scheduler)) != NULL
-           && next->fire_at_ms <= target_tick) {
+    while ((next = scheduler_peek(&app->scheduler)) != NULL && next->fire_at_ms <= target_tick) {
         scheduled_event_t ev;
         scheduler_pop(&app->scheduler, &ev);
         app->now_tick = ev.fire_at_ms;
@@ -48,12 +47,12 @@ advance_result_t app_advance(app_t *app, uint64_t ticks, int stop_on_event)
         r.now_tick = app->now_tick;
         if (stop_on_event) {
             r.stopped_on_event = 1;
-            r.event_tag        = ev.tag;
+            r.event_tag = ev.tag;
             return r;
         }
     }
 
     app->now_tick = target_tick;
-    r.now_tick    = target_tick;
+    r.now_tick = target_tick;
     return r;
 }

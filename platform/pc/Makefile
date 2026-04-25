@@ -68,4 +68,19 @@ test: test_scheduler
 clean:
 	rm -f $(TARGET) test_scheduler *.o
 
-.PHONY: all test clean
+FORMAT_SRCS = main.c peer.c peer.h \
+              ../../common/app.c ../../common/app.h \
+              ../../common/lua_bind.c ../../common/lua_bind.h \
+              ../../common/server.c ../../common/server.h \
+              ../../common/state.c ../../common/state.h \
+              ../../common/character.c ../../common/character.h \
+              ../../common/scheduler.c ../../common/scheduler.h \
+              ../../common/test_scheduler.c
+
+format-check:
+	clang-format --dry-run --Werror $(FORMAT_SRCS)
+
+format:
+	clang-format -i $(FORMAT_SRCS)
+
+.PHONY: all test clean format-check format

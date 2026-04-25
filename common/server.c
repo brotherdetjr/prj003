@@ -7,9 +7,8 @@
 #include "lua_bind.h"
 #include "../vendor/cjson/cJSON.h"
 
-#define JSON_HDR    "Content-Type: application/json\r\n"
-#define IS_SSE(c)   ((c)->data[0] == 'S')
-
+#define JSON_HDR "Content-Type: application/json\r\n"
+#define IS_SSE(c) ((c)->data[0] == 'S')
 
 /* ------------------------------------------------------------------ */
 /* SSE                                                                */
@@ -40,7 +39,8 @@ void tick_timer_fn(void *arg)
         advance_result_t r = app_advance(app, remaining, 1);
         if (!r.stopped_on_event) break;
         const char *evname = app->last_event_name[0]
-                             ? app->last_event_name : "unknown";
+                                 ? app->last_event_name
+                                 : "unknown";
         fprintf(stderr, "event %s  now_tick=%llu\n",
                 evname, (unsigned long long)r.now_tick);
         char data[64];
@@ -111,9 +111,8 @@ static void handle_command(struct mg_connection *c,
     }
     const char *cmd = cmd_j->valuestring;
 
-    /* ---- advance_time ---- */
     if (strcmp(cmd, "advance_time") == 0) {
-        cJSON *dur_j  = cJSON_GetObjectItemCaseSensitive(body, "ticks");
+        cJSON *dur_j = cJSON_GetObjectItemCaseSensitive(body, "ticks");
         cJSON *stop_j = cJSON_GetObjectItemCaseSensitive(body, "stop_on_event");
         int stop_on_event = cJSON_IsTrue(stop_j);
 
@@ -126,12 +125,13 @@ static void handle_command(struct mg_connection *c,
         advance_result_t r = app_advance(app, ticks, stop_on_event);
 
         cJSON *resp = cJSON_CreateObject();
-        cJSON_AddBoolToObject  (resp, "ok",               1);
-        cJSON_AddNumberToObject(resp, "now_tick",         (double)r.now_tick);
-        cJSON_AddBoolToObject  (resp, "stopped_on_event", r.stopped_on_event);
+        cJSON_AddBoolToObject(resp, "ok", 1);
+        cJSON_AddNumberToObject(resp, "now_tick", (double)r.now_tick);
+        cJSON_AddBoolToObject(resp, "stopped_on_event", r.stopped_on_event);
         if (r.stopped_on_event) {
             const char *evname = app->last_event_name[0]
-                                 ? app->last_event_name : "unknown";
+                                     ? app->last_event_name
+                                     : "unknown";
             fprintf(stderr, "event %s  now_tick=%llu\n",
                     evname, (unsigned long long)r.now_tick);
             cJSON_AddStringToObject(resp, "event", evname);
@@ -145,17 +145,14 @@ static void handle_command(struct mg_connection *c,
         cJSON_free(resp_s);
         cJSON_Delete(resp);
 
-    /* ---- get_state ---- */
     } else if (strcmp(cmd, "get_state") == 0) {
         reply_state(c, app);
 
-    /* ---- get_autotick ---- */
     } else if (strcmp(cmd, "get_autotick") == 0) {
         mg_http_reply(c, 200, JSON_HDR,
                       "{\"ok\":true,\"autotick\":%s}\n",
                       app->autotick ? "true" : "false");
 
-    /* ---- spawn ---- */
     } else if (strcmp(cmd, "spawn") == 0) {
         if (app->has_character) {
             reply_error(c, "character already exists");
@@ -172,7 +169,6 @@ static void handle_command(struct mg_connection *c,
         lua_bind_call(app, "on_spawn");
         reply_state(c, app);
 
-    /* ---- poof ---- */
     } else if (strcmp(cmd, "poof") == 0) {
         if (!app->has_character) {
             reply_error(c, "no character");
@@ -181,7 +177,6 @@ static void handle_command(struct mg_connection *c,
         app_poof_character(app);
         reply_ok(c);
 
-    /* ---- set_autotick ---- */
     } else if (strcmp(cmd, "set_autotick") == 0) {
         cJSON *en = cJSON_GetObjectItemCaseSensitive(body, "enabled");
         if (!cJSON_IsBool(en)) {
@@ -193,7 +188,6 @@ static void handle_command(struct mg_connection *c,
                       "{\"ok\":true,\"autotick\":%s}\n",
                       app->autotick ? "true" : "false");
 
-    /* ---- set_wall_clock ---- */
     } else if (strcmp(cmd, "set_wall_clock") == 0) {
         cJSON *wc_j = cJSON_GetObjectItemCaseSensitive(body, "now_unix_sec");
         uint64_t wc;
@@ -204,18 +198,15 @@ static void handle_command(struct mg_connection *c,
         app->now_unix_sec = wc;
         reply_ok(c);
 
-    /* ---- get_wall_clock ---- */
     } else if (strcmp(cmd, "get_wall_clock") == 0) {
         mg_http_reply(c, 200, JSON_HDR,
                       "{\"ok\":true,\"now_unix_sec\":%llu}\n",
                       (unsigned long long)app->now_unix_sec);
 
-    /* ---- get_screen ---- */
     } else if (strcmp(cmd, "get_screen") == 0) {
         /* TODO: render actual PNG once graphics are implemented */
         reply_error(c, "not implemented");
 
-    /* ---- set_state ---- */
     } else if (strcmp(cmd, "set_state") == 0) {
         cJSON *state_j = cJSON_GetObjectItemCaseSensitive(body, "state");
         if (!cJSON_IsObject(state_j)) {
@@ -258,11 +249,11 @@ void mg_event_handler(struct mg_connection *c, int ev, void *ev_data)
 
     } else if (mg_match(hm->uri, mg_str("/events"), NULL)) {
         mg_printf(c,
-            "HTTP/1.1 200 OK\r\n"
-            "Content-Type: text/event-stream\r\n"
-            "Cache-Control: no-cache\r\n"
-            "Transfer-Encoding: chunked\r\n"
-            "\r\n");
+                  "HTTP/1.1 200 OK\r\n"
+                  "Content-Type: text/event-stream\r\n"
+                  "Cache-Control: no-cache\r\n"
+                  "Transfer-Encoding: chunked\r\n"
+                  "\r\n");
         c->data[0] = 'S'; /* mark as SSE subscriber */
 
     } else {
