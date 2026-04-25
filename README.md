@@ -91,7 +91,8 @@ tests/
     smoke.feature             ← happy-path scenarios from README smoke test
     args.feature              ← CLI argument parsing, defaults, invalid inputs
     api.feature               ← HTTP API edge cases (bad inputs, state errors)
-    require.feature           ← Lua require and dotted callback paths
+    require.feature           ← Lua require and module-relative callback names
+    diamond_require.feature   ← same module required via two paths (diamond DAG)
     schedule_validation.feature ← api.schedule argument validation
     hot_reload.feature        ← live reload when any .lua file in the script directory changes
     environment.py  ← Behave hooks (emu lifecycle, temp-file cleanup)
@@ -131,17 +132,39 @@ that don't need all three may simply declare fewer parameters.
 Scripts may be split across multiple files using `require`. The search path is
 set to the directory containing the main script, so `require("energy")` loads
 `energy.lua` from the same directory. Transitive requires work as expected.
-Callback names passed to `api.schedule()` support dot-separated paths
-(`"mod.fn"`, `"a.b.fn"`) resolved by traversing the global table chain at
-dispatch time — meaning the module must be assigned to a global, not a local:
+The module must be assigned to a global so the dispatch layer can resolve it:
 
 ```lua
-energy = require("energy")          -- global so "energy.on_drain" resolves
-api.schedule(5000, "energy.on_drain")
+energy = require("energy")   -- global; "energy.on_drain" resolves at dispatch
 ```
 
-Event names are limited to 63 characters; `api.schedule` raises a Lua error if
-the limit is exceeded.
+Callback names passed to `api.schedule()` are **module-relative**: the dispatch
+layer automatically prepends the current module's prefix, so a callback inside
+`energy.on_drain` uses just `"on_drain"` and the engine stores
+`"energy.on_drain"`. Top-level callbacks in the main script have no prefix and
+must pass the full dotted path when bootstrapping:
+
+```lua
+-- main.lua
+energy = require("energy")
+
+function on_spawn(api, rw)
+    api.schedule(5000, "energy.on_drain")   -- full path: top-level has no prefix
+end
+```
+
+```lua
+-- energy.lua
+function M.on_drain(api, rw)
+    api.schedule(5000, "on_drain")   -- local name; dispatch prepends "energy."
+end
+```
+
+The same module may be required under multiple names (diamond dependency) — each
+path dispatches and reschedules independently and correctly.
+
+Event names are limited to 63 characters (after prefix expansion); `api.schedule`
+raises a Lua error if the limit is exceeded.
 
 `common/` provides the pure-C primitives (scheduler, world, character) that the
 platform and scripts build on. The PC build is the primary development target;

@@ -5,7 +5,7 @@ function M.on_drain(api, rw)
     if e > 0 then
         rw.energy = e - 1
     end
-    api.schedule(5000, "drain.on_drain")
+    api.schedule(5000, "on_drain")
 end
 
 return M
