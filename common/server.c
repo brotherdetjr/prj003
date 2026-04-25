@@ -51,7 +51,7 @@ void tick_timer_fn(void *arg)
 }
 
 /* ------------------------------------------------------------------ */
-/* Response helpers                                                     */
+/* Response helpers                                                   */
 /* ------------------------------------------------------------------ */
 
 /*
@@ -91,7 +91,7 @@ static void reply_state(struct mg_connection *c, app_t *app)
 }
 
 /* ------------------------------------------------------------------ */
-/* Command dispatch                                                     */
+/* Command dispatch                                                   */
 /* ------------------------------------------------------------------ */
 
 static void handle_command(struct mg_connection *c,
@@ -229,7 +229,7 @@ done:
 }
 
 /* ------------------------------------------------------------------ */
-/* Mongoose event handler                                               */
+/* Mongoose event handler                                             */
 /* ------------------------------------------------------------------ */
 
 void mg_event_handler(struct mg_connection *c, int ev, void *ev_data)

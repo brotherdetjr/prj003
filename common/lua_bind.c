@@ -14,7 +14,7 @@
 #define REG_API "_gloxie_api"
 
 /* ------------------------------------------------------------------ */
-/* Helpers                                                              */
+/* Helpers                                                            */
 /* ------------------------------------------------------------------ */
 
 static app_t *get_app(lua_State *L)
@@ -77,7 +77,7 @@ static int alloc_event_slot(app_t *app)
 }
 
 /* ------------------------------------------------------------------ */
-/* api table functions (passed as 3rd arg to every callback)           */
+/* api table functions (passed as 3rd arg to every callback)          */
 /* ------------------------------------------------------------------ */
 
 static void set_api_prefix(lua_State *L, const char *prefix)
@@ -134,7 +134,7 @@ static int l_schedule(lua_State *L)
 }
 
 /* ------------------------------------------------------------------ */
-/* rw table → JSON and back                                            */
+/* rw table → JSON and back                                           */
 /* ------------------------------------------------------------------ */
 
 static cJSON *lua_table_to_cjson(lua_State *L, int idx);
@@ -226,7 +226,7 @@ static void lua_bind_restore_rw(app_t *app, const cJSON *rw_json)
 }
 
 /* ------------------------------------------------------------------ */
-/* Scheduler restore                                                    */
+/* Scheduler restore                                                  */
 /* ------------------------------------------------------------------ */
 
 static int lua_bind_restore_scheduler(app_t *app, const cJSON *arr)
@@ -271,7 +271,7 @@ int lua_bind_restore(app_t *app, const cJSON *state_json)
 }
 
 /* ------------------------------------------------------------------ */
-/* Dispatch                                                             */
+/* Dispatch                                                           */
 /* ------------------------------------------------------------------ */
 
 /*
@@ -352,7 +352,7 @@ void lua_bind_dispatch(uint32_t tag, app_t *app)
 }
 
 /* ------------------------------------------------------------------ */
-/* Call helper                                                          */
+/* Call helper                                                        */
 /* ------------------------------------------------------------------ */
 
 void lua_bind_call(app_t *app, const char *fn_name)
@@ -374,7 +374,7 @@ void lua_bind_call(app_t *app, const char *fn_name)
 }
 
 /* ------------------------------------------------------------------ */
-/* Reload                                                               */
+/* Reload                                                             */
 /* ------------------------------------------------------------------ */
 
 int lua_bind_reload(app_t *app, const char *script_path)
@@ -402,7 +402,7 @@ int lua_bind_reload(app_t *app, const char *script_path)
 }
 
 /* ------------------------------------------------------------------ */
-/* Loaded-file enumeration                                              */
+/* Loaded-file enumeration                                            */
 /* ------------------------------------------------------------------ */
 
 int lua_bind_get_loaded_files(app_t *app, char (*out)[1024], int max_count)
@@ -465,7 +465,7 @@ int lua_bind_get_loaded_files(app_t *app, char (*out)[1024], int max_count)
 }
 
 /* ------------------------------------------------------------------ */
-/* Init                                                                 */
+/* Init                                                               */
 /* ------------------------------------------------------------------ */
 
 static const luaL_Reg api_funcs[] = {
