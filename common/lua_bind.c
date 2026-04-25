@@ -79,11 +79,21 @@ static int alloc_event_slot(app_t *app)
 /* api table functions (passed as 3rd arg to every callback)           */
 /* ------------------------------------------------------------------ */
 
+static void set_api_prefix(lua_State *L, const char *prefix)
+{
+    lua_getfield(L, LUA_REGISTRYINDEX, REG_API);
+    lua_pushstring(L, prefix);
+    lua_setfield(L, -2, "_prefix");
+    lua_pop(L, 1);
+}
+
 /*
  * api.schedule(delay_ms, event_name)
- * Schedule a call to the Lua global `event_name(ro, rw, api)` after
- * `delay_ms` virtual milliseconds. `event_name` is also used as
- * the SSE event type when the scheduler fires it.
+ * Schedule a call to the Lua function `event_name` after `delay_ms` virtual
+ * milliseconds. `event_name` is relative to the current module: the dispatch
+ * layer prepends the module prefix so modules never need to know their own
+ * path in the global table hierarchy. `event_name` is also used as the SSE
+ * event type when the scheduler fires it.
  */
 static int l_schedule(lua_State *L)
 {
@@ -94,15 +104,23 @@ static int l_schedule(lua_State *L)
     if (delay < 0)
         return luaL_error(L, "schedule: delay_ms must be >= 0");
 
-    if (strlen(name) >= sizeof(app->lua_events[0].name))
+    /* Prepend the current module prefix (set by dispatch; empty at top level) */
+    char full_name[sizeof(app->lua_events[0].name)];
+    lua_getfield(L, LUA_REGISTRYINDEX, REG_API);
+    lua_getfield(L, -1, "_prefix");
+    const char *prefix = lua_isstring(L, -1) ? lua_tostring(L, -1) : "";
+    int n = snprintf(full_name, sizeof(full_name), "%s%s", prefix, name);
+    lua_pop(L, 2);
+
+    if (n < 0 || (size_t)n >= sizeof(full_name))
         return luaL_error(L, "schedule: event name too long (max %d chars)",
-                          (int)(sizeof(app->lua_events[0].name) - 1));
+                          (int)(sizeof(full_name) - 1));
 
     int slot = alloc_event_slot(app);
     if (slot < 0)
         return luaL_error(L, "schedule: lua_events table full");
 
-    strncpy(app->lua_events[slot].name, name,
+    strncpy(app->lua_events[slot].name, full_name,
             sizeof(app->lua_events[slot].name) - 1);
     app->lua_events[slot].name[sizeof(app->lua_events[slot].name) - 1] = '\0';
 
@@ -294,11 +312,23 @@ void lua_bind_dispatch(uint32_t tag, app_t *app)
     app->last_event_name[sizeof(app->last_event_name) - 1] = '\0';
     app->lua_events[slot].name[0] = '\0';
 
+    /* Extract module prefix: "effects.drain.on_drain" -> "effects.drain." */
+    char prefix[64] = "";
+    const char *last_dot = strrchr(name, '.');
+    if (last_dot) {
+        size_t plen = (size_t)(last_dot - name + 1);
+        memcpy(prefix, name, plen);
+        prefix[plen] = '\0';
+    }
+
     lua_State *L = app->L;
+    set_api_prefix(L, prefix);
+
     lua_push_by_path(L, name);
     if (!lua_isfunction(L, -1)) {
         fprintf(stderr, "Lua: no function '%s' for scheduled event\n", name);
         lua_pop(L, 1);
+        set_api_prefix(L, "");
         return;
     }
     push_api(L);
@@ -308,6 +338,7 @@ void lua_bind_dispatch(uint32_t tag, app_t *app)
         fprintf(stderr, "Lua error in %s: %s\n", name, lua_tostring(L, -1));
         lua_pop(L, 1);
     }
+    set_api_prefix(L, "");
 }
 
 /* ------------------------------------------------------------------ */
@@ -317,6 +348,7 @@ void lua_bind_dispatch(uint32_t tag, app_t *app)
 void lua_bind_call(app_t *app, const char *fn_name)
 {
     lua_State *L = app->L;
+    set_api_prefix(L, "");
     lua_push_by_path(L, fn_name);
     if (!lua_isfunction(L, -1)) {
         lua_pop(L, 1);
