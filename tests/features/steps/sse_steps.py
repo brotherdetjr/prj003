@@ -40,6 +40,18 @@ def step_subscribe_sse(context):
     ready.wait(timeout=3)
 
 
+@then('I do not receive an SSE "{event}" event')
+def step_no_sse_event(context, event):
+    deadline = time.time() + 0.5
+    while time.time() < deadline:
+        try:
+            ev = context.sse_events.get(timeout=0.1)
+            assert ev.get('event') != event, \
+                f'unexpectedly received SSE event {event!r}'
+        except queue_module.Empty:
+            continue
+
+
 @then('I receive an SSE "{event}" event at now_tick {tick:d}')
 def step_receive_sse_event(context, event, tick):
     deadline = time.time() + 3.0

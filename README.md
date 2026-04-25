@@ -180,17 +180,13 @@ behaviour is verified there before flashing to hardware.
 
 ### Hot-reload
 
-The emulator watches all `.lua` files in the script directory (not just the
-main script). When any of them changes, the Lua VM is torn down, rebuilt from
-the main script, and the previous `rw` state and scheduler are restored — so
-scheduled events keep firing and game variables are preserved across reloads.
-
-> **TODO — improve reload tracking (pick one):**
-> 1. Track only the files actually loaded by `require` (and transitively by
->    `require` within those files), rather than the whole directory. This
->    avoids false-positive reloads when unrelated `.lua` files are touched.
-> 2. Keep the directory-based scan but make it recursive so that `.lua` files
->    in subdirectories are also tracked.
+The emulator watches exactly the Lua files that were loaded at startup — the
+main script plus every file pulled in transitively via `require`. When any of
+them changes, the Lua VM is torn down, rebuilt from the main script, and the
+previous `rw` state and scheduler are restored — so scheduled events keep
+firing and game variables are preserved across reloads. The watched-file list
+is refreshed after each successful reload, so adding or removing a `require`
+takes effect immediately.
 
 ### Build
 

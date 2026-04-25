@@ -13,3 +13,10 @@ Feature: api.schedule argument validation
     Then the response is ok
     When I get state
     Then the scheduler is an empty array
+
+  Scenario: event name starting with underscore is rejected with a Lua error
+    Given emu starts with test script "schedule_name_underscore/main.lua" and args "--id=DEADBEEF --nowtick=0 --noautotick"
+    When I spawn a character
+    Then the response is ok
+    When I get state
+    Then the scheduler is an empty array

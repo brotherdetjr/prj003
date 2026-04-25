@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <string.h>
+#include <sys/stat.h>
 #include "lua_bind.h"
 #include "state.h"
 #include "../vendor/lua/lua.h"
@@ -103,6 +104,9 @@ static int l_schedule(lua_State *L)
 
     if (delay < 0)
         return luaL_error(L, "schedule: delay_ms must be >= 0");
+
+    if (name[0] == '_')
+        return luaL_error(L, "schedule: event name must not start with '_'");
 
     /* Prepend the current module prefix (set by dispatch; empty at top level) */
     char full_name[sizeof(app->lua_events[0].name)];
@@ -389,6 +393,69 @@ int lua_bind_reload(app_t *app, const char *script_path)
     lua_bind_restore(app, snap);
     cJSON_Delete(snap);
     return 0;
+}
+
+/* ------------------------------------------------------------------ */
+/* Loaded-file enumeration                                              */
+/* ------------------------------------------------------------------ */
+
+int lua_bind_get_loaded_files(app_t *app, char (*out)[1024], int max_count)
+{
+    lua_State *L = app->L;
+    if (!L || max_count <= 0) return 0;
+
+    /* Derive script directory from package.path = "<dir>/?.lua" */
+    char dir[1024] = "";
+    lua_getglobal(L, "package");
+    lua_getfield(L, -1, "path");
+    const char *pkg_path = lua_tostring(L, -1);
+    if (pkg_path) {
+        const char *q = strstr(pkg_path, "/?.lua");
+        if (q) {
+            size_t n = (size_t)(q - pkg_path);
+            if (n < sizeof(dir)) {
+                memcpy(dir, pkg_path, n);
+                dir[n] = '\0';
+            }
+        }
+    }
+    lua_pop(L, 2); /* path, package */
+
+    if (dir[0] == '\0') return 0;
+
+    int count = 0;
+
+    /* Walk package.loaded; include entries that resolve to real .lua files */
+    lua_getglobal(L, "package");
+    lua_getfield(L, -1, "loaded");
+    lua_pushnil(L);
+    while (count < max_count && lua_next(L, -2)) {
+        if (lua_type(L, -2) == LUA_TSTRING) {
+            const char *modname = lua_tostring(L, -2);
+            /* Lua module convention: dots become directory separators */
+            char relpath[256];
+            strncpy(relpath, modname, sizeof(relpath) - 1);
+            relpath[sizeof(relpath) - 1] = '\0';
+            for (char *p = relpath; *p; p++)
+                if (*p == '.') *p = '/';
+
+            char fullpath[1024];
+            int n = snprintf(fullpath, sizeof(fullpath),
+                             "%s/%s.lua", dir, relpath);
+            if (n > 0 && (size_t)n < sizeof(fullpath)) {
+                struct stat st;
+                if (stat(fullpath, &st) == 0) {
+                    strncpy(out[count], fullpath, 1023);
+                    out[count][1023] = '\0';
+                    count++;
+                }
+            }
+        }
+        lua_pop(L, 1); /* pop value; keep key for lua_next */
+    }
+    lua_pop(L, 2); /* loaded, package */
+
+    return count;
 }
 
 /* ------------------------------------------------------------------ */
