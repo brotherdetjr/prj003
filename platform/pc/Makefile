@@ -68,14 +68,7 @@ test: test_scheduler
 clean:
 	rm -f $(TARGET) test_scheduler *.o
 
-FORMAT_SRCS = main.c peer.c peer.h \
-              ../../common/app.c ../../common/app.h \
-              ../../common/lua_bind.c ../../common/lua_bind.h \
-              ../../common/server.c ../../common/server.h \
-              ../../common/state.c ../../common/state.h \
-              ../../common/character.c ../../common/character.h \
-              ../../common/scheduler.c ../../common/scheduler.h \
-              ../../common/test_scheduler.c
+FORMAT_SRCS = $(wildcard *.c *.h) $(wildcard ../../common/*.c ../../common/*.h)
 
 format-check:
 	clang-format --dry-run --Werror $(FORMAT_SRCS)
