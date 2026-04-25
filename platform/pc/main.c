@@ -24,13 +24,17 @@ static void refresh_watched_files(app_t *app, const char *script_path)
                                                  MAX_WATCHED_FILES - 1);
 }
 
-static time_t watched_max_mtime(void)
+static struct timespec watched_max_mtime(void)
 {
-    time_t latest = 0;
+    struct timespec latest = {0, 0};
     for (int i = 0; i < s_n_watched; i++) {
         struct stat st;
-        if (stat(s_watched[i], &st) == 0 && st.st_mtime > latest)
-            latest = st.st_mtime;
+        if (stat(s_watched[i], &st) == 0) {
+            struct timespec *mt = &st.st_mtim;
+            if (mt->tv_sec > latest.tv_sec ||
+                (mt->tv_sec == latest.tv_sec && mt->tv_nsec > latest.tv_nsec))
+                latest = *mt;
+        }
     }
     return latest;
 }
@@ -259,15 +263,15 @@ int main(int argc, char *argv[])
 
     /* seed watcher with the exact set of Lua files loaded at startup */
     refresh_watched_files(&app, script_path);
-    time_t lua_mtime = watched_max_mtime();
+    struct timespec lua_mtime = watched_max_mtime();
 
     /* main loop */
     for (;;) {
         mg_mgr_poll(&app.mgr, 100); /* 100 ms */
         peer_stdin_poll(&app);
 
-        time_t cur = watched_max_mtime();
-        if (cur != lua_mtime) {
+        struct timespec cur = watched_max_mtime();
+        if (cur.tv_sec != lua_mtime.tv_sec || cur.tv_nsec != lua_mtime.tv_nsec) {
             lua_mtime = cur;
             fprintf(stderr, "Hot-reloading: %s\n", script_path);
             if (lua_bind_reload(&app, script_path) == 0) {

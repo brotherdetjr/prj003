@@ -86,8 +86,6 @@ def step_emu_hot_reload_script(context, args_str):
 @given('"{src}" is copied to "{dst}"')
 @when('"{src}" is copied to "{dst}"')
 def step_copy_file(context, src, dst):
-    if getattr(context, 'emu_proc', None):
-        time.sleep(1.1)   # ensure mtime advances by at least one second
     shutil.copy(
         os.path.join(context.hot_reload_src_dir, src),
         os.path.join(context.hot_reload_dir, dst),
