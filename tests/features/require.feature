@@ -1,7 +1,7 @@
 Feature: Lua require — callbacks in required modules
 
   Scenario: dotted callback names dispatch into required module tables
-    Given emu starts with test script "require_test/main.lua" and args "--id=DEADBEEF --nowtick=0 --noautotick"
+    Given emu starts with test script "require_test/main.lua" and args "--nowtick=0 --noautotick"
     When I spawn a character
     Then the response is ok
     And energy is 10
@@ -17,7 +17,7 @@ Feature: Lua require — callbacks in required modules
     And the scheduler has an "drain.on_drain" event at tick 10000
 
   Scenario: deep dotted path via transitive require (main -> effects -> drain)
-    Given emu starts with test script "deep_require_test/main.lua" and args "--id=DEADBEEF --nowtick=0 --noautotick"
+    Given emu starts with test script "deep_require_test/main.lua" and args "--nowtick=0 --noautotick"
     When I spawn a character
     Then the response is ok
     And energy is 10

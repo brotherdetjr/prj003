@@ -3,7 +3,7 @@ Feature: Hot-reload — changes to Lua files in the script directory take effect
   Scenario: replacing a required module updates the drain interval
     Given the hot-reload test directory is set up from "hot_reload_src"
     And "energy1.lua.template" is copied to "energy.lua"
-    And emu starts with the hot-reload test script and args "--id=DEADBEEF --nowtick=0 --noautotick"
+    And emu starts with the hot-reload test script and args "--nowtick=0 --noautotick"
     And I subscribe to SSE events
     When I spawn a character
     Then the response is ok
@@ -30,7 +30,7 @@ Feature: Hot-reload — changes to Lua files in the script directory take effect
   Scenario: touching an untracked Lua file does not trigger reload
     Given the hot-reload test directory is set up from "hot_reload_src"
     And "energy1.lua.template" is copied to "energy.lua"
-    And emu starts with the hot-reload test script and args "--id=DEADBEEF --nowtick=0 --noautotick"
+    And emu starts with the hot-reload test script and args "--nowtick=0 --noautotick"
     And I subscribe to SSE events
     When I spawn a character
     Then the response is ok

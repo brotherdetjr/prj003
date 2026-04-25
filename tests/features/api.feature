@@ -1,7 +1,7 @@
 Feature: HTTP API edge cases
 
   Background:
-    Given emu starts with args "--id=DEADBEEF --nowtick=42 --noautotick"
+    Given emu starts with args "--nowtick=42 --noautotick"
 
   # ---------------------------------------------------------------------------
   # HTTP protocol

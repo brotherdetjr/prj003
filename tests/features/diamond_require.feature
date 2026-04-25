@@ -1,7 +1,7 @@
 Feature: Diamond require — same module reached via two distinct paths
 
   Scenario: both require paths dispatch and reschedule independently
-    Given emu starts with test script "diamond_test/main.lua" and args "--id=DEADBEEF --nowtick=0 --noautotick"
+    Given emu starts with test script "diamond_test/main.lua" and args "--nowtick=0 --noautotick"
     When I spawn a character
     Then the response is ok
     And energy is 10
