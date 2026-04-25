@@ -1,12 +1,13 @@
 CC       = gcc
-CFLAGS   = -Wall -Wextra -std=gnu11 \
+CFLAGS   = -Wall -Wextra -std=gnu11 -Os -ffunction-sections -fdata-sections \
            -DMG_ENABLE_MBEDTLS=0 \
            -I../../vendor/mongoose \
            -I../../vendor/cjson \
            -I../../vendor/lua
 
 # Vendor files compiled without -Wall to avoid noise from third-party code
-VCFLAGS  = -std=gnu11 -DMG_ENABLE_MBEDTLS=0 \
+VCFLAGS  = -std=gnu11 -Os -ffunction-sections -fdata-sections \
+           -DMG_ENABLE_MBEDTLS=0 \
            -I../../vendor/mongoose \
            -I../../vendor/lua
 
@@ -35,7 +36,7 @@ VENDOR_OBJS = mongoose.o cJSON.o $(LUA_OBJS)
 all: $(TARGET)
 
 $(TARGET): $(APP_OBJS) $(VENDOR_OBJS)
-	$(CC) -o $@ $^ -lm
+	$(CC) -o $@ $^ -lm -Wl,--gc-sections -s
 
 # App object rules (with relative paths resolved)
 # All app objects depend on APP_HDRS so any header change triggers a rebuild

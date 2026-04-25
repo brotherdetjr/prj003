@@ -93,7 +93,11 @@ static int load_state_file(app_t *app, const char *path)
         return -1;
     }
     char *buf = malloc((size_t)sz + 1);
-    fread(buf, 1, (size_t)sz, f);
+    if (fread(buf, 1, (size_t)sz, f) != (size_t)sz) {
+        free(buf);
+        fclose(f);
+        return -1;
+    }
     buf[sz] = '\0';
     fclose(f);
 
