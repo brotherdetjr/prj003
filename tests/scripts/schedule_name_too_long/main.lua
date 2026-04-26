@@ -1,3 +1,3 @@
-function on_spawn(api, rw)
-    api.schedule(0, string.rep("a", 64))
+function on_spawn(rw)
+    schedule(0, string.rep("a", 64))
 end

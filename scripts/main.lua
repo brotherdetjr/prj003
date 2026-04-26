@@ -2,15 +2,15 @@
 
 local DRAIN_MS = 339000
 
-function on_energy_drain(api, rw)
+function on_energy_drain(rw)
     local e = rw.energy or 0
     if e > 0 then
         rw.energy = e - 1
     end
-    api.schedule(DRAIN_MS, "on_energy_drain")
+    schedule(DRAIN_MS, "on_energy_drain")
 end
 
-function on_spawn(api, rw)
+function on_spawn(rw)
     rw.energy = 255
-    api.schedule(DRAIN_MS, "on_energy_drain")
+    schedule(DRAIN_MS, "on_energy_drain")
 end
