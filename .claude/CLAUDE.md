@@ -5,6 +5,10 @@
 3. If unsure whether it's related, ask the user before proceeding.
 4. If the branch is `main` or clearly unrelated to the new topic, suggest creating a new feature branch before doing any work.
 
+# Editing files
+
+When the purpose of a change is not text reformatting, do not introduce incidental whitespace or formatting changes (extra blank lines, reindentation, etc.).
+
 # Before every commit
 
 Before running `git commit`:
