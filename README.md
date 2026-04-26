@@ -242,6 +242,15 @@ python3 -m behave
 
 Build the `emu` binary before running integration tests.
 
+Memory / AddressSanitizer check (requires GCC with ASan support):
+
+```sh
+cd platform/pc
+make asan   # builds emu-asan and runs the full integration suite under ASan
+```
+
+ASan error reports and leak summaries are written to `/tmp/emu-asan.<pid>`.
+
 ### Start
 
 ```sh

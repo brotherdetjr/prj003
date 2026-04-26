@@ -4,7 +4,7 @@ import time
 
 import requests
 
-EMU = os.path.abspath(
+EMU = os.environ.get('EMU_BIN') or os.path.abspath(
     os.path.join(os.path.dirname(__file__), '../../../platform/pc/emu'))
 
 

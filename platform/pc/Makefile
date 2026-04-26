@@ -33,6 +33,17 @@ LUA_OBJS = $(notdir $(LUA_SRCS:.c=.o))
 
 VENDOR_OBJS = mongoose.o cJSON.o $(LUA_OBJS)
 
+# All sources in one list for single-compilation targets (emu-asan)
+ALL_SRCS = $(APP_SRCS) $(LUA_SRCS) \
+           ../../vendor/mongoose/mongoose.c ../../vendor/cjson/cJSON.c
+
+ASAN_FLAGS = -std=gnu11 -O1 -g -fno-omit-frame-pointer \
+             -fsanitize=address,undefined \
+             -DMG_ENABLE_MBEDTLS=0 -DLUA_USE_POSIX \
+             -I../../vendor/mongoose -I../../vendor/cjson -I../../vendor/lua
+
+ASAN_LOG = /tmp/emu-asan
+
 all: $(TARGET)
 
 $(TARGET): $(APP_OBJS) $(VENDOR_OBJS)
@@ -69,8 +80,19 @@ test_scheduler: ../../common/test_scheduler.c ../../common/scheduler.c
 test: test_scheduler
 	./test_scheduler
 
+# Single-compilation ASan build — vendor warnings are acceptable in a debug build
+emu-asan: $(ALL_SRCS) $(APP_HDRS)
+	$(CC) $(ASAN_FLAGS) -o $@ $(ALL_SRCS) -lm
+
+# Run integration tests against the ASan binary; reports written to $(ASAN_LOG).<pid>
+asan: emu-asan
+	@echo "ASan reports → $(ASAN_LOG).<pid>"
+	cd ../../tests && EMU_BIN=$(CURDIR)/emu-asan \
+	    ASAN_OPTIONS=detect_leaks=1:log_path=$(ASAN_LOG) \
+	    python3 -m behave
+
 clean:
-	rm -f $(TARGET) test_scheduler *.o
+	rm -f $(TARGET) emu-asan test_scheduler *.o
 
 FORMAT_SRCS = $(wildcard *.c *.h) $(wildcard ../../common/*.c ../../common/*.h)
 
@@ -80,4 +102,4 @@ format-check:
 format:
 	clang-format -i $(FORMAT_SRCS)
 
-.PHONY: all test clean format-check format
+.PHONY: all test asan clean format-check format
