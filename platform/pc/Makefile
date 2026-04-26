@@ -44,7 +44,7 @@ ASAN_FLAGS = -std=gnu11 -O1 -g -fno-omit-frame-pointer \
 
 ASAN_LOG = /tmp/emu-asan
 
-all: format-check $(TARGET) test_scheduler emu-asan
+all: format-check test_scheduler emu-asan
 	./test_scheduler
 	rm -f $(ASAN_LOG).*
 	cd ../../tests && EMU_BIN=$(CURDIR)/emu-asan \
@@ -55,8 +55,8 @@ all: format-check $(TARGET) test_scheduler emu-asan
 	    exit 1; \
 	fi
 
-$(TARGET): $(APP_OBJS) $(VENDOR_OBJS)
-	$(CC) -o $@ $^ -lm -Wl,--gc-sections -s
+distr: $(APP_OBJS) $(VENDOR_OBJS)
+	$(CC) -o $(TARGET) $^ -lm -Wl,--gc-sections -s
 
 # App object rules (with relative paths resolved)
 # All app objects depend on APP_HDRS so any header change triggers a rebuild
@@ -101,4 +101,4 @@ format-check:
 format:
 	clang-format -i $(FORMAT_SRCS)
 
-.PHONY: all clean format-check format
+.PHONY: all distr clean format-check format
