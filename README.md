@@ -206,6 +206,18 @@ After cloning, install the pre-commit hook (runs the full build pipeline before 
 ln -sf ../../scripts/pre-commit .git/hooks/pre-commit
 ```
 
+Install the [GitHub CLI](https://cli.github.com/) for PR creation on first branch push:
+
+```sh
+# macOS
+brew install gh
+
+# Linux (Debian/Ubuntu)
+sudo apt install gh
+
+gh auth login
+```
+
 ### Build
 
 ```sh
