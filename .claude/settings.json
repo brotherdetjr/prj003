@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo '{\"hookSpecificOutput\":{\"hookEventName\":\"SessionStart\",\"additionalContext\":\"SESSION START — follow CLAUDE.md before doing any work:\\n1. Run: git branch --show-current\\n2. If the branch matches the task, continue on it.\\n3. If unsure whether it matches, ask the user.\\n4. If branch is main or clearly unrelated, suggest creating a new feature branch first.\"}}'"
+            "command": "bash .claude/hooks/session-start.sh"
           }
         ]
       }
