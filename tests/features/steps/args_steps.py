@@ -3,6 +3,7 @@ import os
 import re
 import shlex
 import shutil
+import socket
 import subprocess
 import tempfile
 import time
@@ -30,11 +31,14 @@ def step_emu_starts(context, args_str):
     start_emu(context, shlex.split(args_str), ARGS_PORT)
 
 
-@given('emu starts with args "{args_str}" and the default script')
-def step_emu_starts_with_default_script(context, args_str):
-    start_emu(context,
-              shlex.split(args_str) + [f'--script={DEFAULT_SCRIPT}'],
-              ARGS_PORT)
+@given('port {port:d} is occupied')
+def step_occupy_port(context, port):
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    sock.bind(('0.0.0.0', port))
+    sock.listen(1)
+    context.occupied_sockets = getattr(context, 'occupied_sockets', [])
+    context.occupied_sockets.append(sock)
 
 
 @given('emu starts with test script "{script_name}" and args "{args_str}"')
