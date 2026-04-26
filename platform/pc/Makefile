@@ -57,6 +57,7 @@ all: format-check test_scheduler emu-asan
 
 distr: $(APP_OBJS) $(VENDOR_OBJS)
 	$(CC) -o $(TARGET) $^ -lm -Wl,--gc-sections -s
+	cd ../../tests && python3 -m behave
 
 # App object rules (with relative paths resolved)
 # All app objects depend on APP_HDRS so any header change triggers a rebuild
