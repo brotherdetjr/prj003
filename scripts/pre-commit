@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(git rev-parse --show-toplevel)"
+PC="$ROOT/platform/pc"
+TESTS="$ROOT/tests"
+
+echo "==> Cleaning build artifacts..."
+make -C "$PC" clean
+
+echo "==> Checking formatting..."
+make -C "$PC" format-check
+
+echo "==> Running unit tests..."
+make -C "$PC" test
+
+echo "==> Building emu..."
+make -C "$PC"
+
+echo "==> Running Cucumber tests..."
+cd "$TESTS" && behave
