@@ -1,5 +1,6 @@
 # Build output
 platform/pc/emu
+platform/pc/emu-asan
 platform/pc/test_scheduler
 platform/pc/*.o
 

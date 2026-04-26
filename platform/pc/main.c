@@ -1,3 +1,4 @@
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -9,6 +10,13 @@
 #include "peer.h"
 #include "../../common/state.h"
 #include "../../common/lua_bind.h"
+
+static volatile sig_atomic_t s_stop = 0;
+static void handle_stop(int sig)
+{
+    (void)sig;
+    s_stop = 1;
+}
 
 #define DEFAULT_PORT "7070"
 #define MAX_WATCHED_FILES 32
@@ -123,6 +131,9 @@ static int load_state_file(app_t *app, const char *path)
 
 int main(int argc, char *argv[])
 {
+    signal(SIGTERM, handle_stop);
+    signal(SIGINT, handle_stop);
+
     app_t app = {0};
     app.autotick = 1;
 
@@ -247,6 +258,7 @@ int main(int argc, char *argv[])
                 app.now_unix_sec = arg_wallclock;
             fprintf(stderr, "Loaded state from '%s'\n", load_file);
         } else {
+            lua_close(app.L);
             return 1;
         }
     }
@@ -258,6 +270,8 @@ int main(int argc, char *argv[])
     snprintf(addr, sizeof(addr), "http://0.0.0.0:%s", port);
     if (!mg_http_listen(&app.mgr, addr, mg_event_handler, &app)) {
         fprintf(stderr, "Failed to listen on %s\n", addr);
+        lua_close(app.L);
+        mg_mgr_free(&app.mgr);
         return 1;
     }
     {
@@ -279,7 +293,7 @@ int main(int argc, char *argv[])
     struct timespec lua_mtime = watched_max_mtime();
 
     /* main loop */
-    for (;;) {
+    while (!s_stop) {
         mg_mgr_poll(&app.mgr, 100); /* 100 ms */
         peer_stdin_poll(&app);
 
@@ -300,4 +314,8 @@ int main(int argc, char *argv[])
             }
         }
     }
+
+    lua_close(app.L);
+    mg_mgr_free(&app.mgr);
+    return 0;
 }
