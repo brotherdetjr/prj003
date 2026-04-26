@@ -59,16 +59,13 @@ distr: $(APP_OBJS) $(VENDOR_OBJS)
 	$(CC) -o $(TARGET) $^ -lm -Wl,--gc-sections -s
 	cd ../../tests && python3 -m behave
 
-# App object rules (with relative paths resolved)
+# App object rules — auto-generated from APP_SRCS
 # All app objects depend on APP_HDRS so any header change triggers a rebuild
-main.o:      main.c      $(APP_HDRS) ; $(CC) $(CFLAGS) -c -o $@ $<
-peer.o:      peer.c      $(APP_HDRS) ; $(CC) $(CFLAGS) -c -o $@ $<
-app.o:       ../../common/app.c       $(APP_HDRS) ; $(CC) $(CFLAGS) -c -o $@ $<
-lua_bind.o:  ../../common/lua_bind.c  $(APP_HDRS) ; $(CC) $(CFLAGS) -c -o $@ $<
-server.o:    ../../common/server.c    $(APP_HDRS) ; $(CC) $(CFLAGS) -c -o $@ $<
-state.o:     ../../common/state.c     $(APP_HDRS) ; $(CC) $(CFLAGS) -c -o $@ $<
-character.o: ../../common/character.c $(APP_HDRS) ; $(CC) $(CFLAGS) -c -o $@ $<
-scheduler.o: ../../common/scheduler.c $(APP_HDRS) ; $(CC) $(CFLAGS) -c -o $@ $<
+define APP_RULE
+$(notdir $(1:.c=.o)): $(1) $(APP_HDRS)
+	$(CC) $(CFLAGS) -c -o $$@ $$<
+endef
+$(foreach src,$(APP_SRCS),$(eval $(call APP_RULE,$(src))))
 
 # Vendor object rules (warnings suppressed)
 mongoose.o: ../../vendor/mongoose/mongoose.c
