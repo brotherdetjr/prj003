@@ -81,6 +81,81 @@ static void set_schedule_prefix(lua_State *L, const char *prefix)
 }
 
 /*
+ * Walk the Lua call stack to find the innermost Lua source file, then
+ * reverse-map it through package.loaded to a module prefix (e.g. "energy.").
+ * Pushes the prefix string — possibly "" for top-level / main script — onto
+ * the stack.
+ */
+static void push_caller_prefix(lua_State *L)
+{
+    lua_Debug ar;
+    char src[1024] = "";
+    for (int level = 1; lua_getstack(L, level, &ar); level++) {
+        lua_getinfo(L, "S", &ar);
+        if (ar.what[0] == 'L' && ar.source[0] == '@') {
+            strncpy(src, ar.source + 1, sizeof(src) - 1);
+            break;
+        }
+    }
+    if (src[0] == '\0') {
+        lua_pushstring(L, "");
+        return;
+    }
+
+    char dir[1024] = "";
+    lua_getglobal(L, "package");
+    lua_getfield(L, -1, "path");
+    const char *pkg_path = lua_tostring(L, -1);
+    if (pkg_path) {
+        const char *q = strstr(pkg_path, "/?.lua");
+        if (q) {
+            size_t n = (size_t)(q - pkg_path);
+            if (n < sizeof(dir)) {
+                memcpy(dir, pkg_path, n);
+                dir[n] = '\0';
+            }
+        }
+    }
+    lua_pop(L, 2); /* path, package */
+
+    if (dir[0] == '\0') {
+        lua_pushstring(L, "");
+        return;
+    }
+
+    char prefix[128] = "";
+    lua_getglobal(L, "package");
+    lua_getfield(L, -1, "loaded");
+    lua_pushnil(L);
+    while (lua_next(L, -2)) {
+        if (prefix[0] == '\0' && lua_type(L, -2) == LUA_TSTRING) {
+            const char *modname = lua_tostring(L, -2);
+            char relpath[256];
+            strncpy(relpath, modname, sizeof(relpath) - 1);
+            relpath[sizeof(relpath) - 1] = '\0';
+            for (char *p = relpath; *p; p++)
+                if (*p == '.') *p = '/';
+            char modpath[1024];
+            int n =
+                snprintf(modpath, sizeof(modpath), "%s/%s.lua", dir, relpath);
+            if (n > 0 && (size_t)n < sizeof(modpath) &&
+                strcmp(modpath, src) == 0) {
+                size_t mlen = strlen(modname);
+                if (mlen + 2 <= sizeof(prefix)) {
+                    memcpy(prefix, modname, mlen);
+                    prefix[mlen] = '.';
+                    prefix[mlen + 1] = '\0';
+                }
+            }
+        }
+        lua_pop(L, 1); /* pop value, keep key */
+    }
+    lua_pop(L, 2); /* loaded, package */
+
+    lua_pushstring(L, prefix);
+}
+
+/*
  * schedule(delay_ms, event_name)
  * Schedule a call to the Lua function `event_name` after `delay_ms` virtual
  * milliseconds. `event_name` is relative to the current module: the dispatch
@@ -100,12 +175,30 @@ static int l_schedule(lua_State *L)
     if (name[0] == '_')
         return luaL_error(L, "schedule: event name must not start with '_'");
 
-    /* Prepend the current module prefix (set by dispatch; empty at top level) */
-    char full_name[sizeof(app->lua_events[0].name)];
+    /*
+     * Determine the module prefix. Prefer the dispatch-set prefix (non-empty
+     * when inside a scheduled callback — required for the diamond-require case
+     * where the same module lives under multiple paths). Fall back to
+     * caller-file detection so helper functions like module.init() schedule
+     * correctly relative to their own module without knowing its path.
+     */
+    char prefix_buf[sizeof(app->lua_events[0].name)] = "";
     lua_getfield(L, LUA_REGISTRYINDEX, REG_PREFIX);
-    const char *prefix = lua_isstring(L, -1) ? lua_tostring(L, -1) : "";
-    int n = snprintf(full_name, sizeof(full_name), "%s%s", prefix, name);
+    if (lua_isstring(L, -1)) {
+        const char *dp = lua_tostring(L, -1);
+        strncpy(prefix_buf, dp, sizeof(prefix_buf) - 1);
+    }
     lua_pop(L, 1);
+    if (prefix_buf[0] == '\0') {
+        push_caller_prefix(L);
+        const char *cp = lua_tostring(L, -1);
+        if (cp)
+            strncpy(prefix_buf, cp, sizeof(prefix_buf) - 1);
+        lua_pop(L, 1);
+    }
+
+    char full_name[sizeof(app->lua_events[0].name)];
+    int n = snprintf(full_name, sizeof(full_name), "%s%s", prefix_buf, name);
 
     if (n < 0 || (size_t)n >= sizeof(full_name))
         return luaL_error(L, "schedule: event name too long (max %d chars)",
