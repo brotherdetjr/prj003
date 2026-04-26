@@ -67,7 +67,7 @@ game is not.
 ```
 common/             ← shared code (all platforms)
   app.h/c           ← app_t struct; app_init/spawn/poof/advance
-  lua_bind.h/c      ← Lua VM init, api table, event dispatch
+  lua_bind.h/c      ← Lua VM init, schedule() global, event dispatch
   server.h/c        ← HTTP command dispatch, SSE game-event push
   state.h/c         ← app ↔ JSON serialisation
   character.h/c     ← character struct, initialisation
@@ -91,9 +91,7 @@ tests/
     smoke.feature             ← happy-path scenarios from README smoke test
     args.feature              ← CLI argument parsing, defaults, invalid inputs
     api.feature               ← HTTP API edge cases (bad inputs, state errors)
-    require.feature           ← Lua require and module-relative callback names
-    diamond_require.feature   ← same module required via two paths (diamond DAG)
-    schedule_validation.feature ← api.schedule argument validation
+    schedule.feature          ← schedule() dispatch, prefix resolution, argument validation
     hot_reload.feature        ← live reload when a loaded Lua file changes; _on_reload SSE event
     environment.py  ← Behave hooks (emu lifecycle, temp-file cleanup)
     steps/
@@ -130,48 +128,62 @@ behaviour is verified there before flashing to hardware.
 
 Game logic lives in Lua scripts (`scripts/`). The Lua VM is embedded via
 `lua_bind.c`; scripts are loaded at startup and expose event callbacks that
-receive three arguments in order of likely use: `api` (engine functions:
-`api.schedule()`), `rw` (read-write scripted state), and `ro` (read-only
+receive two arguments: `rw` (read-write scripted state) and `ro` (read-only
 snapshot: `instance_id`, `now_tick`, `now_unix_sec`, `character`). Callbacks
-that don't need all three may simply declare fewer parameters.
+that don't need both may simply declare fewer parameters.
+
+`schedule(delay_ms, name)` is available as a Lua global. Callback names are
+**module-relative**: the dispatch layer automatically prepends the current
+module's prefix, so a callback inside `energy.on_drain` uses just `"on_drain"`
+and the engine stores `"energy.on_drain"`.
 
 Scripts may be split across multiple files using `require`. The search path is
 set to the directory containing the main script, so `require("energy")` loads
 `energy.lua` from the same directory. Transitive requires work as expected.
-The module must be assigned to a global so the dispatch layer can resolve it:
+The module should be assigned to a global (or a field of one) so the dispatch
+layer can resolve its path by scanning `_G`:
 
 ```lua
-energy = require("energy")   -- global; "energy.on_drain" resolves at dispatch
+energy = require("energy")         -- direct global
+-- or
+myapp = {}; myapp.energy = require("energy")  -- nested under a table
+-- or
+nrg = require("energy")            -- alias; prefix becomes "nrg."
 ```
 
-Callback names passed to `api.schedule()` are **module-relative**: the dispatch
-layer automatically prepends the current module's prefix, so a callback inside
-`energy.on_drain` uses just `"on_drain"` and the engine stores
-`"energy.on_drain"`. Top-level callbacks in the main script have no prefix and
-must pass the full dotted path when bootstrapping:
+Top-level callbacks in the main script have no prefix and must pass the full
+dotted path when bootstrapping from `on_spawn`:
 
 ```lua
 -- main.lua
 energy = require("energy")
 
-function on_spawn(api, rw)
-    api.schedule(5000, "energy.on_drain")   -- full path: top-level has no prefix
+function on_spawn(rw)
+    energy.init(rw)   -- energy.init() calls schedule(); prefix resolved via _G scan
 end
 ```
 
 ```lua
 -- energy.lua
-function M.on_drain(api, rw)
-    api.schedule(5000, "on_drain")   -- local name; dispatch prepends "energy."
+local M = {}
+
+function M.init(rw)
+    schedule(5000, "on_drain")   -- dispatched as "energy.on_drain" (prefix from _G scan)
 end
+
+function M.on_drain(rw)
+    schedule(5000, "on_drain")   -- prefix prepended automatically by dispatcher
+end
+
+return M
 ```
 
 The same module may be required under multiple names (diamond dependency) — each
 path dispatches and reschedules independently and correctly.
 
 Event names are limited to 63 characters (after prefix expansion) and must not
-start with `_` (reserved for system events); `api.schedule` raises a Lua error
-if either constraint is violated.
+start with `_` (reserved for system events); `schedule` raises a Lua error if
+either constraint is violated.
 
 #### Naming conventions
 
