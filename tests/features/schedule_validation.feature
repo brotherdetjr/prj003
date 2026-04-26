@@ -1,4 +1,4 @@
-Feature: api.schedule argument validation
+Feature: schedule argument validation
 
   Scenario: event name of exactly 63 chars is accepted
     Given emu starts with test script "schedule_name_max/main.lua" and args "--nowtick=0 --noautotick"

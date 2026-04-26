@@ -11,7 +11,7 @@
 /* Registry keys */
 #define REG_APP "_gloxie_app"
 #define REG_RW "_gloxie_rw"
-#define REG_API "_gloxie_api"
+#define REG_PREFIX "_gloxie_prefix"
 
 /* ------------------------------------------------------------------ */
 /* Helpers                                                            */
@@ -29,12 +29,6 @@ static app_t *get_app(lua_State *L)
 static void push_rw(lua_State *L)
 {
     lua_getfield(L, LUA_REGISTRYINDEX, REG_RW);
-}
-
-/* Push the api table onto the Lua stack. */
-static void push_api(lua_State *L)
-{
-    lua_getfield(L, LUA_REGISTRYINDEX, REG_API);
 }
 
 /* Push a fresh ro snapshot table onto the Lua stack. */
@@ -77,19 +71,17 @@ static int alloc_event_slot(app_t *app)
 }
 
 /* ------------------------------------------------------------------ */
-/* api table functions (passed as 3rd arg to every callback)          */
+/* Global functions exposed to Lua                                    */
 /* ------------------------------------------------------------------ */
 
-static void set_api_prefix(lua_State *L, const char *prefix)
+static void set_schedule_prefix(lua_State *L, const char *prefix)
 {
-    lua_getfield(L, LUA_REGISTRYINDEX, REG_API);
     lua_pushstring(L, prefix);
-    lua_setfield(L, -2, "_prefix");
-    lua_pop(L, 1);
+    lua_setfield(L, LUA_REGISTRYINDEX, REG_PREFIX);
 }
 
 /*
- * api.schedule(delay_ms, event_name)
+ * schedule(delay_ms, event_name)
  * Schedule a call to the Lua function `event_name` after `delay_ms` virtual
  * milliseconds. `event_name` is relative to the current module: the dispatch
  * layer prepends the module prefix so modules never need to know their own
@@ -110,11 +102,10 @@ static int l_schedule(lua_State *L)
 
     /* Prepend the current module prefix (set by dispatch; empty at top level) */
     char full_name[sizeof(app->lua_events[0].name)];
-    lua_getfield(L, LUA_REGISTRYINDEX, REG_API);
-    lua_getfield(L, -1, "_prefix");
+    lua_getfield(L, LUA_REGISTRYINDEX, REG_PREFIX);
     const char *prefix = lua_isstring(L, -1) ? lua_tostring(L, -1) : "";
     int n = snprintf(full_name, sizeof(full_name), "%s%s", prefix, name);
-    lua_pop(L, 2);
+    lua_pop(L, 1);
 
     if (n < 0 || (size_t)n >= sizeof(full_name))
         return luaL_error(L, "schedule: event name too long (max %d chars)",
@@ -332,23 +323,22 @@ void lua_bind_dispatch(uint32_t tag, app_t *app)
     }
 
     lua_State *L = app->L;
-    set_api_prefix(L, prefix);
+    set_schedule_prefix(L, prefix);
 
     lua_push_by_path(L, name);
     if (!lua_isfunction(L, -1)) {
         fprintf(stderr, "Lua: no function '%s' for scheduled event\n", name);
         lua_pop(L, 1);
-        set_api_prefix(L, "");
+        set_schedule_prefix(L, "");
         return;
     }
-    push_api(L);
     push_rw(L);
     push_ro(L, app);
-    if (lua_pcall(L, 3, 0, 0) != LUA_OK) {
+    if (lua_pcall(L, 2, 0, 0) != LUA_OK) {
         fprintf(stderr, "Lua error in %s: %s\n", name, lua_tostring(L, -1));
         lua_pop(L, 1);
     }
-    set_api_prefix(L, "");
+    set_schedule_prefix(L, "");
 }
 
 /* ------------------------------------------------------------------ */
@@ -358,16 +348,15 @@ void lua_bind_dispatch(uint32_t tag, app_t *app)
 void lua_bind_call(app_t *app, const char *fn_name)
 {
     lua_State *L = app->L;
-    set_api_prefix(L, "");
+    set_schedule_prefix(L, "");
     lua_push_by_path(L, fn_name);
     if (!lua_isfunction(L, -1)) {
         lua_pop(L, 1);
         return;
     }
-    push_api(L);
     push_rw(L);
     push_ro(L, app);
-    if (lua_pcall(L, 3, 0, 0) != LUA_OK) {
+    if (lua_pcall(L, 2, 0, 0) != LUA_OK) {
         fprintf(stderr, "Lua error in %s: %s\n", fn_name, lua_tostring(L, -1));
         lua_pop(L, 1);
     }
@@ -468,10 +457,6 @@ int lua_bind_get_loaded_files(app_t *app, char (*out)[1024], int max_count)
 /* Init                                                               */
 /* ------------------------------------------------------------------ */
 
-static const luaL_Reg api_funcs[] = {
-    {"schedule", l_schedule},
-    {NULL, NULL}};
-
 static void setup_package(lua_State *L, const char *script_path)
 {
     /* Derive directory containing the main script */
@@ -518,10 +503,10 @@ int lua_bind_init(app_t *app, const char *script_path)
     lua_pushlightuserdata(L, app);
     lua_setfield(L, LUA_REGISTRYINDEX, REG_APP);
 
-    /* Build api table and store in registry; passed as 3rd arg to callbacks */
-    lua_newtable(L);
-    luaL_setfuncs(L, api_funcs, 0);
-    lua_setfield(L, LUA_REGISTRYINDEX, REG_API);
+    /* Register global functions */
+    lua_register(L, "schedule", l_schedule);
+    lua_pushstring(L, "");
+    lua_setfield(L, LUA_REGISTRYINDEX, REG_PREFIX);
 
     /* Create rw table in the registry */
     lua_newtable(L);

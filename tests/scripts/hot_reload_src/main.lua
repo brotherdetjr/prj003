@@ -1,6 +1,6 @@
 energy = require("energy")
 
-function on_spawn(api, rw)
+function on_spawn(rw)
     rw.energy = 10
-    api.schedule(energy.DRAIN_INTERVAL, "energy.on_drain")
+    schedule(energy.DRAIN_INTERVAL, "energy.on_drain")
 end
