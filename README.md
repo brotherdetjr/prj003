@@ -72,7 +72,7 @@ common/             ← shared code (all platforms)
   state.h/c         ← app ↔ JSON serialisation
   character.h/c     ← character struct, initialisation
   scheduler.h/c     ← generic min-heap priority queue (opaque tag)
-  test_scheduler.c  ← scheduler unit tests (make test)
+  test_scheduler.c  ← scheduler unit tests (make)
 
 platform/
   esp32/
@@ -208,48 +208,27 @@ sudo apt install gh
 gh auth login
 ```
 
-### Build
+### Build and test
 
 ```sh
 cd platform/pc
 make
 ```
 
-Requires GCC and `clang-format` on Linux or macOS. No system libraries beyond libc.
+Runs format check, compiles `emu` and `emu-asan`, runs unit tests, runs the
+full Behave integration suite under AddressSanitizer, and fails if any ASan
+error reports appear in `/tmp/emu-asan.<pid>`.
 
-```sh
-make format-check   # verify formatting (run in CI)
-make format         # apply formatting in-place
-```
-
-### Tests
-
-Unit tests (scheduler):
-
-```sh
-cd platform/pc
-make test
-```
-
-Integration tests (Behave/Cucumber) — requires Python 3 with `behave` and
-`requests`:
+Requires GCC (with ASan support), `clang-format`, and Python 3 with `behave`
+and `requests` on Linux or macOS. No system libraries beyond libc.
 
 ```sh
 pip install behave requests
-cd tests
-python3 -m behave
 ```
-
-Build the `emu` binary before running integration tests.
-
-Memory / AddressSanitizer check (requires GCC with ASan support):
 
 ```sh
-cd platform/pc
-make asan   # builds emu-asan and runs the full integration suite under ASan
+make format         # apply formatting in-place
 ```
-
-ASan error reports and leak summaries are written to `/tmp/emu-asan.<pid>`.
 
 ### Start
 
