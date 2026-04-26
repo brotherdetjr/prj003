@@ -81,13 +81,73 @@ static void set_schedule_prefix(lua_State *L, const char *prefix)
 }
 
 /*
- * Walk the Lua call stack to find the innermost Lua source file, then
- * reverse-map it through package.loaded to a module prefix (e.g. "energy.").
- * Pushes the prefix string — possibly "" for top-level / main script — onto
- * the stack.
+ * Scan _G at depth 1 and 2 for the table at stack index mod_idx.
+ * On success writes "path." into buf (e.g. "nrg." or "myapp.energy.") and
+ * returns 1.  Returns 0 if not found.  Stack is balanced on return.
+ * "package" is excluded from depth-2 to avoid false matches via
+ * package.loaded.
+ */
+static int find_global_path(lua_State *L, int mod_idx, char *buf,
+                            size_t buf_size)
+{
+    if (mod_idx < 0)
+        mod_idx = lua_gettop(L) + 1 + mod_idx;
+
+    lua_pushglobaltable(L);
+    int g = lua_gettop(L);
+
+    /* depth 1: _G[k] == module */
+    lua_pushnil(L);
+    while (lua_next(L, g)) {
+        if (lua_type(L, -2) == LUA_TSTRING && lua_rawequal(L, mod_idx, -1)) {
+            snprintf(buf, buf_size, "%s.", lua_tostring(L, -2));
+            lua_pop(L, 2); /* value, key */
+            goto done;
+        }
+        lua_pop(L, 1);
+    }
+
+    /* depth 2: _G[k1][k2] == module; skip _G itself and "package" */
+    lua_pushnil(L);
+    while (lua_next(L, g)) {
+        if (lua_type(L, -2) != LUA_TSTRING || lua_type(L, -1) != LUA_TTABLE ||
+            lua_rawequal(L, -1, g) ||
+            strcmp(lua_tostring(L, -2), "package") == 0) {
+            lua_pop(L, 1);
+            continue;
+        }
+        int outer = lua_gettop(L); /* absolute index of outer table */
+        lua_pushnil(L);
+        while (lua_next(L, outer)) {
+            if (lua_type(L, -2) == LUA_TSTRING &&
+                lua_rawequal(L, mod_idx, -1)) {
+                snprintf(buf, buf_size, "%s.%s.", lua_tostring(L, outer - 1),
+                         lua_tostring(L, -2));
+                lua_pop(L, 2); /* inner value, inner key */
+                lua_pop(L, 1); /* outer table */
+                lua_pop(L, 1); /* k1 */
+                goto done;
+            }
+            lua_pop(L, 1);
+        }
+        lua_pop(L, 1); /* outer table value */
+    }
+
+done:
+    lua_pop(L, 1); /* _G */
+    return buf[0] != '\0';
+}
+
+/*
+ * Walk the Lua call stack to find the innermost Lua source file, map it to
+ * a module table via package.loaded, then scan _G to find where that table
+ * is actually mounted (so the prefix matches the real global path, not the
+ * require() argument).  Pushes the prefix string — e.g. "nrg.",
+ * "myapp.energy.", or "" for top-level callers — onto the stack.
  */
 static void push_caller_prefix(lua_State *L)
 {
+    /* 1. Find the innermost Lua caller's source file. */
     lua_Debug ar;
     char src[1024] = "";
     for (int level = 1; lua_getstack(L, level, &ar); level++) {
@@ -97,61 +157,69 @@ static void push_caller_prefix(lua_State *L)
             break;
         }
     }
-    if (src[0] == '\0') {
+    if (!src[0]) {
         lua_pushstring(L, "");
         return;
     }
 
+    /* 2. Extract script directory from package.path = "<dir>/?.lua". */
     char dir[1024] = "";
     lua_getglobal(L, "package");
     lua_getfield(L, -1, "path");
-    const char *pkg_path = lua_tostring(L, -1);
-    if (pkg_path) {
-        const char *q = strstr(pkg_path, "/?.lua");
+    const char *pp = lua_tostring(L, -1);
+    if (pp) {
+        const char *q = strstr(pp, "/?.lua");
         if (q) {
-            size_t n = (size_t)(q - pkg_path);
+            size_t n = (size_t)(q - pp);
             if (n < sizeof(dir)) {
-                memcpy(dir, pkg_path, n);
+                memcpy(dir, pp, n);
                 dir[n] = '\0';
             }
         }
     }
     lua_pop(L, 2); /* path, package */
-
-    if (dir[0] == '\0') {
+    if (!dir[0]) {
         lua_pushstring(L, "");
         return;
     }
 
-    char prefix[128] = "";
+    /* 3. Find the module table in package.loaded whose file matches src. */
     lua_getglobal(L, "package");
     lua_getfield(L, -1, "loaded");
+    int loaded = lua_gettop(L);
+
     lua_pushnil(L);
-    while (lua_next(L, -2)) {
-        if (prefix[0] == '\0' && lua_type(L, -2) == LUA_TSTRING) {
-            const char *modname = lua_tostring(L, -2);
-            char relpath[256];
-            strncpy(relpath, modname, sizeof(relpath) - 1);
-            relpath[sizeof(relpath) - 1] = '\0';
-            for (char *p = relpath; *p; p++)
+    while (lua_next(L, loaded)) {
+        if (lua_type(L, -2) == LUA_TSTRING && lua_type(L, -1) == LUA_TTABLE) {
+            const char *mn = lua_tostring(L, -2);
+            char rp[256];
+            strncpy(rp, mn, sizeof(rp) - 1);
+            rp[sizeof(rp) - 1] = '\0';
+            for (char *p = rp; *p; p++)
                 if (*p == '.') *p = '/';
-            char modpath[1024];
-            int n =
-                snprintf(modpath, sizeof(modpath), "%s/%s.lua", dir, relpath);
-            if (n > 0 && (size_t)n < sizeof(modpath) &&
-                strcmp(modpath, src) == 0) {
-                size_t mlen = strlen(modname);
-                if (mlen + 2 <= sizeof(prefix)) {
-                    memcpy(prefix, modname, mlen);
-                    prefix[mlen] = '.';
-                    prefix[mlen + 1] = '\0';
-                }
+            char fp[1024];
+            int n = snprintf(fp, sizeof(fp), "%s/%s.lua", dir, rp);
+            if (n > 0 && (size_t)n < sizeof(fp) && strcmp(fp, src) == 0) {
+                lua_remove(L, -2); /* drop key, leave module table on top */
+                goto found_module;
             }
         }
-        lua_pop(L, 1); /* pop value, keep key */
+        lua_pop(L, 1);
     }
+    /* Not found in package.loaded */
     lua_pop(L, 2); /* loaded, package */
+    lua_pushstring(L, "");
+    return;
 
+found_module:;
+    /* stack: package | loaded | module_table */
+    int mod_idx = lua_gettop(L);
+
+    /* 4. Scan _G to find where module_table is actually mounted. */
+    char prefix[128] = "";
+    find_global_path(L, mod_idx, prefix, sizeof(prefix));
+
+    lua_pop(L, 3); /* module_table, loaded, package */
     lua_pushstring(L, prefix);
 }
 
