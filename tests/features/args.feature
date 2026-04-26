@@ -112,3 +112,8 @@ Feature: Command-line argument parsing
   Scenario: malformed --wallclockutc exits with an error
     When emu is invoked with args "--wallclockutc=not-a-date"
     Then the exit code is 1
+
+  Scenario: emu exits if the port is already in use
+    Given port 17073 is occupied
+    When emu is invoked with args "--port=17073 --noautotick"
+    Then the exit code is 1

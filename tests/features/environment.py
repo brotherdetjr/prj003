@@ -17,3 +17,6 @@ def after_scenario(context, scenario):
     for path in getattr(context, 'temp_dirs', []):
         shutil.rmtree(path, ignore_errors=True)
     context.temp_dirs = []
+    for sock in getattr(context, 'occupied_sockets', []):
+        sock.close()
+    context.occupied_sockets = []
