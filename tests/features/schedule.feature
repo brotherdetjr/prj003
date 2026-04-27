@@ -21,11 +21,11 @@ Feature: Lua schedule() — dispatch, prefix resolution, and argument validation
     And the scheduler has an "<event>.on_drain" event at tick 10000
 
     Examples:
-      | description                     | script                             | event         |
-      | same-name require               | require_test/main.lua              | drain         |
-      | same name via init()            | module_init_test/main.lua          | energy        |
-      | alias via init()                | module_alias_test/main.lua         | nrg           |
-      | alias via direct schedule       | module_alias_direct_test/main.lua  | nrg           |
+      | description                     | script                                   | event                |
+      | same-name require               | require_test/main.lua                    | drain                |
+      | same name via init()            | module_init_test/main.lua                | energy               |
+      | alias via init()                | module_alias_test/main.lua               | nrg                  |
+      | alias via direct schedule       | module_alias_direct_test/main.lua        | nrg                  |
       | nested path via init()          | module_nested_test/main.lua              | myapp.energy         |
       | nested path via direct schedule | module_nested_direct_test/main.lua       | myapp.energy         |
       | deep nested path via init()     | module_deep_nested_test/main.lua         | myapp.systems.energy |
