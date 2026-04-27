@@ -101,36 +101,41 @@ static int find_global_path(lua_State *L, int mod_idx, char *buf,
         if (lua_type(L, -2) == LUA_TSTRING && lua_rawequal(L, mod_idx, -1)) {
             snprintf(buf, buf_size, "%s.", lua_tostring(L, -2));
             lua_pop(L, 2);
-            goto done;
+            break;
         }
         lua_pop(L, 1);
     }
 
-    lua_pushnil(L);
-    while (lua_next(L, g)) {
-        if (lua_type(L, -2) != LUA_TSTRING || lua_type(L, -1) != LUA_TTABLE ||
-            lua_rawequal(L, -1, g) || strcmp(lua_tostring(L, -2), "package") == 0) {
-            lua_pop(L, 1);
-            continue;
-        }
-        char k1[64];
-        strncpy(k1, lua_tostring(L, -2), sizeof(k1) - 1);
-        k1[sizeof(k1) - 1] = '\0';
-        int t = lua_gettop(L);
+    if (!buf[0]) {
         lua_pushnil(L);
-        while (lua_next(L, t)) {
-            if (lua_type(L, -2) == LUA_TSTRING && lua_rawequal(L, mod_idx, -1)) {
-                snprintf(buf, buf_size, "%s.%s.", k1, lua_tostring(L, -2));
-                lua_pop(L, 2); /* inner k, v */
-                lua_pop(L, 2); /* outer table, k1 */
-                goto done;
+        while (lua_next(L, g)) {
+            if (lua_type(L, -2) != LUA_TSTRING || lua_type(L, -1) != LUA_TTABLE ||
+                lua_rawequal(L, -1, g) ||
+                strcmp(lua_tostring(L, -2), "package") == 0) {
+                lua_pop(L, 1);
+                continue;
             }
-            lua_pop(L, 1);
+            char k1[64];
+            strncpy(k1, lua_tostring(L, -2), sizeof(k1) - 1);
+            k1[sizeof(k1) - 1] = '\0';
+            int t = lua_gettop(L);
+            lua_pushnil(L);
+            while (lua_next(L, t)) {
+                if (lua_type(L, -2) == LUA_TSTRING && lua_rawequal(L, mod_idx, -1)) {
+                    snprintf(buf, buf_size, "%s.%s.", k1, lua_tostring(L, -2));
+                    lua_pop(L, 2);
+                    break;
+                }
+                lua_pop(L, 1);
+            }
+            lua_pop(L, 1); /* outer table */
+            if (buf[0]) {
+                lua_pop(L, 1); /* k1 */
+                break;
+            }
         }
-        lua_pop(L, 1);
     }
 
-done:
     lua_pop(L, 1); /* _G */
     return buf[0] != '\0';
 }
@@ -182,31 +187,33 @@ static void push_caller_prefix(lua_State *L)
     lua_remove(L, -2); /* drop package */
     int loaded = lua_gettop(L);
 
+    int found = 0;
     lua_pushnil(L);
-    while (lua_next(L, loaded)) {
-        if (lua_type(L, -2) != LUA_TSTRING || lua_type(L, -1) != LUA_TTABLE) {
-            lua_pop(L, 1);
-            continue;
-        }
-        const char *mn = lua_tostring(L, -2);
-        char rp[256];
-        strncpy(rp, mn, sizeof(rp) - 1);
-        rp[sizeof(rp) - 1] = '\0';
-        for (char *p = rp; *p; p++)
-            if (*p == '.') *p = '/';
-        char fp[1024];
-        int n = snprintf(fp, sizeof(fp), "%s/%s.lua", dir, rp);
-        if (n > 0 && (size_t)n < sizeof(fp) && strcmp(fp, src) == 0) {
-            lua_remove(L, -2); /* drop key, leave module table on top */
-            goto found;
+    while (!found && lua_next(L, loaded)) {
+        if (lua_type(L, -2) == LUA_TSTRING && lua_type(L, -1) == LUA_TTABLE) {
+            const char *mn = lua_tostring(L, -2);
+            char rp[256];
+            strncpy(rp, mn, sizeof(rp) - 1);
+            rp[sizeof(rp) - 1] = '\0';
+            for (char *p = rp; *p; p++)
+                if (*p == '.') *p = '/';
+            char fp[1024];
+            int n = snprintf(fp, sizeof(fp), "%s/%s.lua", dir, rp);
+            if (n > 0 && (size_t)n < sizeof(fp) && strcmp(fp, src) == 0) {
+                lua_remove(L, -2); /* drop key, leave module table on top */
+                found = 1;
+                continue;
+            }
         }
         lua_pop(L, 1);
     }
-    lua_pop(L, 1); /* loaded */
-    lua_pushstring(L, "");
-    return;
 
-found:;
+    if (!found) {
+        lua_pop(L, 1); /* loaded */
+        lua_pushstring(L, "");
+        return;
+    }
+
     char prefix[128] = "";
     find_global_path(L, -1, prefix, sizeof(prefix));
     lua_pop(L, 2); /* module_table, loaded */
