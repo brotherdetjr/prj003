@@ -86,6 +86,7 @@ static void set_schedule_prefix(lua_State *L, const char *prefix)
  * returns 1.  Returns 0 if not found.  Stack is balanced on return.
  * "package" is excluded from depth-2 to avoid false matches via
  * package.loaded.
+ * See LUA_BIND_INTERNALS.md for a detailed walkthrough; keep it in sync.
  */
 static int find_global_path(lua_State *L, int mod_idx, char *buf,
                             size_t buf_size)
@@ -146,6 +147,7 @@ static int find_global_path(lua_State *L, int mod_idx, char *buf,
  * is actually mounted (so the prefix matches the real global path, not the
  * require() argument).  Pushes the prefix string — e.g. "nrg.",
  * "myapp.energy.", or "" for top-level callers — onto the stack.
+ * See LUA_BIND_INTERNALS.md for a detailed walkthrough; keep it in sync.
  */
 static void push_caller_prefix(lua_State *L)
 {
