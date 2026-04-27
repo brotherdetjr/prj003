@@ -113,7 +113,7 @@ static int find_global_path(lua_State *L, int mod_idx, char *buf,
             lua_pop(L, 1);
             continue;
         }
-        char k1[128];
+        char k1[64];
         strncpy(k1, lua_tostring(L, -2), sizeof(k1) - 1);
         k1[sizeof(k1) - 1] = '\0';
         int t = lua_gettop(L);
