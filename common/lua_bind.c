@@ -81,11 +81,64 @@ static void set_schedule_prefix(lua_State *L, const char *prefix)
 }
 
 /*
- * Scan _G at depth 1 and 2 for the table at stack index mod_idx.
- * On success writes "path." into buf (e.g. "nrg." or "myapp.energy.") and
- * returns 1.  Returns 0 if not found.  Stack is balanced on return.
- * "package" is excluded from depth-2 to avoid false matches via
- * package.loaded.
+ * DFS helper for find_global_path.  Searches tbl for the table at mod_idx,
+ * building the dotted path incrementally in buf[0..path_len-1].  On success
+ * returns 1 with buf holding the complete "k1.k2....kn." path.  On failure
+ * returns 0 and restores buf[path_len] = '\0'.  visited (a Lua table used as
+ * a set) prevents re-entering tables and breaks cycles.
+ */
+static int scan_table(lua_State *L, int tbl, int mod_idx, int visited,
+                      char *buf, size_t buf_size, size_t path_len)
+{
+    lua_pushvalue(L, tbl);
+    lua_pushboolean(L, 1);
+    lua_rawset(L, visited); /* visited[tbl] = true */
+
+    lua_pushnil(L);
+    while (lua_next(L, tbl)) {
+        if (lua_type(L, -2) != LUA_TSTRING) {
+            lua_pop(L, 1);
+            continue;
+        }
+        const char *key = lua_tostring(L, -2);
+        size_t key_len = strlen(key);
+        if (path_len + key_len + 2 > buf_size) { /* key + '.' + '\0' */
+            lua_pop(L, 1);
+            continue;
+        }
+        memcpy(buf + path_len, key, key_len);
+        buf[path_len + key_len] = '.';
+        buf[path_len + key_len + 1] = '\0';
+
+        if (lua_rawequal(L, -1, mod_idx)) {
+            lua_pop(L, 2);
+            return 1;
+        }
+        if (lua_type(L, -1) == LUA_TTABLE) {
+            lua_pushvalue(L, -1);
+            lua_rawget(L, visited);
+            int seen = lua_toboolean(L, -1);
+            lua_pop(L, 1);
+            if (!seen) {
+                int sub = lua_gettop(L);
+                if (scan_table(L, sub, mod_idx, visited,
+                               buf, buf_size, path_len + key_len + 1)) {
+                    lua_pop(L, 2);
+                    return 1;
+                }
+            }
+        }
+        buf[path_len] = '\0'; /* backtrack path before next iteration */
+        lua_pop(L, 1);
+    }
+    return 0;
+}
+
+/*
+ * Search _G recursively for the table at stack index mod_idx.
+ * On success writes "k1.k2....kn." into buf and returns 1.
+ * Returns 0 if not found.  Stack is balanced on return.
+ * "package" is excluded to avoid false matches via package.loaded.
  * See LUA_BIND_INTERNALS.md for a detailed walkthrough; keep it in sync.
  */
 static int find_global_path(lua_State *L, int mod_idx, char *buf,
@@ -94,50 +147,19 @@ static int find_global_path(lua_State *L, int mod_idx, char *buf,
     if (mod_idx < 0) mod_idx = lua_gettop(L) + 1 + mod_idx;
     buf[0] = '\0';
 
+    lua_newtable(L);
+    int visited = lua_gettop(L);
+
     lua_pushglobaltable(L);
     int g = lua_gettop(L);
 
-    lua_pushnil(L);
-    while (lua_next(L, g)) {
-        if (lua_type(L, -2) == LUA_TSTRING && lua_rawequal(L, mod_idx, -1)) {
-            snprintf(buf, buf_size, "%s.", lua_tostring(L, -2));
-            lua_pop(L, 2);
-            break;
-        }
-        lua_pop(L, 1);
-    }
+    lua_getglobal(L, "package");
+    lua_pushboolean(L, 1);
+    lua_rawset(L, visited); /* pre-mark package so scan_table skips it */
 
-    if (!buf[0]) {
-        lua_pushnil(L);
-        while (lua_next(L, g)) {
-            if (lua_type(L, -2) != LUA_TSTRING || lua_type(L, -1) != LUA_TTABLE ||
-                lua_rawequal(L, -1, g) ||
-                strcmp(lua_tostring(L, -2), "package") == 0) {
-                lua_pop(L, 1);
-                continue;
-            }
-            char k1[64];
-            strncpy(k1, lua_tostring(L, -2), sizeof(k1) - 1);
-            k1[sizeof(k1) - 1] = '\0';
-            int t = lua_gettop(L);
-            lua_pushnil(L);
-            while (lua_next(L, t)) {
-                if (lua_type(L, -2) == LUA_TSTRING && lua_rawequal(L, mod_idx, -1)) {
-                    snprintf(buf, buf_size, "%s.%s.", k1, lua_tostring(L, -2));
-                    lua_pop(L, 2);
-                    break;
-                }
-                lua_pop(L, 1);
-            }
-            lua_pop(L, 1); /* outer table */
-            if (buf[0]) {
-                lua_pop(L, 1); /* k1 */
-                break;
-            }
-        }
-    }
+    scan_table(L, g, mod_idx, visited, buf, buf_size, 0);
 
-    lua_pop(L, 1); /* _G */
+    lua_pop(L, 2); /* _G, visited */
     return buf[0] != '\0';
 }
 

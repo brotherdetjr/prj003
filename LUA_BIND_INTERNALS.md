@@ -22,7 +22,12 @@ leak stack space.
 
 **Purpose:** given a Lua table that is already on the stack (at `mod_idx`), find
 where it is reachable in the global environment and write that path — e.g. `"nrg."`
-or `"myapp.energy."` — into `buf`. Returns 1 if found, 0 if not.
+or `"myapp.energy."` or `"myapp.systems.energy."` — into `buf`. Returns 1 if
+found, 0 if not. Works at any nesting depth.
+
+The work is split between a thin public function and a recursive DFS helper.
+
+### `find_global_path` — setup and teardown
 
 ```c
 if (mod_idx < 0) mod_idx = lua_gettop(L) + 1 + mod_idx;
@@ -34,122 +39,128 @@ it to an absolute index so it stays valid after we push more things on top.
 the current top slot number.
 
 ```c
-buf[0] = '\0';
+lua_newtable(L);
+int visited = lua_gettop(L);
 
 lua_pushglobaltable(L);
 int g = lua_gettop(L);
 ```
 
-We push `_G` (the global table) onto the stack and remember its absolute index as
-`g`. Everything else we push from here on will be above it.
-
-### Depth-1 scan: is the module directly in `_G`?
+We create a fresh Lua table (`visited`) that we use as a set to track which tables
+have already been entered during the DFS — this breaks cycles like `a.b = a`. Then
+we push `_G` and remember both absolute indices.
 
 ```c
-lua_pushnil(L);
-while (lua_next(L, g)) {
+lua_getglobal(L, "package");
+lua_pushboolean(L, 1);
+lua_rawset(L, visited); /* pre-mark package so scan_table skips it */
 ```
 
-`lua_next(L, g)` is how you iterate a Lua table in C. It pops the key at the top
-of the stack and pushes the *next* key–value pair. Passing `nil` as the starting
-key means "start from the beginning". After a successful call the stack gains two
-slots: `[-2]` = key, `[-1]` = value.
+`lua_rawset(L, visited)` pops the top two values (key = `package` table, value =
+`true`) and stores them in `visited`. Pre-marking `package` prevents the DFS from
+descending into `package.loaded` and finding false matches there.
 
 ```c
-    if (lua_type(L, -2) == LUA_TSTRING && lua_rawequal(L, mod_idx, -1)) {
-        snprintf(buf, buf_size, "%s.", lua_tostring(L, -2));
-        lua_pop(L, 2);
-        break;
-    }
-    lua_pop(L, 1);
-}
-```
+scan_table(L, g, mod_idx, visited, buf, buf_size, 0);
 
-- `lua_type(L, -2) == LUA_TSTRING` — we only care about string keys (global
-  variable names are strings).
-- `lua_rawequal(L, mod_idx, -1)` — checks **identity**: is the value at `-1` the
-  exact same table object as the one at `mod_idx`? (Not deep equality — pointer
-  equality.) This is how we recognise "yes, this slot in `_G` *is* our module."
-- On a match: write `"keyname."` into buf and pop both key and value
-  (`lua_pop(L, 2)`), then `break`.
-- No match: pop just the value (`lua_pop(L, 1)`) — `lua_next` needs the key to
-  remain on the stack for the next iteration.
-- When `lua_next` finds no more entries it returns 0 and pops the key itself,
-  leaving the stack at just `_G`.
-
-### Depth-2 scan: is the module at `_G[k1][k2]`?
-
-```c
-if (!buf[0]) {
-```
-
-Only enter this block if depth-1 found nothing. `buf[0]` is still `'\0'` in that
-case.
-
-```c
-    lua_pushnil(L);
-    while (lua_next(L, g)) {
-        if (lua_type(L, -2) != LUA_TSTRING || lua_type(L, -1) != LUA_TTABLE ||
-            lua_rawequal(L, -1, g) ||
-            strcmp(lua_tostring(L, -2), "package") == 0) {
-            lua_pop(L, 1);
-            continue;
-        }
-```
-
-Outer loop: iterate `_G` again. Skip any entry that isn't a string-keyed table,
-or that is `_G` itself (to avoid infinite recursion), or that is `package` (its
-sub-tables would cause false matches via `package.loaded`).
-
-```c
-        char k1[64];
-        strncpy(k1, lua_tostring(L, -2), sizeof(k1) - 1);
-        k1[sizeof(k1) - 1] = '\0';
-        int t = lua_gettop(L);
-```
-
-We are about to iterate the *inner* table, which pushes more things on the stack —
-so `lua_tostring(L, -2)` (the outer key) will no longer be at `-2`. We copy it
-into `k1` now. `t` captures the absolute index of the outer table value so the
-inner `lua_next` knows which table to iterate.
-
-```c
-        lua_pushnil(L);
-        while (lua_next(L, t)) {
-            if (lua_type(L, -2) == LUA_TSTRING && lua_rawequal(L, mod_idx, -1)) {
-                snprintf(buf, buf_size, "%s.%s.", k1, lua_tostring(L, -2));
-                lua_pop(L, 2);
-                break;
-            }
-            lua_pop(L, 1);
-        }
-```
-
-Inner loop: same identity check but now against `_G[k1][k2]`. On a match, write
-`"k1.k2."` and pop the inner key+value, then `break` out of the inner loop.
-
-```c
-        lua_pop(L, 1); /* outer table */
-        if (buf[0]) {
-            lua_pop(L, 1); /* k1 */
-            break;
-        }
-    }
-}
-```
-
-After the inner loop ends (match or exhausted), pop the outer value (the
-sub-table). If `buf` was filled by the inner loop, also pop the outer key and
-`break` from the outer loop. If not, leave the outer key on the stack for
-`lua_next` to consume on the next iteration.
-
-```c
-lua_pop(L, 1); /* _G */
+lua_pop(L, 2); /* _G, visited */
 return buf[0] != '\0';
 ```
 
-`_G` is always popped here — every code path above leaves exactly `_G` on the
-stack at this point.
+Launch the DFS from `_G` with an empty path so far (`path_len = 0`). Afterwards
+pop `_G` and the `visited` table — `scan_table` always leaves the stack balanced.
+
+### `scan_table` — the recursive DFS
+
+`scan_table(L, tbl, mod_idx, visited, buf, buf_size, path_len)` searches `tbl` for
+the table at `mod_idx`, building the dotted path by writing directly into
+`buf[path_len..]`. On success it returns 1 with `buf` holding the complete path;
+on failure it restores `buf[path_len] = '\0'` and returns 0.
+
+```c
+lua_pushvalue(L, tbl);
+lua_pushboolean(L, 1);
+lua_rawset(L, visited); /* visited[tbl] = true */
+```
+
+Mark the current table visited before iterating it, so that any back-edge to it
+encountered during recursion will be skipped.
+
+```c
+lua_pushnil(L);
+while (lua_next(L, tbl)) {
+```
+
+Standard Lua table iteration. `lua_next` pops the key at the top and pushes the
+next key–value pair, or returns 0 (pushing nothing) when exhausted. Starting with
+`nil` means "from the beginning". During each iteration `[-2]` = key, `[-1]` =
+value.
+
+```c
+    if (lua_type(L, -2) != LUA_TSTRING) {
+        lua_pop(L, 1);
+        continue;
+    }
+    const char *key = lua_tostring(L, -2);
+    size_t key_len = strlen(key);
+    if (path_len + key_len + 2 > buf_size) { /* key + '.' + '\0' */
+        lua_pop(L, 1);
+        continue;
+    }
+    memcpy(buf + path_len, key, key_len);
+    buf[path_len + key_len] = '.';
+    buf[path_len + key_len + 1] = '\0';
+```
+
+Skip non-string keys (only string keys are valid global-path components). Then
+append `"key."` directly into `buf` — no temporary string needed. The length check
+ensures we never write past `buf_size`.
+
+```c
+    if (lua_rawequal(L, -1, mod_idx)) {
+        lua_pop(L, 2);
+        return 1;
+    }
+```
+
+`lua_rawequal` checks **identity** — pointer equality, not deep equality. If the
+value at `-1` is literally the same table object as `mod_idx`, `buf` already holds
+the correct complete path. Pop the key and value and return success.
+
+```c
+    if (lua_type(L, -1) == LUA_TTABLE) {
+        lua_pushvalue(L, -1);
+        lua_rawget(L, visited);
+        int seen = lua_toboolean(L, -1);
+        lua_pop(L, 1);
+        if (!seen) {
+            int sub = lua_gettop(L);
+            if (scan_table(L, sub, mod_idx, visited,
+                           buf, buf_size, path_len + key_len + 1)) {
+                lua_pop(L, 2);
+                return 1;
+            }
+        }
+    }
+```
+
+If the value is a table we haven't visited yet, recurse into it. `lua_pushvalue`
+copies the table reference so `lua_rawget` can consume it as a key lookup without
+disturbing the iteration state. `sub = lua_gettop(L)` captures the absolute index
+of the value (the sub-table) before the recursion pushes anything else. If the
+recursive call finds the module, propagate the success upward.
+
+```c
+    buf[path_len] = '\0'; /* backtrack path before next iteration */
+    lua_pop(L, 1);
+}
+return 0;
+```
+
+This branch is reached when neither the identity check nor the recursion succeeded.
+Restore `buf` to what it was before this key was appended (backtrack), then pop the
+value — leaving the key on the stack for `lua_next` to consume on the next
+iteration. If the loop exhausts the table without a match, return 0.
 
 ---
 
