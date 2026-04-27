@@ -90,47 +90,44 @@ static void set_schedule_prefix(lua_State *L, const char *prefix)
 static int find_global_path(lua_State *L, int mod_idx, char *buf,
                             size_t buf_size)
 {
-    if (mod_idx < 0)
-        mod_idx = lua_gettop(L) + 1 + mod_idx;
+    if (mod_idx < 0) mod_idx = lua_gettop(L) + 1 + mod_idx;
+    buf[0] = '\0';
 
     lua_pushglobaltable(L);
     int g = lua_gettop(L);
 
-    /* depth 1: _G[k] == module */
     lua_pushnil(L);
     while (lua_next(L, g)) {
         if (lua_type(L, -2) == LUA_TSTRING && lua_rawequal(L, mod_idx, -1)) {
             snprintf(buf, buf_size, "%s.", lua_tostring(L, -2));
-            lua_pop(L, 2); /* value, key */
+            lua_pop(L, 2);
             goto done;
         }
         lua_pop(L, 1);
     }
 
-    /* depth 2: _G[k1][k2] == module; skip _G itself and "package" */
     lua_pushnil(L);
     while (lua_next(L, g)) {
         if (lua_type(L, -2) != LUA_TSTRING || lua_type(L, -1) != LUA_TTABLE ||
-            lua_rawequal(L, -1, g) ||
-            strcmp(lua_tostring(L, -2), "package") == 0) {
+            lua_rawequal(L, -1, g) || strcmp(lua_tostring(L, -2), "package") == 0) {
             lua_pop(L, 1);
             continue;
         }
-        int outer = lua_gettop(L); /* absolute index of outer table */
+        char k1[128];
+        strncpy(k1, lua_tostring(L, -2), sizeof(k1) - 1);
+        k1[sizeof(k1) - 1] = '\0';
+        int t = lua_gettop(L);
         lua_pushnil(L);
-        while (lua_next(L, outer)) {
-            if (lua_type(L, -2) == LUA_TSTRING &&
-                lua_rawequal(L, mod_idx, -1)) {
-                snprintf(buf, buf_size, "%s.%s.", lua_tostring(L, outer - 1),
-                         lua_tostring(L, -2));
-                lua_pop(L, 2); /* inner value, inner key */
-                lua_pop(L, 1); /* outer table */
-                lua_pop(L, 1); /* k1 */
+        while (lua_next(L, t)) {
+            if (lua_type(L, -2) == LUA_TSTRING && lua_rawequal(L, mod_idx, -1)) {
+                snprintf(buf, buf_size, "%s.%s.", k1, lua_tostring(L, -2));
+                lua_pop(L, 2); /* inner k, v */
+                lua_pop(L, 2); /* outer table, k1 */
                 goto done;
             }
             lua_pop(L, 1);
         }
-        lua_pop(L, 1); /* outer table value */
+        lua_pop(L, 1);
     }
 
 done:
@@ -147,7 +144,6 @@ done:
  */
 static void push_caller_prefix(lua_State *L)
 {
-    /* 1. Find the innermost Lua caller's source file. */
     lua_Debug ar;
     char src[1024] = "";
     for (int level = 1; lua_getstack(L, level, &ar); level++) {
@@ -162,64 +158,58 @@ static void push_caller_prefix(lua_State *L)
         return;
     }
 
-    /* 2. Extract script directory from package.path = "<dir>/?.lua". */
-    char dir[1024] = "";
     lua_getglobal(L, "package");
+
     lua_getfield(L, -1, "path");
     const char *pp = lua_tostring(L, -1);
+    char dir[1024] = "";
     if (pp) {
         const char *q = strstr(pp, "/?.lua");
-        if (q) {
+        if (q && (size_t)(q - pp) < sizeof(dir)) {
             size_t n = (size_t)(q - pp);
-            if (n < sizeof(dir)) {
-                memcpy(dir, pp, n);
-                dir[n] = '\0';
-            }
+            memcpy(dir, pp, n);
+            dir[n] = '\0';
         }
     }
-    lua_pop(L, 2); /* path, package */
+    lua_pop(L, 1); /* path */
     if (!dir[0]) {
+        lua_pop(L, 1);
         lua_pushstring(L, "");
         return;
     }
 
-    /* 3. Find the module table in package.loaded whose file matches src. */
-    lua_getglobal(L, "package");
     lua_getfield(L, -1, "loaded");
+    lua_remove(L, -2); /* drop package */
     int loaded = lua_gettop(L);
 
     lua_pushnil(L);
     while (lua_next(L, loaded)) {
-        if (lua_type(L, -2) == LUA_TSTRING && lua_type(L, -1) == LUA_TTABLE) {
-            const char *mn = lua_tostring(L, -2);
-            char rp[256];
-            strncpy(rp, mn, sizeof(rp) - 1);
-            rp[sizeof(rp) - 1] = '\0';
-            for (char *p = rp; *p; p++)
-                if (*p == '.') *p = '/';
-            char fp[1024];
-            int n = snprintf(fp, sizeof(fp), "%s/%s.lua", dir, rp);
-            if (n > 0 && (size_t)n < sizeof(fp) && strcmp(fp, src) == 0) {
-                lua_remove(L, -2); /* drop key, leave module table on top */
-                goto found_module;
-            }
+        if (lua_type(L, -2) != LUA_TSTRING || lua_type(L, -1) != LUA_TTABLE) {
+            lua_pop(L, 1);
+            continue;
+        }
+        const char *mn = lua_tostring(L, -2);
+        char rp[256];
+        strncpy(rp, mn, sizeof(rp) - 1);
+        rp[sizeof(rp) - 1] = '\0';
+        for (char *p = rp; *p; p++)
+            if (*p == '.') *p = '/';
+        char fp[1024];
+        int n = snprintf(fp, sizeof(fp), "%s/%s.lua", dir, rp);
+        if (n > 0 && (size_t)n < sizeof(fp) && strcmp(fp, src) == 0) {
+            lua_remove(L, -2); /* drop key, leave module table on top */
+            goto found;
         }
         lua_pop(L, 1);
     }
-    /* Not found in package.loaded */
-    lua_pop(L, 2); /* loaded, package */
+    lua_pop(L, 1); /* loaded */
     lua_pushstring(L, "");
     return;
 
-found_module:;
-    /* stack: package | loaded | module_table */
-    int mod_idx = lua_gettop(L);
-
-    /* 4. Scan _G to find where module_table is actually mounted. */
+found:;
     char prefix[128] = "";
-    find_global_path(L, mod_idx, prefix, sizeof(prefix));
-
-    lua_pop(L, 3); /* module_table, loaded, package */
+    find_global_path(L, -1, prefix, sizeof(prefix));
+    lua_pop(L, 2); /* module_table, loaded */
     lua_pushstring(L, prefix);
 }
 
