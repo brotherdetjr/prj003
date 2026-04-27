@@ -86,6 +86,7 @@ static void set_schedule_prefix(lua_State *L, const char *prefix)
  * returns 1 with buf holding the complete "k1.k2....kn." path.  On failure
  * returns 0 and restores buf[path_len] = '\0'.  visited (a Lua table used as
  * a set) prevents re-entering tables and breaks cycles.
+ * See LUA_BIND_INTERNALS.md for a detailed walkthrough; keep it in sync.
  */
 static int scan_table(lua_State *L, int tbl, int mod_idx, int visited,
                       char *buf, size_t buf_size, size_t path_len)
