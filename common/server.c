@@ -144,7 +144,6 @@ static void handle_command(struct mg_connection *c,
         cJSON_AddBoolToObject(resp, "ok", 1);
         cJSON_AddNumberToObject(resp, "now_tick", (double)r.now_tick);
         cJSON_AddBoolToObject(resp, "stopped_on_event", r.stopped_on_event);
-        cJSON_AddBoolToObject(resp, "lua_error", r.lua_error);
         if (r.stopped_on_event) {
             const char *evname = app->last_event_name[0]
                                      ? app->last_event_name

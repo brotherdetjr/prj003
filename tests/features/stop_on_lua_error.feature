@@ -6,7 +6,6 @@ Feature: --stop-on-lua-error — halt advance and disable autotick on Lua error
     When I spawn a character
     And I advance 5000 ticks
     Then the response is ok
-    And lua_error is true
     And stopped_on_event is false
     And I receive a "_on_lua_error" SSE event with fn "on_error_event" and error containing "bad_global"
 
