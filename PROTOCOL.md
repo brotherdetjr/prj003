@@ -58,6 +58,9 @@ Options:
   --script=PATH              Lua game script. Defaults to scripts/main.lua
                              relative to the binary.
   --noautotick               Start in manual-tick mode. Default is auto-tick.
+  --stop-on-lua-error        Halt advance_time and disable autotick when a Lua
+                             error occurs in a scheduled-event callback.
+                             Default: off (errors are reported via SSE only).
 ```
 
 On startup the instance:
@@ -134,15 +137,17 @@ Optional fields:
 
 Response:
 ```json
-{ "ok": true, "now_tick": 339000, "stopped_on_event": false }
+{ "ok": true, "now_tick": 339000, "stopped_on_event": false, "lua_error": false }
 ```
 
 When `stopped_on_event` is `true`, an `"event"` field names what fired:
 ```json
-{ "ok": true, "now_tick": 339000, "stopped_on_event": true, "event": "on_energy_drain" }
+{ "ok": true, "now_tick": 339000, "stopped_on_event": true, "lua_error": false, "event": "on_energy_drain" }
 ```
 
 When `stopped_on_event` is `true`, also pushes an SSE event named after the fired game event, with `{"now_tick": N}` as data.
+
+When `--stop-on-lua-error` is active and a Lua error occurs during event dispatch, the advance halts immediately at the tick of the failing event and `lua_error` is `true`. In this case `stopped_on_event` is `false` and no game-event SSE is pushed (a `_on_lua_error` SSE is pushed instead — see §2.2).
 
 ---
 
@@ -266,6 +271,38 @@ Response:
 
 ---
 
+#### `get_stop_on_lua_error`
+
+Return whether the instance will halt on Lua errors.
+
+Request:
+```json
+{ "cmd": "get_stop_on_lua_error" }
+```
+
+Response:
+```json
+{ "ok": true, "stop_on_lua_error": false }
+```
+
+---
+
+#### `set_stop_on_lua_error`
+
+Enable or disable halt-on-Lua-error at runtime (mirrors the `--stop-on-lua-error` flag).
+
+Request:
+```json
+{ "cmd": "set_stop_on_lua_error", "enabled": true }
+```
+
+Response:
+```json
+{ "ok": true, "stop_on_lua_error": true }
+```
+
+---
+
 #### `get_screen`
 
 Return a PNG rendering of the current screen.
@@ -355,6 +392,18 @@ data: {"now_tick": 339042}
 ```
 
 Use `get_state` afterwards if the full updated state is needed.
+
+#### `_on_lua_error`
+
+Fired when a Lua callback throws an error (e.g. a global-write violation).
+Always emitted regardless of the `--stop-on-lua-error` setting.
+
+```
+event: _on_lua_error
+data: {"fn": "on_energy_drain", "error": "global write blocked: 'bad_global'"}
+```
+
+`fn` is the name of the Lua function that errored; `error` is the Lua error message.
 
 #### `peer_out`
 

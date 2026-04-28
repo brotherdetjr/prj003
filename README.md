@@ -93,6 +93,8 @@ tests/
     api.feature               ← HTTP API edge cases (bad inputs, state errors)
     schedule.feature          ← schedule() dispatch, prefix resolution, argument validation
     hot_reload.feature        ← live reload when a loaded Lua file changes; _on_reload SSE event
+    lua_freeze.feature        ← global-write freeze; _on_lua_error SSE event
+    stop_on_lua_error.feature ← --stop-on-lua-error flag and set/get_stop_on_lua_error commands
     environment.py  ← Behave hooks (emu lifecycle, temp-file cleanup)
     steps/
       steps.py      ← shared Given/When/Then step definitions
@@ -203,6 +205,7 @@ See `LUA_LINT.md` for known gaps and planned static analysis rules.
 | Event | Fired when | SSE data |
 |---|---|---|
 | `_on_reload` | Lua VM successfully reloaded after a source file change | `{"now_tick": N}` |
+| `_on_lua_error` | A Lua callback throws an error (e.g. global-write violation) | `{"fn": "name", "error": "message"}` |
 
 ## PC instance
 
@@ -266,6 +269,7 @@ make format         # apply formatting in-place
   --file=PATH                               load world state from JSON file
   --script=PATH                             Lua game script (default: scripts/main.lua)
   --noautotick                              start in manual-tick mode
+  --stop-on-lua-error                       halt advance and disable autotick on Lua error
   --help                                    show this help and exit
 ```
 
@@ -338,7 +342,7 @@ curl -s -X POST http://localhost:7070/command \
   -d '{"cmd":"advance_time","ticks":1000}' | python3 -m json.tool
 ```
 ```json
-{"ok": true, "now_tick": 1042, "stopped_on_event": false}
+{"ok": true, "now_tick": 1042, "stopped_on_event": false, "lua_error": false}
 ```
 
 **Fast-forward to the next event (energy drain at `birth_tick` + 339,000 ms = 339,042):**
@@ -348,7 +352,7 @@ curl -s -X POST http://localhost:7070/command \
   -d '{"cmd":"advance_time","ticks":0,"stop_on_event":true}' | python3 -m json.tool
 ```
 ```json
-{"ok": true, "now_tick": 339042, "stopped_on_event": true, "event": "on_energy_drain"}
+{"ok": true, "now_tick": 339042, "stopped_on_event": true, "lua_error": false, "event": "on_energy_drain"}
 ```
 
 **Check state (`now_tick` advanced to 339,042; `now_unix_sec` still 2026-04-08; energy 254):**
