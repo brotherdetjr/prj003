@@ -246,6 +246,7 @@ int main(int argc, char *argv[])
         fprintf(stderr, "Failed to initialise Lua from: %s\n", script_path);
         return 1;
     }
+    app.lua_error_cb = lua_error_sse_cb;
 
     if (load_file[0]) {
         if (load_state_file(&app, load_file) == 0) {

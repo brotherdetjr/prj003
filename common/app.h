@@ -28,6 +28,7 @@ typedef struct app_t {
     character_t character;
     scheduler_t scheduler;
     void (*dispatch_cb)(uint32_t tag, struct app_t *app); /* must be set before app_advance */
+    void (*lua_error_cb)(const char *fn, const char *msg, struct app_t *app);
     char instance_id[9];
     uint32_t instance_id_raw;
     int autotick;

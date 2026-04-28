@@ -66,3 +66,21 @@ def step_receive_sse_event(context, event, tick):
         except queue_module.Empty:
             continue
     assert False, f'timed out waiting for SSE event {event!r} at now_tick {tick}'
+
+
+@then('I receive a "_on_lua_error" SSE event with fn "{fn}" and error containing "{fragment}"')
+def step_receive_lua_error_event(context, fn, fragment):
+    deadline = time.time() + 3.0
+    while time.time() < deadline:
+        try:
+            ev = context.sse_events.get(timeout=0.2)
+            if ev.get('event') == '_on_lua_error':
+                data = json_module.loads(ev.get('data', '{}'))
+                assert data.get('fn') == fn, \
+                    f'expected fn={fn!r}, got {data}'
+                assert fragment in data.get('error', ''), \
+                    f'expected error to contain {fragment!r}, got {data}'
+                return
+        except queue_module.Empty:
+            continue
+    assert False, f'timed out waiting for _on_lua_error SSE event (fn={fn!r}, fragment={fragment!r})'

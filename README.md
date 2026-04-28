@@ -185,6 +185,12 @@ Event names are limited to 63 characters (after prefix expansion) and must not
 start with `_` (reserved for system events); `schedule` raises a Lua error if
 either constraint is violated.
 
+After the script's top-level code runs, `_G` and all user-defined tables
+reachable from it are frozen: any attempt to create a new global or add a new
+field to a module table from inside a callback raises a Lua error.  The only
+persistent state a callback may write is `rw`; local variables are unrestricted.
+See `LUA_LINT.md` for known gaps and planned static analysis rules.
+
 #### Naming conventions
 
 | Prefix | Meaning | Example |

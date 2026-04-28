@@ -15,4 +15,7 @@ void do_tick(app_t *app);
 /* Push an SSE event to all subscribed clients. */
 void sse_push(struct mg_mgr *mgr, const char *event, const char *data);
 
+/* app_t.lua_error_cb implementation: emits a _on_lua_error SSE event. */
+void lua_error_sse_cb(const char *fn, const char *msg, app_t *app);
+
 #endif /* SERVER_H */
