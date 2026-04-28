@@ -71,6 +71,107 @@ static int alloc_event_slot(app_t *app)
 }
 
 /* ------------------------------------------------------------------ */
+/* Global freeze                                                      */
+/* ------------------------------------------------------------------ */
+
+static int l_freeze_newindex(lua_State *L)
+{
+    const char *key = lua_tostring(L, 2);
+    if (key)
+        return luaL_error(L, "global write blocked: '%s'", key);
+    return luaL_error(L, "global write blocked");
+}
+
+static const char *const k_stdlib[] = {
+    "_G", "_VERSION",
+    "assert", "collectgarbage", "dofile", "error", "getmetatable",
+    "ipairs", "load", "loadfile", "next", "pairs", "pcall", "print",
+    "rawequal", "rawget", "rawlen", "rawset", "require", "select",
+    "setmetatable", "tonumber", "tostring", "type", "warn", "xpcall",
+    "coroutine", "debug", "io", "math", "os", "package", "string",
+    "table", "utf8",
+    "schedule",
+    NULL};
+
+static int is_stdlib(const char *name)
+{
+    for (int i = 0; k_stdlib[i]; i++)
+        if (strcmp(name, k_stdlib[i]) == 0) return 1;
+    return 0;
+}
+
+static void freeze_table(lua_State *L, int tbl, int visited);
+
+static void install_freeze_mt(lua_State *L, int tbl)
+{
+    if (lua_getmetatable(L, tbl)) {
+        lua_pop(L, 1);
+        return;
+    }
+    lua_newtable(L);
+    lua_pushcfunction(L, l_freeze_newindex);
+    lua_setfield(L, -2, "__newindex");
+    lua_setmetatable(L, tbl);
+}
+
+static void freeze_table(lua_State *L, int tbl, int visited)
+{
+    if (tbl < 0) tbl = lua_gettop(L) + 1 + tbl;
+
+    lua_pushvalue(L, tbl);
+    lua_pushboolean(L, 1);
+    lua_rawset(L, visited);
+
+    lua_pushnil(L);
+    while (lua_next(L, tbl)) {
+        if (lua_type(L, -1) == LUA_TTABLE) {
+            lua_pushvalue(L, -1);
+            lua_rawget(L, visited);
+            int seen = lua_toboolean(L, -1);
+            lua_pop(L, 1);
+            if (!seen)
+                freeze_table(L, lua_gettop(L), visited);
+        }
+        lua_pop(L, 1);
+    }
+
+    install_freeze_mt(L, tbl);
+}
+
+/*
+ * After the script's top-level code runs, freeze _G and all user-defined
+ * tables reachable from it.  This makes __newindex fire on any attempt to
+ * add a new key to a global or module table from within a callback.
+ * See LUA_LINT.md for the known gaps (existing-key writes, rawset, upvalues).
+ */
+static void freeze_globals(lua_State *L)
+{
+    lua_newtable(L);
+    int visited = lua_gettop(L);
+
+    lua_pushglobaltable(L);
+    int g = lua_gettop(L);
+
+    lua_pushvalue(L, g);
+    lua_pushboolean(L, 1);
+    lua_rawset(L, visited); /* pre-mark _G so freeze_table never recurses into it */
+
+    lua_pushnil(L);
+    while (lua_next(L, g)) {
+        if (lua_type(L, -2) == LUA_TSTRING && lua_type(L, -1) == LUA_TTABLE) {
+            const char *name = lua_tostring(L, -2);
+            if (!is_stdlib(name))
+                freeze_table(L, lua_gettop(L), visited);
+        }
+        lua_pop(L, 1);
+    }
+
+    install_freeze_mt(L, g);
+
+    lua_pop(L, 2); /* _G, visited */
+}
+
+/* ------------------------------------------------------------------ */
 /* Global functions exposed to Lua                                    */
 /* ------------------------------------------------------------------ */
 
@@ -518,7 +619,9 @@ void lua_bind_dispatch(uint32_t tag, app_t *app)
     push_rw(L);
     push_ro(L, app);
     if (lua_pcall(L, 2, 0, 0) != LUA_OK) {
-        fprintf(stderr, "Lua error in %s: %s\n", name, lua_tostring(L, -1));
+        const char *msg = lua_tostring(L, -1);
+        fprintf(stderr, "Lua error in %s: %s\n", name, msg);
+        if (app->lua_error_cb) app->lua_error_cb(name, msg, app);
         lua_pop(L, 1);
     }
     set_schedule_prefix(L, "");
@@ -540,7 +643,9 @@ void lua_bind_call(app_t *app, const char *fn_name)
     push_rw(L);
     push_ro(L, app);
     if (lua_pcall(L, 2, 0, 0) != LUA_OK) {
-        fprintf(stderr, "Lua error in %s: %s\n", fn_name, lua_tostring(L, -1));
+        const char *msg = lua_tostring(L, -1);
+        fprintf(stderr, "Lua error in %s: %s\n", fn_name, msg);
+        if (app->lua_error_cb) app->lua_error_cb(fn_name, msg, app);
         lua_pop(L, 1);
     }
 }
@@ -714,5 +819,6 @@ int lua_bind_init(app_t *app, const char *script_path)
         return -1;
     }
 
+    freeze_globals(L);
     return 0;
 }

@@ -22,6 +22,17 @@ void sse_push(struct mg_mgr *mgr, const char *event, const char *data)
     }
 }
 
+void lua_error_sse_cb(const char *fn, const char *msg, app_t *app)
+{
+    cJSON *data = cJSON_CreateObject();
+    cJSON_AddStringToObject(data, "fn", fn);
+    cJSON_AddStringToObject(data, "error", msg);
+    char *s = cJSON_PrintUnformatted(data);
+    sse_push(&app->mgr, "_on_lua_error", s);
+    cJSON_free(s);
+    cJSON_Delete(data);
+}
+
 /* ------------------------------------------------------------------ */
 /* Autotick timer                                                     */
 /* ------------------------------------------------------------------ */
