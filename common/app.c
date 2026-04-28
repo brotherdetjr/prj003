@@ -26,7 +26,8 @@ int app_poof_character(app_t *app)
 
 advance_result_t app_advance(app_t *app, uint64_t ticks, int stop_on_event)
 {
-    advance_result_t r = {app->now_tick, 0, 0};
+    advance_result_t r = {app->now_tick, 0, 0, 0};
+    app->had_lua_error = 0;
 
     uint64_t target_tick;
     if (ticks == 0) {
@@ -45,6 +46,10 @@ advance_result_t app_advance(app_t *app, uint64_t ticks, int stop_on_event)
         app->now_tick = ev.fire_at_ms;
         app->dispatch_cb(ev.tag, app);
         r.now_tick = app->now_tick;
+        if (app->stop_on_lua_error && app->had_lua_error) {
+            r.lua_error = 1;
+            return r;
+        }
         if (stop_on_event) {
             r.stopped_on_event = 1;
             r.event_tag = ev.tag;
