@@ -31,6 +31,7 @@ void lua_error_sse_cb(const char *fn, const char *msg, app_t *app)
     sse_push(&app->mgr, "_on_lua_error", s);
     cJSON_free(s);
     cJSON_Delete(data);
+    app->had_lua_error = 1;
 }
 
 /* ------------------------------------------------------------------ */
@@ -48,6 +49,10 @@ void tick_timer_fn(void *arg)
     while (app->now_tick < target) {
         uint64_t remaining = target - app->now_tick;
         advance_result_t r = app_advance(app, remaining, 1);
+        if (r.lua_error) {
+            app->autotick = 0;
+            break;
+        }
         if (!r.stopped_on_event) break;
         const char *evname = app->last_event_name[0]
                                  ? app->last_event_name
@@ -139,6 +144,7 @@ static void handle_command(struct mg_connection *c,
         cJSON_AddBoolToObject(resp, "ok", 1);
         cJSON_AddNumberToObject(resp, "now_tick", (double)r.now_tick);
         cJSON_AddBoolToObject(resp, "stopped_on_event", r.stopped_on_event);
+        cJSON_AddBoolToObject(resp, "lua_error", r.lua_error);
         if (r.stopped_on_event) {
             const char *evname = app->last_event_name[0]
                                      ? app->last_event_name
@@ -163,6 +169,11 @@ static void handle_command(struct mg_connection *c,
         mg_http_reply(c, 200, JSON_HDR,
                       "{\"ok\":true,\"autotick\":%s}\n",
                       app->autotick ? "true" : "false");
+
+    } else if (strcmp(cmd, "get_stop_on_lua_error") == 0) {
+        mg_http_reply(c, 200, JSON_HDR,
+                      "{\"ok\":true,\"stop_on_lua_error\":%s}\n",
+                      app->stop_on_lua_error ? "true" : "false");
 
     } else if (strcmp(cmd, "spawn") == 0) {
         if (app->has_character) {
@@ -198,6 +209,17 @@ static void handle_command(struct mg_connection *c,
         mg_http_reply(c, 200, JSON_HDR,
                       "{\"ok\":true,\"autotick\":%s}\n",
                       app->autotick ? "true" : "false");
+
+    } else if (strcmp(cmd, "set_stop_on_lua_error") == 0) {
+        cJSON *en = cJSON_GetObjectItemCaseSensitive(body, "enabled");
+        if (!cJSON_IsBool(en)) {
+            reply_error(c, "enabled must be a boolean");
+            goto done;
+        }
+        app->stop_on_lua_error = cJSON_IsTrue(en) ? 1 : 0;
+        mg_http_reply(c, 200, JSON_HDR,
+                      "{\"ok\":true,\"stop_on_lua_error\":%s}\n",
+                      app->stop_on_lua_error ? "true" : "false");
 
     } else if (strcmp(cmd, "set_wall_clock") == 0) {
         cJSON *wc_j = cJSON_GetObjectItemCaseSensitive(body, "now_unix_sec");

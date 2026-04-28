@@ -59,6 +59,7 @@ static void usage(const char *prog)
             "  --script=PATH                             Lua game script (default: scripts/main.lua\n"
             "                                            relative to this binary)\n"
             "  --noautotick                              start in manual-tick mode\n"
+            "  --stop-on-lua-error                       halt advance and disable autotick on Lua error\n"
             "  --help                                    show this help and exit\n",
             prog);
 }
@@ -193,6 +194,8 @@ int main(int argc, char *argv[])
             snprintf(script_arg, sizeof(script_arg), "%s", argv[i] + 9);
         } else if (strcmp(argv[i], "--noautotick") == 0) {
             app.autotick = 0;
+        } else if (strcmp(argv[i], "--stop-on-lua-error") == 0) {
+            app.stop_on_lua_error = 1;
         } else if (strcmp(argv[i], "--help") == 0) {
             usage(argv[0]);
             return 0;
@@ -279,8 +282,9 @@ int main(int argc, char *argv[])
         time_t t = (time_t)app.now_unix_sec;
         char tbuf[32];
         strftime(tbuf, sizeof(tbuf), "%Y-%m-%dT%H:%M:%SZ", gmtime(&t));
-        fprintf(stderr, "Gloxie %s  autotick %s  wall %s\n",
-                app.instance_id, app.autotick ? "on" : "off", tbuf);
+        fprintf(stderr, "Gloxie %s  autotick %s  stop-on-lua-error %s  wall %s\n",
+                app.instance_id, app.autotick ? "on" : "off",
+                app.stop_on_lua_error ? "on" : "off", tbuf);
     }
 
     /* autotick timer */

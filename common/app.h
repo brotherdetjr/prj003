@@ -19,6 +19,7 @@ typedef struct {
     uint64_t now_tick;
     int stopped_on_event;
     uint32_t event_tag;
+    int lua_error;
 } advance_result_t;
 
 typedef struct app_t {
@@ -32,6 +33,8 @@ typedef struct app_t {
     char instance_id[9];
     uint32_t instance_id_raw;
     int autotick;
+    int stop_on_lua_error;
+    int had_lua_error;
     struct mg_mgr mgr;
     lua_State *L;
     lua_event_t lua_events[LUA_MAX_EVENTS];
