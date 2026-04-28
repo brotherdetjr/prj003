@@ -1,8 +1,7 @@
-function on_spawn(rw)
-    rw.energy = 10
+function on_spawn()
     schedule(50, "on_error_event")
 end
 
-function on_error_event(rw)
+function on_error_event()
     bad_global = 99
 end
