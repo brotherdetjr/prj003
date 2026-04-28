@@ -131,13 +131,6 @@ def step_stopped_on_event(context, value):
     assert actual is expected, f'expected stopped_on_event={expected}, got {actual}'
 
 
-@then('lua_error is {value}')
-def step_lua_error(context, value):
-    expected = value.lower() == 'true'
-    actual = context.resp['lua_error']
-    assert actual is expected, f'expected lua_error={expected}, got {actual}'
-
-
 @then('stop_on_lua_error is {value}')
 def step_stop_on_lua_error(context, value):
     expected = value.lower() == 'true'

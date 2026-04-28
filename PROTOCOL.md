@@ -137,17 +137,17 @@ Optional fields:
 
 Response:
 ```json
-{ "ok": true, "now_tick": 339000, "stopped_on_event": false, "lua_error": false }
+{ "ok": true, "now_tick": 339000, "stopped_on_event": false }
 ```
 
 When `stopped_on_event` is `true`, an `"event"` field names what fired:
 ```json
-{ "ok": true, "now_tick": 339000, "stopped_on_event": true, "lua_error": false, "event": "on_energy_drain" }
+{ "ok": true, "now_tick": 339000, "stopped_on_event": true, "event": "on_energy_drain" }
 ```
 
 When `stopped_on_event` is `true`, also pushes an SSE event named after the fired game event, with `{"now_tick": N}` as data.
 
-When `--stop-on-lua-error` is active and a Lua error occurs during event dispatch, the advance halts immediately at the tick of the failing event and `lua_error` is `true`. In this case `stopped_on_event` is `false` and no game-event SSE is pushed (a `_on_lua_error` SSE is pushed instead — see §2.2).
+When `--stop-on-lua-error` is active and a Lua error occurs during event dispatch, the advance halts immediately at the tick of the failing event. In this case `stopped_on_event` is `false` and `now_tick` will be less than `start + ticks`; a `_on_lua_error` SSE is pushed (see §2.2).
 
 ---
 

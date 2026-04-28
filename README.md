@@ -342,7 +342,7 @@ curl -s -X POST http://localhost:7070/command \
   -d '{"cmd":"advance_time","ticks":1000}' | python3 -m json.tool
 ```
 ```json
-{"ok": true, "now_tick": 1042, "stopped_on_event": false, "lua_error": false}
+{"ok": true, "now_tick": 1042, "stopped_on_event": false}
 ```
 
 **Fast-forward to the next event (energy drain at `birth_tick` + 339,000 ms = 339,042):**
@@ -352,7 +352,7 @@ curl -s -X POST http://localhost:7070/command \
   -d '{"cmd":"advance_time","ticks":0,"stop_on_event":true}' | python3 -m json.tool
 ```
 ```json
-{"ok": true, "now_tick": 339042, "stopped_on_event": true, "lua_error": false, "event": "on_energy_drain"}
+{"ok": true, "now_tick": 339042, "stopped_on_event": true, "event": "on_energy_drain"}
 ```
 
 **Check state (`now_tick` advanced to 339,042; `now_unix_sec` still 2026-04-08; energy 254):**
