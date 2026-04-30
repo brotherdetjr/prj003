@@ -585,8 +585,6 @@ All IDs are 8 upper-case hex digits represented as JSON strings
   character exists, or `poof` when none does) return an error rather than
   silently succeeding.
 - The HTTP server returns `400 Bad Request` for malformed JSON bodies.
-- `get_screen` sent to an instance that has not yet implemented rendering
-  returns `{"ok": false, "error": "not implemented"}`.
 
 ---
 

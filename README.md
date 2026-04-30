@@ -68,6 +68,8 @@ game is not.
 common/             ← shared code (all platforms)
   app.h/c           ← app_t struct; app_init/spawn/poof/advance
   lua_bind.h/c      ← Lua VM init, schedule() global, event dispatch
+  lua_gfx.h/c       ← Lua graphics globals (cls, …)
+  gfx.h/c           ← software renderer + PNG encoder
   server.h/c        ← HTTP command dispatch, SSE game-event push
   state.h/c         ← app ↔ JSON serialisation
   character.h/c     ← character struct, initialisation
@@ -80,6 +82,7 @@ platform/
   pc/
     main.c          ← argument parsing, entry point, main loop
     peer.c/h        ← stdin/stdout peer channel
+    display.c/h     ← SDL2 window; blits framebuffer to screen
     Makefile
 
 scripts/
@@ -246,11 +249,16 @@ To build the production binary:
 make distr   # produces emu (stripped, optimised)
 ```
 
-Requires GCC (with ASan support), `clang-format`, and Python 3 with `behave`
-and `requests` on Linux or macOS. No system libraries beyond libc.
+Requires GCC (with ASan support), `clang-format`, Python 3 with `behave` and
+`requests`, and SDL2 (`libsdl2-dev`) on Linux or macOS.
 
 ```sh
 pip install behave requests
+```
+
+```sh
+# Linux (Debian/Ubuntu)
+sudo apt install libsdl2-dev
 ```
 
 ```sh

@@ -10,6 +10,7 @@
 #include "peer.h"
 #include "../../common/state.h"
 #include "../../common/lua_bind.h"
+#include "display.h"
 
 static volatile sig_atomic_t s_stop = 0;
 static void handle_stop(int sig)
@@ -267,6 +268,8 @@ int main(int argc, char *argv[])
         }
     }
 
+    display_init();
+
     /* HTTP server */
     mg_mgr_init(&app.mgr);
 
@@ -300,6 +303,7 @@ int main(int argc, char *argv[])
     /* main loop */
     while (!s_stop) {
         mg_mgr_poll(&app.mgr, 100); /* 100 ms */
+        if (display_poll()) s_stop = 1;
         peer_stdin_poll(&app);
 
         struct timespec cur = watched_max_mtime();
@@ -322,5 +326,6 @@ int main(int argc, char *argv[])
 
     lua_close(app.L);
     mg_mgr_free(&app.mgr);
+    display_free();
     return 0;
 }
