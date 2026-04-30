@@ -1,5 +1,8 @@
 from behave import given, when, then
-from utils import post, start_emu
+import io
+import os
+from PIL import Image
+from utils import FIXTURES_DIR, get_screen, post, start_emu
 
 PORT = 17070
 
@@ -45,6 +48,11 @@ def step_set_stop_on_lua_error(context, value):
 @when('I get wall clock')
 def step_get_wall_clock(context):
     post(context, {'cmd': 'get_wall_clock'})
+
+
+@when('I get the screen')
+def step_get_screen(context):
+    context.screen_png = get_screen(context)
 
 
 @when('I spawn a character')
@@ -170,3 +178,11 @@ def step_scheduler_empty(context):
 def step_rw_empty(context):
     rw = context.state.get('rw')
     assert rw == {}, f'expected rw={{}}, got {rw!r}'
+
+
+@then('the screen matches fixture "{name}"')
+def step_screen_matches_fixture(context, name):
+    actual = Image.open(io.BytesIO(context.screen_png)).convert('RGB')
+    expected = Image.open(os.path.join(FIXTURES_DIR, name)).convert('RGB')
+    assert actual.size == expected.size, f'size mismatch: {actual.size} != {expected.size}'
+    assert list(actual.getdata()) == list(expected.getdata()), 'pixel data mismatch'

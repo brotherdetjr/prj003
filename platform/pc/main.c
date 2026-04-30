@@ -272,7 +272,7 @@ int main(int argc, char *argv[])
         }
     }
 
-    if (!headless) display_init();
+    display_init(headless);
 
     /* HTTP server */
     mg_mgr_init(&app.mgr);
@@ -330,6 +330,6 @@ int main(int argc, char *argv[])
 
     lua_close(app.L);
     mg_mgr_free(&app.mgr);
-    if (!headless) display_free();
+    display_free();
     return 0;
 }
