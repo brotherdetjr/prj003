@@ -7,6 +7,8 @@ import requests
 EMU = os.environ.get('EMU_BIN') or os.path.abspath(
     os.path.join(os.path.dirname(__file__), '../../../platform/pc/emu'))
 
+FIXTURES_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../fixtures'))
+
 
 def post(context, payload):
     r = requests.post(
@@ -45,6 +47,16 @@ def wait_for_emu(port, timeout=3.0):
         except Exception:
             time.sleep(0.1)
     raise RuntimeError(f'emu did not start on port {port} in time')
+
+
+def get_screen(context):
+    r = requests.post(
+        f'http://localhost:{context.port}/command',
+        json={'cmd': 'get_screen'},
+        timeout=5,
+    )
+    r.raise_for_status()
+    return r.content
 
 
 def run_emu(args, **kwargs):

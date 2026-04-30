@@ -10,9 +10,11 @@ static SDL_Renderer *s_ren;
 static SDL_Texture *s_tex;
 static int s_active;
 
-void display_init(void)
+void display_init(int headless)
 {
     gfx_init(s_fb);
+
+    if (headless) return;
 
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
         fprintf(stderr, "display: SDL_Init failed (%s), running headless\n",

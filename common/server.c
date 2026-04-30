@@ -245,9 +245,9 @@ static void handle_command(struct mg_connection *c,
             mg_printf(c,
                       "HTTP/1.1 200 OK\r\n"
                       "Content-Type: image/png\r\n"
-                      "Content-Length: %zu\r\n"
+                      "Content-Length: %lu\r\n"
                       "\r\n",
-                      plen);
+                      (unsigned long)plen);
             mg_send(c, png, plen);
             free(png);
         }
