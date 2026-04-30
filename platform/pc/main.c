@@ -61,6 +61,7 @@ static void usage(const char *prog)
             "                                            relative to this binary)\n"
             "  --noautotick                              start in manual-tick mode\n"
             "  --stop-on-lua-error                       halt advance and disable autotick on Lua error\n"
+            "  --headless                                suppress the SDL2 display window\n"
             "  --help                                    show this help and exit\n",
             prog);
 }
@@ -148,6 +149,7 @@ int main(int argc, char *argv[])
     char script_arg[1024] = {0};
     uint32_t given_id = 0;
     int has_id = 0;
+    int headless = 0;
 
     for (int i = 1; i < argc; i++) {
         if (strncmp(argv[i], "--id=", 5) == 0) {
@@ -197,6 +199,8 @@ int main(int argc, char *argv[])
             app.autotick = 0;
         } else if (strcmp(argv[i], "--stop-on-lua-error") == 0) {
             app.stop_on_lua_error = 1;
+        } else if (strcmp(argv[i], "--headless") == 0) {
+            headless = 1;
         } else if (strcmp(argv[i], "--help") == 0) {
             usage(argv[0]);
             return 0;
@@ -268,7 +272,7 @@ int main(int argc, char *argv[])
         }
     }
 
-    display_init();
+    if (!headless) display_init();
 
     /* HTTP server */
     mg_mgr_init(&app.mgr);
@@ -303,7 +307,7 @@ int main(int argc, char *argv[])
     /* main loop */
     while (!s_stop) {
         mg_mgr_poll(&app.mgr, 100); /* 100 ms */
-        if (display_poll()) s_stop = 1;
+        if (!headless && display_poll()) s_stop = 1;
         peer_stdin_poll(&app);
 
         struct timespec cur = watched_max_mtime();
@@ -326,6 +330,6 @@ int main(int argc, char *argv[])
 
     lua_close(app.L);
     mg_mgr_free(&app.mgr);
-    display_free();
+    if (!headless) display_free();
     return 0;
 }

@@ -10,7 +10,7 @@ import time
 import uuid
 
 from behave import given, when, then
-from utils import EMU, post, start_emu
+from utils import EMU, post, run_emu, start_emu
 
 ARGS_PORT = 17071
 
@@ -113,11 +113,12 @@ def step_emu_starts_with_file(context, args_str):
 
 @when('emu is invoked with args "{args_str}"')
 def step_emu_invoked(context, args_str):
-    context.proc_result = subprocess.run(
-        [EMU] + shlex.split(args_str),
-        capture_output=True,
-        timeout=5,
+    context.proc_result = run_emu(
+        shlex.split(args_str),
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
     )
+    context.proc_result.wait(timeout=5)
 
 
 # ---------------------------------------------------------------------------

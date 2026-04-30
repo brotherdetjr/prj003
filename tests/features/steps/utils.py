@@ -47,10 +47,15 @@ def wait_for_emu(port, timeout=3.0):
     raise RuntimeError(f'emu did not start on port {port} in time')
 
 
+def run_emu(args, **kwargs):
+    """Launch emu with --headless; returns the Popen object."""
+    return subprocess.Popen([EMU] + args + ['--headless'], **kwargs)
+
+
 def start_emu(context, extra_args, port):
     context.port = port
-    context.emu_proc = subprocess.Popen(
-        [EMU] + extra_args + [f'--port={port}'],
+    context.emu_proc = run_emu(
+        extra_args + [f'--port={port}'],
         stderr=subprocess.DEVNULL,
         stdout=subprocess.DEVNULL,
     )
