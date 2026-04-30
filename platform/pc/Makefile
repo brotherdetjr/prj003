@@ -3,7 +3,8 @@ CFLAGS   = -Wall -Wextra -std=gnu11 -Os -ffunction-sections -fdata-sections \
            -DMG_ENABLE_MBEDTLS=0 \
            -I../../vendor/mongoose \
            -I../../vendor/cjson \
-           -I../../vendor/lua
+           -I../../vendor/lua \
+           $(shell sdl2-config --cflags)
 
 # Vendor files compiled without -Wall to avoid noise from third-party code
 VCFLAGS  = -std=gnu11 -Os -ffunction-sections -fdata-sections \
@@ -16,17 +17,20 @@ LUA_VCFLAGS = $(VCFLAGS) -DLUA_USE_POSIX
 
 TARGET   = emu
 
-APP_SRCS = main.c peer.c \
+APP_SRCS = main.c peer.c display.c \
            ../../common/app.c ../../common/lua_bind.c \
            ../../common/server.c ../../common/state.c \
-           ../../common/character.c ../../common/scheduler.c
+           ../../common/character.c ../../common/scheduler.c \
+           ../../common/gfx.c ../../common/lua_gfx.c
 
 APP_OBJS = $(notdir $(APP_SRCS:.c=.o))
 
 # Headers that, when changed, require a full rebuild of all app objects
 APP_HDRS = ../../common/app.h ../../common/lua_bind.h \
            ../../common/server.h ../../common/state.h \
-           ../../common/character.h ../../common/scheduler.h
+           ../../common/character.h ../../common/scheduler.h \
+           ../../common/gfx.h ../../common/lua_gfx.h \
+           display.h
 
 LUA_SRCS = $(wildcard ../../vendor/lua/*.c)
 LUA_OBJS = $(notdir $(LUA_SRCS:.c=.o))
@@ -40,7 +44,8 @@ ALL_SRCS = $(APP_SRCS) $(LUA_SRCS) \
 ASAN_FLAGS = -std=gnu11 -O1 -g -fno-omit-frame-pointer \
              -fsanitize=address,undefined \
              -DMG_ENABLE_MBEDTLS=0 -DLUA_USE_POSIX \
-             -I../../vendor/mongoose -I../../vendor/cjson -I../../vendor/lua
+             -I../../vendor/mongoose -I../../vendor/cjson -I../../vendor/lua \
+             $(shell sdl2-config --cflags)
 
 ASAN_LOG = /tmp/emu-asan
 
@@ -56,7 +61,7 @@ all: format-check test_scheduler emu-asan
 	fi
 
 distr: $(APP_OBJS) $(VENDOR_OBJS)
-	$(CC) -o $(TARGET) $^ -lm -Wl,--gc-sections -s
+	$(CC) -o $(TARGET) $^ -lm $(shell sdl2-config --libs) -Wl,--gc-sections -s
 	cd ../../tests && python3 -m behave
 
 # App object rules — auto-generated from APP_SRCS
@@ -86,7 +91,7 @@ test_scheduler: ../../common/test_scheduler.c ../../common/scheduler.c
 
 # Single-compilation ASan build — vendor warnings are acceptable in a debug build
 emu-asan: $(ALL_SRCS) $(APP_HDRS)
-	$(CC) $(ASAN_FLAGS) -o $@ $(ALL_SRCS) -lm
+	$(CC) $(ASAN_FLAGS) -o $@ $(ALL_SRCS) -lm $(shell sdl2-config --libs)
 
 clean:
 	rm -f $(TARGET) emu-asan test_scheduler *.o

@@ -2,6 +2,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include "lua_bind.h"
+#include "lua_gfx.h"
 #include "state.h"
 #include "../vendor/lua/lua.h"
 #include "../vendor/lua/lualib.h"
@@ -91,6 +92,7 @@ static const char *const k_stdlib[] = {
     "coroutine", "debug", "io", "math", "os", "package", "string",
     "table", "utf8",
     "schedule",
+    "cls",
     NULL};
 
 static int is_stdlib(const char *name)
@@ -793,6 +795,7 @@ int lua_bind_init(app_t *app, const char *script_path)
 
     /* Register global functions */
     lua_register(L, "schedule", l_schedule);
+    lua_gfx_register(L);
     lua_pushstring(L, "");
     lua_setfield(L, LUA_REGISTRYINDEX, REG_PREFIX);
 

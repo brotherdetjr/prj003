@@ -5,6 +5,7 @@
 #include "server.h"
 #include "state.h"
 #include "lua_bind.h"
+#include "gfx.h"
 #include "../vendor/cjson/cJSON.h"
 
 #define JSON_HDR "Content-Type: application/json\r\n"
@@ -236,8 +237,20 @@ static void handle_command(struct mg_connection *c,
                       (unsigned long long)app->now_unix_sec);
 
     } else if (strcmp(cmd, "get_screen") == 0) {
-        /* TODO: render actual PNG once graphics are implemented */
-        reply_error(c, "not implemented");
+        size_t plen;
+        uint8_t *png = gfx_png(&plen);
+        if (!png) {
+            reply_error(c, "out of memory");
+        } else {
+            mg_printf(c,
+                      "HTTP/1.1 200 OK\r\n"
+                      "Content-Type: image/png\r\n"
+                      "Content-Length: %zu\r\n"
+                      "\r\n",
+                      plen);
+            mg_send(c, png, plen);
+            free(png);
+        }
 
     } else if (strcmp(cmd, "set_state") == 0) {
         cJSON *state_j = cJSON_GetObjectItemCaseSensitive(body, "state");
