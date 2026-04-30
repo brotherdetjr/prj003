@@ -4,7 +4,6 @@
 2. If the branch is related to what the user is asking about, continue on it.
 3. If unsure whether it's related, ask the user before proceeding.
 4. If the branch is `main` or clearly unrelated to the new topic, suggest creating a new feature branch before doing any work.
-5. If the hook reports **MERGED UNDELETED BRANCHES**, list them, offer to delete them, and — if the user approves — delete each one locally (`git branch -d`) and on origin (`git push origin --delete`).
 
 # Editing files
 
