@@ -210,6 +210,14 @@ See `LUA_LINT.md` for known gaps and planned static analysis rules.
 | `_on_reload` | Lua VM successfully reloaded after a source file change | `{"now_tick": N}` |
 | `_on_lua_error` | A Lua callback throws an error (e.g. global-write violation) | `{"fn": "name", "error": "message"}` |
 
+#### Graphics globals
+
+The following graphics functions are available as Lua globals in every callback:
+
+| Function | Description |
+|---|---|
+| `cls(color)` | Fill the entire screen with `color` (24-bit `0xRRGGBB` integer) |
+
 ## PC instance
 
 ### Setup
