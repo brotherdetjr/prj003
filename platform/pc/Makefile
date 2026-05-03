@@ -4,6 +4,7 @@ CFLAGS   = -Wall -Wextra -std=gnu11 -Os -ffunction-sections -fdata-sections \
            -I../../vendor/mongoose \
            -I../../vendor/cjson \
            -I../../vendor/lua \
+           -I../../vendor/stb \
            $(shell sdl2-config --cflags)
 
 # Vendor files compiled without -Wall to avoid noise from third-party code
@@ -21,7 +22,8 @@ APP_SRCS = main.c peer.c display.c \
            ../../common/app.c ../../common/lua_bind.c \
            ../../common/server.c ../../common/state.c \
            ../../common/character.c ../../common/scheduler.c \
-           ../../common/gfx.c ../../common/lua_gfx.c
+           ../../common/gfx.c ../../common/lua_gfx.c \
+           ../../common/spr.c
 
 APP_OBJS = $(notdir $(APP_SRCS:.c=.o))
 
@@ -30,21 +32,24 @@ APP_HDRS = ../../common/app.h ../../common/lua_bind.h \
            ../../common/server.h ../../common/state.h \
            ../../common/character.h ../../common/scheduler.h \
            ../../common/gfx.h ../../common/lua_gfx.h \
+           ../../common/spr.h \
            display.h
 
 LUA_SRCS = $(wildcard ../../vendor/lua/*.c)
 LUA_OBJS = $(notdir $(LUA_SRCS:.c=.o))
 
-VENDOR_OBJS = mongoose.o cJSON.o $(LUA_OBJS)
+VENDOR_OBJS = mongoose.o cJSON.o stb_image_impl.o $(LUA_OBJS)
 
 # All sources in one list for single-compilation targets (emu-asan)
 ALL_SRCS = $(APP_SRCS) $(LUA_SRCS) \
-           ../../vendor/mongoose/mongoose.c ../../vendor/cjson/cJSON.c
+           ../../vendor/mongoose/mongoose.c ../../vendor/cjson/cJSON.c \
+           ../../vendor/stb/stb_image_impl.c
 
 ASAN_FLAGS = -std=gnu11 -O1 -g -fno-omit-frame-pointer \
              -fsanitize=address,undefined \
              -DMG_ENABLE_MBEDTLS=0 -DLUA_USE_POSIX \
              -I../../vendor/mongoose -I../../vendor/cjson -I../../vendor/lua \
+             -I../../vendor/stb \
              $(shell sdl2-config --cflags)
 
 ASAN_LOG = /tmp/emu-asan
@@ -78,6 +83,9 @@ mongoose.o: ../../vendor/mongoose/mongoose.c
 
 cJSON.o: ../../vendor/cjson/cJSON.c
 	$(CC) $(VCFLAGS) -c -o $@ $<
+
+stb_image_impl.o: ../../vendor/stb/stb_image_impl.c
+	$(CC) $(VCFLAGS) -I../../vendor/stb -c -o $@ $<
 
 # Lua library sources — compile each .c in vendor/lua/
 define LUA_RULE

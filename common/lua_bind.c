@@ -93,6 +93,7 @@ static const char *const k_stdlib[] = {
     "table", "utf8",
     "schedule",
     "cls",
+    "spr",
     NULL};
 
 static int is_stdlib(const char *name)
