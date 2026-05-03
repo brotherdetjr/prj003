@@ -217,7 +217,7 @@ The following graphics functions are available as Lua globals in every callback:
 | Function | Description |
 |---|---|
 | `cls(color)` | Fill the entire screen with `color` (24-bit `0xRRGGBB` integer) |
-| `spr(path [, x [, y [, fx [, fy [, fw [, fh]]]]]])` | Draw a PNG or APNG sprite from `path` (relative to the script file) at screen position `(x, y)`. `fx, fy, fw, fh` select a sub-region of the canvas (defaults: origin, full size). Returns a handle with playback methods: `stop()`, `play()`, `reset()`, `reverse()`, `loop(bool)`, `set_frame(n)`. Frames advance automatically each tick when `play()` is active; no `schedule` calls needed. |
+| `spr(path [, frame [, x [, y [, fx [, fy [, fw [, fh]]]]]]])` | Draw a PNG or APNG sprite from `path` (relative to the script file). `frame` is a zero-based frame index (default 0; clamped for static PNGs). `x, y` set the screen position. `fx, fy, fw, fh` select a sub-region of the canvas (defaults: origin, full size). |
 
 ## PC instance
 

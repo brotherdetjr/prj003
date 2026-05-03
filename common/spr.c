@@ -311,7 +311,7 @@ cleanup:
 }
 
 /* ------------------------------------------------------------------ */
-/* Content registry: path-keyed, shared across state instances        */
+/* Content registry: path-keyed, shared across calls                 */
 /* ------------------------------------------------------------------ */
 
 typedef struct {
@@ -346,53 +346,14 @@ static int content_alloc(void)
 }
 
 /* ------------------------------------------------------------------ */
-/* State registry: one instance per spr_new() call                   */
-/* ------------------------------------------------------------------ */
-
-typedef struct {
-    int content_idx;
-    int current_frame;
-    int playing;
-    int direction;
-    int loop;
-    int x, y, fx, fy, fw, fh; /* draw parameters stored at creation */
-    uint64_t last_advance_tick;
-} spr_state_t;
-
-static spr_state_t *s_states;
-static int s_states_len, s_states_cap;
-
-/* Current virtual tick — kept in sync by spr_tick_advance */
-static uint64_t s_now_tick;
-
-static int state_alloc(void)
-{
-    if (s_states_len == s_states_cap) {
-        int cap = s_states_cap ? s_states_cap * 2 : 8;
-        spr_state_t *p = realloc(s_states, (size_t)cap * sizeof(*p));
-        if (!p) return -1;
-        s_states = p;
-        s_states_cap = cap;
-    }
-    int idx = s_states_len++;
-    memset(&s_states[idx], 0, sizeof(s_states[idx]));
-    s_states[idx].content_idx = -1;
-    s_states[idx].direction = 1;
-    s_states[idx].last_advance_tick = s_now_tick;
-    return idx;
-}
-
-/* ------------------------------------------------------------------ */
 /* Internal pixel blitter                                             */
 /* ------------------------------------------------------------------ */
 
-static void do_blit(const spr_state_t *st, const spr_content_t *ct,
-                    uint32_t *fb, int fb_w, int fb_h)
+static void do_blit(const spr_content_t *ct, int frame, int x, int y, int fx,
+                    int fy, int fw, int fh, uint32_t *fb, int fb_w, int fb_h)
 {
-    int x = st->x, y = st->y;
-    int fx = st->fx, fy = st->fy;
-    int fw = st->fw ? st->fw : ct->canvas_w;
-    int fh = st->fh ? st->fh : ct->canvas_h;
+    fw = fw ? fw : ct->canvas_w;
+    fh = fh ? fh : ct->canvas_h;
 
     if (fx < 0) {
         fw += fx;
@@ -409,7 +370,7 @@ static void do_blit(const spr_state_t *st, const spr_content_t *ct,
     if (fw <= 0 || fh <= 0) return;
 
     size_t frame_bytes = (size_t)ct->canvas_w * (size_t)ct->canvas_h * 4;
-    const uint8_t *rgba = ct->frames + (size_t)st->current_frame * frame_bytes;
+    const uint8_t *rgba = ct->frames + (size_t)frame * frame_bytes;
 
     for (int row = 0; row < fh; row++) {
         int sy = fy + row, dy = y + row;
@@ -440,8 +401,8 @@ static void do_blit(const spr_state_t *st, const spr_content_t *ct,
 /* Public API                                                          */
 /* ------------------------------------------------------------------ */
 
-int spr_new(const char *path, int x, int y, int fx, int fy, int fw, int fh,
-            uint32_t *fb, int fb_w, int fb_h, const char **err_out)
+int spr_draw(const char *path, int frame, int x, int y, int fx, int fy, int fw,
+             int fh, uint32_t *fb, int fb_w, int fb_h, const char **err_out)
 {
     int cidx = content_find(path);
     if (cidx < 0) {
@@ -472,7 +433,7 @@ int spr_new(const char *path, int x, int y, int fx, int fy, int fw, int fh,
         }
         fclose(f);
 
-        int n_frames, w, h;
+        int n_frames = 0, w = 0, h = 0;
         uint8_t *frames = load_frames(file_data, (size_t)fsz, &n_frames, &w, &h);
         free(file_data);
         if (!frames) {
@@ -493,95 +454,11 @@ int spr_new(const char *path, int x, int y, int fx, int fy, int fw, int fh,
         s_content[cidx].canvas_h = h;
     }
 
-    int sidx = state_alloc();
-    if (sidx < 0) {
-        if (err_out) *err_out = "out of memory";
-        return -1;
-    }
-    s_states[sidx].content_idx = cidx;
-    s_states[sidx].x = x;
-    s_states[sidx].y = y;
-    s_states[sidx].fx = fx;
-    s_states[sidx].fy = fy;
-    s_states[sidx].fw = fw;
-    s_states[sidx].fh = fh;
-
-    do_blit(&s_states[sidx], &s_content[cidx], fb, fb_w, fb_h);
-    return sidx;
-}
-
-void spr_tick_advance(uint64_t now_tick, uint32_t *fb, int fb_w, int fb_h)
-{
-    for (int i = 0; i < s_states_len; i++) {
-        spr_state_t *st = &s_states[i];
-        if (st->content_idx < 0) continue;
-
-        uint64_t delta = now_tick - st->last_advance_tick;
-        st->last_advance_tick = now_tick; /* always advance, even when not playing */
-
-        if (!st->playing || delta == 0) continue;
-
-        spr_content_t *ct = &s_content[st->content_idx];
-        if (ct->n_frames <= 1) continue;
-
-        int redrawn = 0;
-        for (uint64_t t = 0; t < delta && st->playing; t++) {
-            int next = st->current_frame + st->direction;
-            if (st->loop) {
-                st->current_frame =
-                    ((next % ct->n_frames) + ct->n_frames) % ct->n_frames;
-            } else if (next < 0) {
-                st->current_frame = 0;
-                st->playing = 0;
-            } else if (next >= ct->n_frames) {
-                st->current_frame = ct->n_frames - 1;
-                st->playing = 0;
-            } else {
-                st->current_frame = next;
-            }
-            redrawn = 1;
-        }
-        if (redrawn)
-            do_blit(st, ct, fb, fb_w, fb_h);
-    }
-    s_now_tick = now_tick;
-}
-
-void spr_stop(int idx)
-{
-    if (idx >= 0 && idx < s_states_len) s_states[idx].playing = 0;
-}
-
-void spr_play(int idx)
-{
-    if (idx >= 0 && idx < s_states_len) s_states[idx].playing = 1;
-}
-
-void spr_reset(int idx)
-{
-    if (idx >= 0 && idx < s_states_len) s_states[idx].current_frame = 0;
-}
-
-void spr_reverse(int idx)
-{
-    if (idx >= 0 && idx < s_states_len)
-        s_states[idx].direction = -s_states[idx].direction;
-}
-
-void spr_loop(int idx, int enabled)
-{
-    if (idx >= 0 && idx < s_states_len) s_states[idx].loop = enabled;
-}
-
-void spr_set_frame(int idx, int frame)
-{
-    if (idx < 0 || idx >= s_states_len) return;
-    spr_state_t *st = &s_states[idx];
-    if (st->content_idx < 0) return;
-    int n = s_content[st->content_idx].n_frames;
+    spr_content_t *ct = &s_content[cidx];
     if (frame < 0) frame = 0;
-    if (frame >= n) frame = n - 1;
-    st->current_frame = frame;
+    if (frame >= ct->n_frames) frame = ct->n_frames - 1;
+    do_blit(ct, frame, x, y, fx, fy, fw, fh, fb, fb_w, fb_h);
+    return 0;
 }
 
 void spr_clear_all(void)
@@ -594,9 +471,4 @@ void spr_clear_all(void)
     s_content = NULL;
     s_content_len = 0;
     s_content_cap = 0;
-
-    free(s_states);
-    s_states = NULL;
-    s_states_len = 0;
-    s_states_cap = 0;
 }

@@ -1,5 +1,5 @@
 CC       = gcc
-CFLAGS   = -Wall -Wextra -std=gnu11 -Os -ffunction-sections -fdata-sections \
+CFLAGS   = -Wall -Wextra -Werror -std=gnu11 -Os -ffunction-sections -fdata-sections \
            -DMG_ENABLE_MBEDTLS=0 \
            -I../../vendor/mongoose \
            -I../../vendor/cjson \

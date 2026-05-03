@@ -1,3 +1,3 @@
-function on_spawn(rw, ro)
+function on_spawn()
     new_global = 42
 end
