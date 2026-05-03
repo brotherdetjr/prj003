@@ -68,7 +68,7 @@ game is not.
 common/             ← shared code (all platforms)
   app.h/c           ← app_t struct; app_init/spawn/poof/advance
   lua_bind.h/c      ← Lua VM init, schedule() global, event dispatch
-  lua_gfx.h/c       ← Lua graphics globals (cls, …)
+  lua_gfx.h/c       ← Lua graphics globals (cls, spr, …)
   gfx.h/c           ← software renderer + PNG encoder
   server.h/c        ← HTTP command dispatch, SSE game-event push
   state.h/c         ← app ↔ JSON serialisation
@@ -217,6 +217,7 @@ The following graphics functions are available as Lua globals in every callback:
 | Function | Description |
 |---|---|
 | `cls(color)` | Fill the entire screen with `color` (24-bit `0xRRGGBB` integer) |
+| `spr(path [, x [, y [, fx [, fy [, fw [, fh]]]]]])` | Draw a PNG or APNG sprite from `path` (relative to the script file) at screen position `(x, y)`. `fx, fy, fw, fh` select a sub-region of the canvas (defaults: origin, full size). Returns a handle with playback methods: `stop()`, `play()`, `reset()`, `reverse()`, `loop(bool)`, `set_frame(n)`. Frames advance automatically each tick when `play()` is active; no `schedule` calls needed. |
 
 ## PC instance
 

@@ -1,4 +1,6 @@
 #include "app.h"
+#include "gfx.h"
+#include "spr.h"
 
 void app_init(app_t *app, uint64_t now_tick, uint64_t now_unix_sec)
 {
@@ -44,6 +46,7 @@ advance_result_t app_advance(app_t *app, uint64_t ticks, int stop_on_event)
         scheduled_event_t ev;
         scheduler_pop(&app->scheduler, &ev);
         app->now_tick = ev.fire_at_ms;
+        spr_tick_advance(app->now_tick, gfx_fb(), GFX_W, GFX_H);
         app->dispatch_cb(ev.tag, app);
         r.now_tick = app->now_tick;
         if (app->stop_on_lua_error && app->had_lua_error) {
@@ -58,6 +61,7 @@ advance_result_t app_advance(app_t *app, uint64_t ticks, int stop_on_event)
     }
 
     app->now_tick = target_tick;
+    spr_tick_advance(target_tick, gfx_fb(), GFX_W, GFX_H);
     r.now_tick = target_tick;
     return r;
 }
