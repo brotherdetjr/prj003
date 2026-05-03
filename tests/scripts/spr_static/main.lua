@@ -1,4 +1,4 @@
-function on_spawn(rw, ro)
+function on_spawn()
     cls(0x000000)
-    spr("red20.png", 50, 60)
+    spr("red20.png", 0, 50, 60)
 end

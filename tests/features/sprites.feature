@@ -18,14 +18,14 @@ Feature: Sprites
     And I get the screen
     Then the screen matches fixture "spr_fragment.png"
 
-  Scenario: APNG plays frame 0 on spawn
+  Scenario: APNG draws frame 0 by index
     Given emu starts with test script "spr_apng/main.lua" and args "--noautotick"
     When I spawn a character
     And I get the screen
     Then the screen matches fixture "spr_apng_frame0.png"
-    When I advance 1 ticks
-    And I get the screen
-    Then the screen matches fixture "spr_apng_frame1.png"
-    When I advance 1 ticks
+
+  Scenario: APNG draws frame 1 by index
+    Given emu starts with test script "spr_apng_frame1/main.lua" and args "--noautotick"
+    When I spawn a character
     And I get the screen
     Then the screen matches fixture "spr_apng_frame1.png"
