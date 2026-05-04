@@ -4,14 +4,13 @@ import re
 import shlex
 import shutil
 import socket
-import subprocess
 import tempfile
 import time
 import uuid
 
 from behave import given, then, when
 from emu_steps import ARGS_PORT, TEST_SCRIPTS_DIR
-from utils import EMU, run_emu, start_emu
+from utils import EMU, start_emu
 
 DEFAULT_SCRIPT = os.path.abspath(
     os.path.join(os.path.dirname(EMU), "../../scripts/main.lua")
@@ -86,21 +85,6 @@ def step_emu_starts_with_file(context, args_str):
         shlex.split(args_str) + [f"--file={context.state_file}"],
         ARGS_PORT,
     )
-
-
-# ---------------------------------------------------------------------------
-# When — run without expecting a server
-# ---------------------------------------------------------------------------
-
-
-@when('emu is invoked with args "{args_str}"')
-def step_emu_invoked(context, args_str):
-    context.proc_result = run_emu(
-        shlex.split(args_str),
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-    )
-    context.proc_result.wait(timeout=5)
 
 
 # ---------------------------------------------------------------------------
