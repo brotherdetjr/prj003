@@ -12,20 +12,24 @@ TEST_SCRIPTS_DIR = os.path.abspath(
 )
 
 
+def _port_from_args(args, default):
+    for a in args:
+        if a.startswith("--port="):
+            return int(a.split("=", 1)[1])
+    return default
+
+
 @given('emu starts with args "{args_str}"')
 def step_emu_starts(context, args_str):
-    start_emu(context, shlex.split(args_str), ARGS_PORT)
+    args = shlex.split(args_str)
+    start_emu(context, args, _port_from_args(args, ARGS_PORT))
 
 
 @given('emu starts with test script "{script_name}" and args "{args_str}"')
 def step_emu_starts_with_test_script(context, script_name, args_str):
     script = os.path.join(TEST_SCRIPTS_DIR, script_name)
-    start_emu(context, shlex.split(args_str) + [f"--script={script}"], ARGS_PORT)
-
-
-@given('emu starts on port {port:d} with args "{args_str}"')
-def step_emu_starts_on_port(context, port, args_str):
-    start_emu(context, shlex.split(args_str), port)
+    args = shlex.split(args_str) + [f"--script={script}"]
+    start_emu(context, args, _port_from_args(args, ARGS_PORT))
 
 
 @when('emu is invoked with args "{args_str}"')
