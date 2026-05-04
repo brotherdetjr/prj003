@@ -152,15 +152,40 @@ static void handle_command(struct mg_connection *c,
             goto done;
         }
 
-        uint64_t prev_tick = app->now_tick;
-        advance_result_t r = app_advance(app, ticks, stop_on_event);
+        advance_result_t r = {app->now_tick, 0, 0, 0};
 
-        if (!r.lua_error) {
-            uint64_t n = r.now_tick / AUTOTICK - prev_tick / AUTOTICK;
-            for (uint64_t i = 0; i < n; i++) {
-                lua_bind_call(app, "_update");
-                lua_bind_call(app, "_draw");
+        if (stop_on_event) {
+            r = app_advance(app, ticks, 1);
+        } else {
+            /*
+             * Advance in AUTOTICK-sized windows so that scheduled events
+             * and _update/_draw interleave the same way they do in
+             * tick_timer_fn: events fire first within each window, then
+             * _update, then _draw.
+             */
+            uint64_t end_tick = app->now_tick + ticks;
+            while (app->now_tick < end_tick && !r.lua_error) {
+                uint64_t boundary =
+                    (app->now_tick / AUTOTICK + 1) * AUTOTICK;
+                uint64_t step_end =
+                    boundary <= end_tick ? boundary : end_tick;
+                while (app->now_tick < step_end) {
+                    advance_result_t sr =
+                        app_advance(app, step_end - app->now_tick, 1);
+                    r.now_tick = sr.now_tick;
+                    if (sr.lua_error) {
+                        r.lua_error = 1;
+                        break;
+                    }
+                    if (!sr.stopped_on_event) break;
+                }
+                if (!r.lua_error && step_end == boundary) {
+                    lua_bind_call(app, "_update");
+                    lua_bind_call(app, "_draw");
+                }
             }
+            r.now_tick = app->now_tick;
+            r.stopped_on_event = 0;
         }
 
         cJSON *resp = cJSON_CreateObject();

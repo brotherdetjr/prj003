@@ -20,3 +20,12 @@ Feature: _update() and _draw() Lua callbacks
     And I advance 100 ticks
     And I get state
     Then rw field "spawn_before_update" is true
+
+  Scenario: scheduled events fire before _update() within each autotick window
+    Given emu starts with test script "update_draw_order/main.lua" and args "--nowtick=0 --noautotick"
+    When I spawn a character
+    And I advance 300 ticks
+    And I get state
+    Then rw field "event_count" is 3
+    And rw field "update_count" is 3
+    And rw field "order_ok" is true
