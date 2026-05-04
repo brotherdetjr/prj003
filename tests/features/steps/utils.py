@@ -1,4 +1,5 @@
 import os
+import socket
 import subprocess
 import time
 
@@ -57,6 +58,12 @@ def get_screen(context):
     )
     r.raise_for_status()
     return r.content
+
+
+def find_free_port():
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind(("", 0))
+        return s.getsockname()[1]
 
 
 def run_emu(args, **kwargs):

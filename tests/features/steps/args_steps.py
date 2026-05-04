@@ -9,8 +9,8 @@ import time
 import uuid
 
 from behave import given, then, when
-from emu_steps import ARGS_PORT, TEST_SCRIPTS_DIR
-from utils import EMU, start_emu
+from emu_steps import TEST_SCRIPTS_DIR
+from utils import EMU, find_free_port, start_emu
 
 DEFAULT_SCRIPT = os.path.abspath(
     os.path.join(os.path.dirname(EMU), "../../scripts/main.lua")
@@ -64,7 +64,7 @@ def step_setup_hot_reload(context, src_name):
 @given('emu starts with the hot-reload test script and args "{args_str}"')
 def step_emu_hot_reload_script(context, args_str):
     script = os.path.join(context.hot_reload_dir, "main.lua")
-    start_emu(context, shlex.split(args_str) + [f"--script={script}"], ARGS_PORT)
+    start_emu(context, shlex.split(args_str) + [f"--script={script}"], find_free_port())
 
 
 @given('"{src}" is copied to "{dst}"')
@@ -83,7 +83,7 @@ def step_emu_starts_with_file(context, args_str):
     start_emu(
         context,
         shlex.split(args_str) + [f"--file={context.state_file}"],
-        ARGS_PORT,
+        find_free_port(),
     )
 
 
