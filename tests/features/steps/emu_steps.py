@@ -30,6 +30,19 @@ def step_emu_starts_with_test_script(context, script_name, args_str):
     start_emu(context, args, _port_from_args(args, find_free_port()))
 
 
+@given('emu starts with the hot-reload test script and args "{args_str}"')
+def step_emu_hot_reload_script(context, args_str):
+    script = os.path.relpath(
+        os.path.join(context.hot_reload_dir, "main.lua"), TEST_SCRIPTS_DIR
+    )
+    step_emu_starts_with_test_script(context, script, args_str)
+
+
+@given('emu starts with that state file and args "{args_str}"')
+def step_emu_starts_with_file(context, args_str):
+    step_emu_starts(context, f"{args_str} --file={context.state_file}")
+
+
 @when('emu is invoked with args "{args_str}"')
 def step_emu_invoked(context, args_str):
     context.proc_result = run_emu(
