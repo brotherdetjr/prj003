@@ -196,12 +196,35 @@ field to a module table from inside a callback raises a Lua error.  The only
 persistent state a callback may write is `rw`; local variables are unrestricted.
 See `LUA_LINT.md` for known gaps and planned static analysis rules.
 
+#### Game loop callbacks
+
+Each tick (every `AUTOTICK` ms of virtual time), the engine calls these Lua globals in order:
+
+1. All scheduled `on_*` callbacks whose `fire_at_ms` falls within the current tick window.
+2. `_update(rw [, ro])` — game logic; always called.
+3. `_draw(rw [, ro])` — rendering; called after `_update`.
+
+Both functions are optional. If not defined they are silently skipped. They receive the same
+`rw` and `ro` arguments as `on_*` callbacks and may write to `rw`.
+
+```lua
+function _update(rw, ro)
+    rw.frame = (rw.frame or 0) + 1
+end
+
+function _draw(rw)
+    cls(0x000000)
+    spr("player.png", rw.frame % 4, 100, 100)
+end
+```
+
 #### Naming conventions
 
 | Prefix | Meaning | Example |
 |---|---|---|
 | `on_` | Engine lifecycle hook or schedulable event callback | `on_spawn`, `on_energy_drain` |
 | `_on_` | System event emitted by the engine; not schedulable by scripts | `_on_reload` |
+| `_update` / `_draw` | Game loop callbacks; called every tick by the engine | — |
 
 #### System events
 

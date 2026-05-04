@@ -180,6 +180,17 @@ def step_rw_empty(context):
     assert rw == {}, f'expected rw={{}}, got {rw!r}'
 
 
+@then('rw field "{key}" is {value}')
+def step_rw_field(context, key, value):
+    actual = context.state.get('rw', {}).get(key)
+    if value == 'true':
+        assert actual is True, f'expected rw.{key}=true, got {actual!r}'
+    elif value == 'false':
+        assert actual is False, f'expected rw.{key}=false, got {actual!r}'
+    else:
+        assert actual == int(value), f'expected rw.{key}={value}, got {actual!r}'
+
+
 @then('the screen matches fixture "{name}"')
 def step_screen_matches_fixture(context, name):
     actual = Image.open(io.BytesIO(context.screen_png)).convert('RGB')

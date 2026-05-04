@@ -65,6 +65,19 @@ void tick_timer_fn(void *arg)
                  (unsigned long long)r.now_tick);
         sse_push(&app->mgr, evname, data);
     }
+
+    if (!app->autotick) return; /* stopped by lua error in scheduled event */
+
+    app->had_lua_error = 0;
+    lua_bind_call(app, "_update");
+    if (app->stop_on_lua_error && app->had_lua_error) {
+        app->autotick = 0;
+        return;
+    }
+
+    lua_bind_call(app, "_draw");
+    if (app->stop_on_lua_error && app->had_lua_error)
+        app->autotick = 0;
 }
 
 /* ------------------------------------------------------------------ */
@@ -139,7 +152,16 @@ static void handle_command(struct mg_connection *c,
             goto done;
         }
 
+        uint64_t prev_tick = app->now_tick;
         advance_result_t r = app_advance(app, ticks, stop_on_event);
+
+        if (!r.lua_error) {
+            uint64_t n = r.now_tick / AUTOTICK - prev_tick / AUTOTICK;
+            for (uint64_t i = 0; i < n; i++) {
+                lua_bind_call(app, "_update");
+                lua_bind_call(app, "_draw");
+            }
+        }
 
         cJSON *resp = cJSON_CreateObject();
         cJSON_AddBoolToObject(resp, "ok", 1);
