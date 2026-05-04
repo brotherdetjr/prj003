@@ -25,7 +25,7 @@ Feature: Command-line argument parsing
     Then autotick is false
 
   Scenario: --port changes the listening port
-    Given emu starts on port 17072 with args "--nowtick=0 --noautotick"
+    Given emu starts with args "--nowtick=0 --noautotick --port=17072"
     When I get state
     Then the response is ok
 
