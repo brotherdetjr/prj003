@@ -1,24 +1,8 @@
-from behave import given, when, then
+from behave import when, then
 import io
 import os
 from PIL import Image
-from utils import FIXTURES_DIR, get_screen, post, start_emu
-
-PORT = 17070
-
-
-# ---------------------------------------------------------------------------
-# Given
-# ---------------------------------------------------------------------------
-
-@given('a running emu with id "{emu_id}" nowtick {nowtick:d} wallclock "{wallclock}" in manual-tick mode')
-def step_start_emu(context, emu_id, nowtick, wallclock):
-    start_emu(context, [
-        f'--id={emu_id}',
-        f'--nowtick={nowtick}',
-        f'--wallclockutc={wallclock}',
-        '--noautotick',
-    ], PORT)
+from utils import FIXTURES_DIR, get_screen, post
 
 
 # ---------------------------------------------------------------------------

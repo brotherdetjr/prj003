@@ -1,7 +1,7 @@
 Feature: Smoke — happy path from README
 
   Background:
-    Given a running emu with id "DEADBEEF" nowtick 42 wallclock "2026-04-08T00:00:00" in manual-tick mode
+    Given emu starts with args "--id=DEADBEEF --nowtick=42 --wallclockutc=2026-04-08T00:00:00 --noautotick"
 
   Scenario: Initial state has no character
     When I get state
