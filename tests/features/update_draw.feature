@@ -6,13 +6,14 @@ Feature: _update() and _draw() Lua callbacks
     And I get state
     Then rw field "update_count" is 2
 
-  Scenario: _draw() is called once per autotick and renders to screen
+  Scenario: _draw() renders rw state set by _update() each tick
     Given emu starts with test script "update_draw_basic/main.lua" and args "--nowtick=0 --noautotick"
-    When I advance 200 ticks
-    And I get state
+    When I advance 100 ticks
     And I get the screen
-    Then rw field "draw_count" is 2
-    And the screen matches fixture "green_368x448.png"
+    Then the screen matches fixture "red_368x448.png"
+    When I advance 100 ticks
+    And I get the screen
+    Then the screen matches fixture "green_368x448.png"
 
   Scenario: on_spawn state is visible to _update()
     Given emu starts with test script "update_draw_on_spawn/main.lua" and args "--nowtick=0 --noautotick"
