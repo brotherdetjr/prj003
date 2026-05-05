@@ -58,11 +58,6 @@ def step_set_wall_clock(context, ts):
     post(context, {"cmd": "set_wall_clock", "now_unix_sec": ts})
 
 
-@when("I poof the character")
-def step_poof(context):
-    post(context, {"cmd": "poof"})
-
-
 @when("I post command:")
 def step_post_command_body(context):
     raw_request(context, "POST", "/command", json=json.loads(context.text))

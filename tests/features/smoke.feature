@@ -41,7 +41,10 @@ Feature: Smoke — happy path from README
     And energy is 254
     And the scheduler has an "on_energy_drain" event at tick 678042
 
-    When I poof the character
+    When I post command:
+      """
+      {"cmd": "poof"}
+      """
     Then the response is ok
 
     When I get state
