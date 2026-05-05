@@ -98,9 +98,12 @@ tests/
     hot_reload.feature        ← live reload when a loaded Lua file changes; _on_reload SSE event
     lua_freeze.feature        ← global-write freeze; _on_lua_error SSE event
     stop_on_lua_error.feature ← --stop-on-lua-error flag and set/get_stop_on_lua_error commands
+    graphics.feature          ← cls() and framebuffer rendering scenarios
+    sprites.feature           ← spr() drawing: static PNG, APNG, alpha, fragments
+    update_draw.feature       ← _update() and _draw() Lua callback scenarios
     environment.py  ← Behave hooks (emu lifecycle, temp-file cleanup)
     steps/
-      steps.py      ← shared Given/When/Then step definitions
+      emu_steps.py  ← shared Given/When/Then step definitions
       args_steps.py ← steps specific to CLI argument scenarios
       api_steps.py  ← steps specific to HTTP API scenarios
       sse_steps.py  ← SSE subscription and event assertion steps
