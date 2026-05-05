@@ -11,7 +11,10 @@ function on_energy_drain(rw)
 end
 
 function on_spawn(rw)
-    cls(0xFF0000)
     rw.energy = 255
     schedule(DRAIN_MS, "on_energy_drain")
+end
+
+function _draw()
+    cls(0xFF0000)
 end

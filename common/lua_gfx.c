@@ -4,8 +4,14 @@
 #include "../vendor/lua/lauxlib.h"
 #include <string.h>
 
+static int g_in_draw = 0;
+
+void lua_gfx_set_drawing(int v) { g_in_draw = v; }
+
 static int l_cls(lua_State *L)
 {
+    if (!g_in_draw)
+        return luaL_error(L, "cls: not in draw context");
     lua_Integer v = luaL_checkinteger(L, 1);
     gfx_cls((uint32_t)(v & 0xFFFFFF));
     return 0;
@@ -48,6 +54,8 @@ static void resolve_path(lua_State *L, const char *path,
    frame is a zero-based index into APNG frames; defaults to 0. */
 static int l_spr(lua_State *L)
 {
+    if (!g_in_draw)
+        return luaL_error(L, "spr: not in draw context");
     const char *rel = luaL_checkstring(L, 1);
     int frame = (int)luaL_optinteger(L, 2, 0);
     int x = (int)luaL_optinteger(L, 3, 0);
