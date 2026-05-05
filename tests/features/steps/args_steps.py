@@ -1,6 +1,5 @@
 import json
 import os
-import re
 import shutil
 import socket
 import tempfile
@@ -15,10 +14,6 @@ DEFAULT_SCRIPT = os.path.abspath(
     os.path.join(os.path.dirname(EMU), "../../scripts/main.lua")
 )
 
-
-# ---------------------------------------------------------------------------
-# Given — start emu
-# ---------------------------------------------------------------------------
 
 @given("port {port:d} is occupied")
 def step_occupy_port(context, port):
@@ -71,41 +66,10 @@ def step_copy_file(context, src, dst):
         time.sleep(0.3)  # wait for emu's 100 ms poll to detect the change
 
 
-# ---------------------------------------------------------------------------
-# Then
-# ---------------------------------------------------------------------------
-
-
-@then('instance_id is "{value}"')
-def step_instance_id(context, value):
-    actual = context.resp["ro"]["instance_id"]
-    assert actual == value, f"expected instance_id={value!r}, got {actual!r}"
-
-
-@then("instance_id is an 8-digit hex string")
-def step_instance_id_random(context):
-    actual = context.resp["ro"]["instance_id"]
-    assert re.fullmatch(r"[0-9A-F]{8}", actual), (
-        f"expected 8-digit hex string, got {actual!r}"
-    )
-
-
-@then("autotick is {value}")
-def step_autotick(context, value):
-    expected = value.lower() == "true"
-    actual = context.resp["autotick"]
-    assert actual is expected, f"expected autotick={expected}, got {actual}"
-
-
 @then("the exit code is {code:d}")
 def step_exit_code(context, code):
     actual = context.proc_result.returncode
     assert actual == code, f"expected exit code {code}, got {actual}"
-
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
 
 
 def _make_state_file(context, now_tick, character=None, rw=None):
