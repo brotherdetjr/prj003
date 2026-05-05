@@ -16,7 +16,10 @@ Feature: Smoke — happy path from README
       {"cmd": "set_wall_clock", "now_unix_sec": 1775606401}
       """
     Then the response is ok
-    When I get wall clock
+    When I post command:
+      """
+      {"cmd": "get_wall_clock"}
+      """
     Then now_unix_sec is 1775606401
 
   Scenario: Character lifecycle — spawn, advance, energy drain, poof

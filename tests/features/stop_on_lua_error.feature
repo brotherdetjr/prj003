@@ -17,17 +17,26 @@ Feature: --stop-on-lua-error — halt advance and disable autotick on Lua error
     And I subscribe to SSE events
     When I spawn a character
     Then I receive a "_on_lua_error" SSE event with fn "on_error_event" and error containing "bad_global"
-    When I get autotick
+    When I post command:
+      """
+      {"cmd": "get_autotick"}
+      """
     Then autotick is false
 
   Scenario: get_stop_on_lua_error reflects --stop-on-lua-error flag
     Given emu starts with test script "lua_error_in_event/main.lua" and args "--noautotick --stop-on-lua-error"
-    When I get stop_on_lua_error
+    When I post command:
+      """
+      {"cmd": "get_stop_on_lua_error"}
+      """
     Then stop_on_lua_error is true
 
   Scenario: set_stop_on_lua_error toggles the setting at runtime
     Given emu starts with test script "lua_error_in_event/main.lua" and args "--noautotick"
-    When I get stop_on_lua_error
+    When I post command:
+      """
+      {"cmd": "get_stop_on_lua_error"}
+      """
     Then stop_on_lua_error is false
     When I set stop_on_lua_error to true
     Then stop_on_lua_error is true

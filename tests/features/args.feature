@@ -16,12 +16,18 @@ Feature: Command-line argument parsing
 
   Scenario: --wallclockutc sets the wall clock
     Given emu starts with args "--wallclockutc=2026-01-01T00:00:00 --noautotick"
-    When I get wall clock
+    When I post command:
+      """
+      {"cmd": "get_wall_clock"}
+      """
     Then now_unix_sec is 1767225600
 
   Scenario: --noautotick disables autotick
     Given emu starts with args "--nowtick=0 --noautotick"
-    When I get autotick
+    When I post command:
+      """
+      {"cmd": "get_autotick"}
+      """
     Then autotick is false
 
   Scenario: --port changes the listening port
@@ -49,7 +55,10 @@ Feature: Command-line argument parsing
 
   Scenario: autotick is on by default
     Given emu starts with args "--nowtick=0"
-    When I get autotick
+    When I post command:
+      """
+      {"cmd": "get_autotick"}
+      """
     Then autotick is true
 
   Scenario: random instance ID is generated when --id is omitted
@@ -70,7 +79,10 @@ Feature: Command-line argument parsing
   Scenario: --wallclockutc overrides wall clock from --file
     Given a state file with now_tick 9999 and no character
     And emu starts with that state file and args "--wallclockutc=2026-01-01T00:00:00 --noautotick"
-    When I get wall clock
+    When I post command:
+      """
+      {"cmd": "get_wall_clock"}
+      """
     Then now_unix_sec is 1767225600
 
   # ---------------------------------------------------------------------------

@@ -13,24 +13,9 @@ def step_get_state(context):
     context.state = post(context, {"cmd": "get_state"})
 
 
-@when("I get autotick")
-def step_get_autotick(context):
-    post(context, {"cmd": "get_autotick"})
-
-
-@when("I get stop_on_lua_error")
-def step_get_stop_on_lua_error(context):
-    post(context, {"cmd": "get_stop_on_lua_error"})
-
-
 @when("I set stop_on_lua_error to {value}")
 def step_set_stop_on_lua_error(context, value):
     post(context, {"cmd": "set_stop_on_lua_error", "enabled": value.lower() == "true"})
-
-
-@when("I get wall clock")
-def step_get_wall_clock(context):
-    post(context, {"cmd": "get_wall_clock"})
 
 
 @when("I get the screen")
