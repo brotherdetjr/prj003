@@ -43,21 +43,6 @@ def step_spawn(context):
     context.state = post(context, {"cmd": "spawn"})
 
 
-@when("I advance {ticks:d} ticks")
-def step_advance_ticks(context, ticks):
-    post(context, {"cmd": "advance_time", "ticks": ticks})
-
-
-@when("I advance to the next event")
-def step_advance_next_event(context):
-    post(context, {"cmd": "advance_time", "ticks": 0, "stop_on_event": True})
-
-
-@when("I set wall clock to {ts:d}")
-def step_set_wall_clock(context, ts):
-    post(context, {"cmd": "set_wall_clock", "now_unix_sec": ts})
-
-
 @when("I post command:")
 def step_post_command_body(context):
     raw_request(context, "POST", "/command", json=json.loads(context.text))

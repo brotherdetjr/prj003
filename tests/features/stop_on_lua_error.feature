@@ -4,7 +4,10 @@ Feature: --stop-on-lua-error — halt advance and disable autotick on Lua error
     Given emu starts with test script "lua_error_in_event/main.lua" and args "--noautotick --stop-on-lua-error"
     And I subscribe to SSE events
     When I spawn a character
-    And I advance 5000 ticks
+    And I post command:
+      """
+      {"cmd": "advance_time", "ticks": 5000}
+      """
     Then the response is ok
     And stopped_on_event is false
     And I receive a "_on_lua_error" SSE event with fn "on_error_event" and error containing "bad_global"

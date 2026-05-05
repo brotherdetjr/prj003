@@ -10,7 +10,10 @@ Feature: Hot-reload — changes to Lua files in the script directory take effect
     And energy is 10
     And the scheduler has an "energy.on_drain" event at tick 5000
 
-    When I advance to the next event
+    When I post command:
+      """
+      {"cmd": "advance_time", "ticks": 0, "stop_on_event": true}
+      """
     Then now_tick is 5000
     And event is "energy.on_drain"
 
@@ -19,11 +22,17 @@ Feature: Hot-reload — changes to Lua files in the script directory take effect
     When "energy2.lua.template" is copied to "energy.lua"
     Then I receive an SSE "_on_reload" event at now_tick 5000
 
-    When I advance to the next event
+    When I post command:
+      """
+      {"cmd": "advance_time", "ticks": 0, "stop_on_event": true}
+      """
     Then now_tick is 10000
     And event is "energy.on_drain"
 
-    When I advance to the next event
+    When I post command:
+      """
+      {"cmd": "advance_time", "ticks": 0, "stop_on_event": true}
+      """
     Then now_tick is 19000
     And event is "energy.on_drain"
 

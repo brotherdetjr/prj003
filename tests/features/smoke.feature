@@ -11,7 +11,10 @@ Feature: Smoke — happy path from README
     And there is no character
 
   Scenario: Wall clock can be set and read back independently
-    When I set wall clock to 1775606401
+    When I post command:
+      """
+      {"cmd": "set_wall_clock", "now_unix_sec": 1775606401}
+      """
     Then the response is ok
     When I get wall clock
     Then now_unix_sec is 1775606401
@@ -25,12 +28,18 @@ Feature: Smoke — happy path from README
     And energy is 255
     And the scheduler has an "on_energy_drain" event at tick 339042
 
-    When I advance 1000 ticks
+    When I post command:
+      """
+      {"cmd": "advance_time", "ticks": 1000}
+      """
     Then the response is ok
     And now_tick is 1042
     And stopped_on_event is false
 
-    When I advance to the next event
+    When I post command:
+      """
+      {"cmd": "advance_time", "ticks": 0, "stop_on_event": true}
+      """
     Then the response is ok
     And now_tick is 339042
     And stopped_on_event is true
