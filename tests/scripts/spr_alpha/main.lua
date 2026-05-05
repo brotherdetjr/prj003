@@ -1,4 +1,4 @@
-function on_spawn()
+function _draw()
     cls(0x0000FF)
     spr("red_half.png", 0, 0, 0)
 end

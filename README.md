@@ -238,7 +238,7 @@ end
 
 #### Graphics globals
 
-The following graphics functions are available as Lua globals in every callback:
+The following graphics functions are available as Lua globals inside `_draw()` (and any function called from it). Calling them outside a draw context raises a Lua error.
 
 | Function | Description |
 |---|---|

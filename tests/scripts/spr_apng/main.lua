@@ -1,4 +1,4 @@
-function on_spawn()
+function _draw()
     cls(0x000000)
     spr("two_frames.png", 0, 0, 0)
 end
