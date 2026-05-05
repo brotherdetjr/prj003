@@ -11,7 +11,10 @@ Feature: Lua schedule() — dispatch, prefix resolution, and argument validation
     And energy is 10
     And the scheduler has an "<event>.on_drain" event at tick 5000
 
-    When I advance to the next event
+    When I post command:
+      """
+      {"cmd": "advance_time", "ticks": 0, "stop_on_event": true}
+      """
     Then the response is ok
     And stopped_on_event is true
     And event is "<event>.on_drain"
@@ -43,7 +46,10 @@ Feature: Lua schedule() — dispatch, prefix resolution, and argument validation
     And the scheduler has an "link1.drain.on_drain" event at tick 10000
     And the scheduler has an "link2.drain.on_drain" event at tick 11000
 
-    When I advance to the next event
+    When I post command:
+      """
+      {"cmd": "advance_time", "ticks": 0, "stop_on_event": true}
+      """
     Then the response is ok
     And now_tick is 10000
     And stopped_on_event is true
@@ -55,7 +61,10 @@ Feature: Lua schedule() — dispatch, prefix resolution, and argument validation
     And the scheduler has an "link2.drain.on_drain" event at tick 11000
     And the scheduler has an "link1.drain.on_drain" event at tick 15000
 
-    When I advance to the next event
+    When I post command:
+      """
+      {"cmd": "advance_time", "ticks": 0, "stop_on_event": true}
+      """
     Then the response is ok
     And now_tick is 11000
     And stopped_on_event is true
@@ -68,7 +77,10 @@ Feature: Lua schedule() — dispatch, prefix resolution, and argument validation
     And the scheduler has an "link2.drain.on_drain" event at tick 16000
 
     # link1 recurring
-    When I advance to the next event
+    When I post command:
+      """
+      {"cmd": "advance_time", "ticks": 0, "stop_on_event": true}
+      """
     Then the response is ok
     And now_tick is 15000
     And stopped_on_event is true
@@ -79,7 +91,10 @@ Feature: Lua schedule() — dispatch, prefix resolution, and argument validation
     And the scheduler has an "link1.drain.on_drain" event at tick 20000
 
     # link2 recurring
-    When I advance to the next event
+    When I post command:
+      """
+      {"cmd": "advance_time", "ticks": 0, "stop_on_event": true}
+      """
     Then the response is ok
     And now_tick is 16000
     And stopped_on_event is true
