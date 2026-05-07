@@ -70,6 +70,8 @@ common/             ← shared code (all platforms)
   lua_bind.h/c      ← Lua VM init, schedule() global, event dispatch
   lua_gfx.h/c       ← Lua graphics globals (cls, spr, …)
   gfx.h/c           ← software renderer + PNG encoder
+  apng.h/c          ← PNG/APNG decoder: returns flat RGBA frames
+  spr.h/c           ← sprite registry and blitter (uses apng.h/c)
   server.h/c        ← HTTP command dispatch, SSE game-event push
   state.h/c         ← app ↔ JSON serialisation
   character.h/c     ← character struct, initialisation
