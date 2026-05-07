@@ -65,7 +65,7 @@ all: format-check test_scheduler emu-asan
 	    exit 1; \
 	fi
 
-distr: $(APP_OBJS) $(VENDOR_OBJS)
+emu: $(APP_OBJS) $(VENDOR_OBJS)
 	$(CC) -o $(TARGET) $^ -lm $(shell sdl2-config --libs) -Wl,--gc-sections -s
 	cd ../../tests && python3 -m behave
 
@@ -112,4 +112,4 @@ format-check:
 format:
 	clang-format -i $(FORMAT_SRCS)
 
-.PHONY: all distr clean format-check format
+.PHONY: all emu clean format-check format
