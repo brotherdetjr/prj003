@@ -11,3 +11,31 @@ Feature: Global freeze — callbacks may not write outside rw
     And I subscribe to SSE events
     When I spawn a character
     Then I receive a "_on_lua_error" SSE event with fn "on_spawn" and error containing "new_field"
+
+  Scenario: writing to rw directly inside _draw emits _on_lua_error and leaves rw intact
+    Given emu starts with test script "draw_rw_write_test/main.lua" and args "--nowtick=0 --noautotick"
+    And I subscribe to SSE events
+    When I post command:
+      """
+      {"cmd": "advance_time", "ticks": 100}
+      """
+    Then I receive a "_on_lua_error" SSE event with fn "_draw" and error containing "rw write blocked in _draw"
+    When I get state
+    Then rw equals:
+      """
+      {"colour": 16711680}
+      """
+
+  Scenario: writing to a nested rw table inside _draw emits _on_lua_error and leaves rw intact
+    Given emu starts with test script "draw_rw_nested_write_test/main.lua" and args "--nowtick=0 --noautotick"
+    And I subscribe to SSE events
+    When I post command:
+      """
+      {"cmd": "advance_time", "ticks": 100}
+      """
+    Then I receive a "_on_lua_error" SSE event with fn "_draw" and error containing "rw write blocked in _draw"
+    When I get state
+    Then rw equals:
+      """
+      {"stats": {"energy": 100}}
+      """

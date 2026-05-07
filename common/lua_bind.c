@@ -14,6 +14,12 @@
 #define REG_RW "_gloxie_rw"
 #define REG_PREFIX "_gloxie_prefix"
 
+/* Set to 0 to pass the raw rw table to _draw instead of a recursive
+ * read-only proxy.  Can be overridden at build time: -DLUA_DRAW_RW_READONLY=0 */
+#ifndef LUA_DRAW_RW_READONLY
+#define LUA_DRAW_RW_READONLY 1
+#endif
+
 /* ------------------------------------------------------------------ */
 /* Helpers                                                            */
 /* ------------------------------------------------------------------ */
@@ -82,6 +88,16 @@ static int l_freeze_newindex(lua_State *L)
         return luaL_error(L, "global write blocked: '%s'", key);
     return luaL_error(L, "global write blocked");
 }
+
+#if LUA_DRAW_RW_READONLY
+static int l_rw_readonly_newindex(lua_State *L)
+{
+    const char *key = lua_tostring(L, 2);
+    if (key)
+        return luaL_error(L, "rw write blocked in _draw: '%s'", key);
+    return luaL_error(L, "rw write blocked in _draw");
+}
+#endif
 
 static const char *const k_stdlib[] = {
     "_G", "_VERSION",
@@ -649,6 +665,72 @@ void lua_bind_call(app_t *app, const char *fn_name)
         const char *msg = lua_tostring(L, -1);
         fprintf(stderr, "Lua error in %s: %s\n", fn_name, msg);
         if (app->lua_error_cb) app->lua_error_cb(fn_name, msg, app);
+        lua_pop(L, 1);
+    }
+}
+
+#if LUA_DRAW_RW_READONLY
+static void push_readonly_proxy(lua_State *L, int tbl_idx); /* forward decl */
+
+static int l_readonly_index(lua_State *L)
+{
+    /* 1=proxy  2=key */
+    lua_getmetatable(L, 1);        /* mt */
+    lua_getfield(L, -1, "__real"); /* mt real */
+    lua_remove(L, -2);             /* real */
+    lua_pushvalue(L, 2);           /* real key */
+    lua_rawget(L, -2);             /* real value */
+    if (lua_type(L, -1) == LUA_TTABLE) {
+        int val_idx = lua_gettop(L);
+        push_readonly_proxy(L, val_idx); /* real value sub_proxy */
+        lua_remove(L, -2);               /* real sub_proxy */
+    }
+    lua_remove(L, -2); /* result */
+    return 1;
+}
+
+static void push_readonly_proxy(lua_State *L, int tbl_idx)
+{
+    if (tbl_idx < 0) tbl_idx = lua_gettop(L) + 1 + tbl_idx;
+    lua_newtable(L);
+    lua_newtable(L);
+    lua_pushvalue(L, tbl_idx);
+    lua_setfield(L, -2, "__real");
+    lua_pushcfunction(L, l_readonly_index);
+    lua_setfield(L, -2, "__index");
+    lua_pushcfunction(L, l_rw_readonly_newindex);
+    lua_setfield(L, -2, "__newindex");
+    lua_setmetatable(L, -2);
+}
+
+static void push_rw_readonly(lua_State *L)
+{
+    push_rw(L);
+    int rw_idx = lua_gettop(L);
+    push_readonly_proxy(L, rw_idx);
+    lua_remove(L, rw_idx);
+}
+#endif
+
+void lua_bind_call_draw(app_t *app)
+{
+    lua_State *L = app->L;
+    set_schedule_prefix(L, "");
+    lua_getglobal(L, "_draw");
+    if (!lua_isfunction(L, -1)) {
+        lua_pop(L, 1);
+        return;
+    }
+#if LUA_DRAW_RW_READONLY
+    push_rw_readonly(L);
+#else
+    push_rw(L);
+#endif
+    push_ro(L, app);
+    if (lua_pcall(L, 2, 0, 0) != LUA_OK) {
+        const char *msg = lua_tostring(L, -1);
+        fprintf(stderr, "Lua error in _draw: %s\n", msg);
+        if (app->lua_error_cb) app->lua_error_cb("_draw", msg, app);
         lua_pop(L, 1);
     }
 }

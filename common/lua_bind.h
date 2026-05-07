@@ -18,6 +18,13 @@ int lua_bind_init(app_t *app, const char *script_path);
 void lua_bind_call(app_t *app, const char *fn_name);
 
 /*
+ * Call _draw(rw, ro).  rw is wrapped in a recursive read-only proxy
+ * (controlled by LUA_DRAW_RW_READONLY, on by default) so that any write
+ * inside _draw raises a Lua error instead of silently mutating state.
+ */
+void lua_bind_call_draw(app_t *app);
+
+/*
  * Return the rw table as a cJSON object (caller must cJSON_Delete).
  * Used by app_state_to_json to embed rw state without an intermediate
  * string buffer.

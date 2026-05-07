@@ -159,6 +159,13 @@ def step_rw_empty(context):
     assert rw == {}, f"expected rw={{}}, got {rw!r}"
 
 
+@then("rw equals:")
+def step_rw_equals(context):
+    expected = json.loads(context.text)
+    actual = context.state.get("rw", {})
+    assert actual == expected, f"expected rw={expected!r}, got {actual!r}"
+
+
 @then('rw field "{key}" is {value}')
 def step_rw_field(context, key, value):
     actual = context.state.get("rw", {}).get(key)
