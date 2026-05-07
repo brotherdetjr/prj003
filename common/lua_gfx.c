@@ -51,13 +51,13 @@ static void resolve_path(lua_State *L, const char *path,
 }
 
 /* spr(path [, frame [, x [, y [, fx [, fy [, fw [, fh]]]]]]]])
-   frame is a zero-based index into APNG frames; defaults to 0. */
+   frame is a one-based index into APNG frames; defaults to 1. */
 static int l_spr(lua_State *L)
 {
     if (!g_in_draw)
         return luaL_error(L, "spr: not in draw context");
     const char *rel = luaL_checkstring(L, 1);
-    int frame = (int)luaL_optinteger(L, 2, 0);
+    int frame = (int)luaL_optinteger(L, 2, 1) - 1;
     int x = (int)luaL_optinteger(L, 3, 0);
     int y = (int)luaL_optinteger(L, 4, 0);
     int fx = (int)luaL_optinteger(L, 5, 0);

@@ -213,12 +213,12 @@ argument is a recursive read-only proxy — any write attempt raises a Lua error
 
 ```lua
 function _update(rw, ro)
-    rw.frame = (rw.frame or 0) + 1
+    rw.frame = (rw.frame or 0) % 4 + 1
 end
 
 function _draw(rw)
     cls(0x000000)
-    spr("player.png", rw.frame % 4, 100, 100)
+    spr("player.png", rw.frame, 100, 100)
 end
 ```
 
@@ -244,7 +244,7 @@ The following graphics functions are available as Lua globals inside `_draw()` (
 | Function | Description |
 |---|---|
 | `cls(color)` | Fill the entire screen with `color` (24-bit `0xRRGGBB` integer) |
-| `spr(path [, frame [, x [, y [, fx [, fy [, fw [, fh]]]]]]])` | Draw a PNG or APNG sprite from `path` (relative to the script file). `frame` is a zero-based frame index (default 0; clamped for static PNGs). `x, y` set the screen position. `fx, fy, fw, fh` select a sub-region of the canvas (defaults: origin, full size). |
+| `spr(path [, frame [, x [, y [, fx [, fy [, fw [, fh]]]]]]])` | Draw a PNG or APNG sprite from `path` (relative to the script file). `frame` is a one-based frame index (default 1; clamped for static PNGs). `x, y` set the screen position. `fx, fy, fw, fh` select a sub-region of the canvas (defaults: origin, full size). |
 
 ## PC instance
 
