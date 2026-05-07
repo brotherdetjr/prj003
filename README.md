@@ -208,7 +208,8 @@ Each tick (every `AUTOTICK` ms of virtual time), the engine calls these Lua glob
 3. `_draw(rw [, ro])` — rendering; called after `_update`.
 
 Both functions are optional. If not defined they are silently skipped. They receive the same
-`rw` and `ro` arguments as `on_*` callbacks and may write to `rw`.
+`rw` and `ro` arguments as `on_*` callbacks. `_update` may write to `rw`; in `_draw` the `rw`
+argument is a recursive read-only proxy — any write attempt raises a Lua error.
 
 ```lua
 function _update(rw, ro)

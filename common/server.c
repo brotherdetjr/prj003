@@ -77,7 +77,7 @@ void tick_timer_fn(void *arg)
     }
 
     lua_gfx_set_drawing(1);
-    lua_bind_call(app, "_draw");
+    lua_bind_call_draw(app);
     lua_gfx_set_drawing(0);
     if (app->stop_on_lua_error && app->had_lua_error)
         app->autotick = 0;
@@ -185,7 +185,7 @@ static void handle_command(struct mg_connection *c,
                 if (!r.lua_error && step_end == boundary) {
                     lua_bind_call(app, "_update");
                     lua_gfx_set_drawing(1);
-                    lua_bind_call(app, "_draw");
+                    lua_bind_call_draw(app);
                     lua_gfx_set_drawing(0);
                 }
             }
