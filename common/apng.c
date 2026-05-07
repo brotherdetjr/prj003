@@ -32,7 +32,7 @@ static uint32_t crc32_buf(const uint8_t *data, size_t len)
 }
 
 /* ------------------------------------------------------------------ */
-/* Minimal growable byte buffer                                        */
+/* Minimal growable byte buffer                                       */
 /* ------------------------------------------------------------------ */
 
 typedef struct {
@@ -150,7 +150,7 @@ static void blend_over(uint8_t *dst, const uint8_t *src)
 }
 
 /* ------------------------------------------------------------------ */
-/* Public API                                                          */
+/* Public API                                                         */
 /* ------------------------------------------------------------------ */
 
 uint8_t *apng_load(const uint8_t *file_data, size_t file_len, int *out_n, int *out_w,
