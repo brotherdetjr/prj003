@@ -282,7 +282,7 @@ appear in `/tmp/emu-asan.<pid>`.
 To build the production binary:
 
 ```sh
-make distr   # produces emu (stripped, optimised)
+make emu     # produces emu (stripped, optimised)
 ```
 
 Requires GCC (with ASan support), `clang-format`, Python 3 with `behave` and
