@@ -6,7 +6,7 @@
 #include <string.h>
 
 /* ------------------------------------------------------------------ */
-/* Content registry: path-keyed, shared across calls                 */
+/* Content registry: path-keyed, shared across calls                  */
 /* ------------------------------------------------------------------ */
 
 typedef struct {
@@ -93,7 +93,7 @@ static void do_blit(const spr_content_t *ct, int frame, int x, int y, int fx,
 }
 
 /* ------------------------------------------------------------------ */
-/* Public API                                                          */
+/* Public API                                                         */
 /* ------------------------------------------------------------------ */
 
 int spr_draw(const char *path, int frame, int x, int y, int fx, int fy, int fw,

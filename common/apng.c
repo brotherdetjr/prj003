@@ -105,7 +105,7 @@ static uint8_t *build_png(int w, int h, const uint8_t *idat_data, size_t idat_le
 }
 
 /* ------------------------------------------------------------------ */
-/* APNG helpers                                                        */
+/* APNG helpers                                                       */
 /* ------------------------------------------------------------------ */
 
 static uint32_t read_u32be(const uint8_t *p)
