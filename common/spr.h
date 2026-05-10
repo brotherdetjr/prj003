@@ -20,6 +20,9 @@
 int spr_draw(const char *path, int frame, int x, int y, int fx, int fy, int fw,
              int fh, uint32_t *fb, int fb_w, int fb_h, const char **err_out);
 
+/* Load (or find cached) sprite at path; return its frame count, or -1 on error. */
+int spr_frame_count(const char *path, const char **err_out);
+
 /* Free all loaded sprite data. Call on Lua VM reset. */
 void spr_clear_all(void);
 

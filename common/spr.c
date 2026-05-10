@@ -96,58 +96,74 @@ static void do_blit(const spr_content_t *ct, int frame, int x, int y, int fx,
 /* Public API                                                         */
 /* ------------------------------------------------------------------ */
 
+/* Load sprite into the content registry if not already present.
+   Returns the content index on success, -1 on error. */
+static int content_load(const char *path, const char **err_out)
+{
+    int cidx = content_find(path);
+    if (cidx >= 0) return cidx;
+
+    FILE *f = fopen(path, "rb");
+    if (!f) {
+        if (err_out) *err_out = "cannot open file";
+        return -1;
+    }
+    fseek(f, 0, SEEK_END);
+    long fsz = ftell(f);
+    rewind(f);
+    if (fsz <= 0) {
+        fclose(f);
+        if (err_out) *err_out = "empty file";
+        return -1;
+    }
+    uint8_t *file_data = (uint8_t *)malloc((size_t)fsz);
+    if (!file_data) {
+        fclose(f);
+        if (err_out) *err_out = "out of memory";
+        return -1;
+    }
+    if (fread(file_data, 1, (size_t)fsz, f) != (size_t)fsz) {
+        fclose(f);
+        free(file_data);
+        if (err_out) *err_out = "read error";
+        return -1;
+    }
+    fclose(f);
+
+    int n_frames = 0, w = 0, h = 0;
+    uint8_t *frames = apng_load(file_data, (size_t)fsz, &n_frames, &w, &h);
+    free(file_data);
+    if (!frames) {
+        if (err_out) *err_out = "decode error";
+        return -1;
+    }
+
+    cidx = content_alloc();
+    if (cidx < 0) {
+        free(frames);
+        if (err_out) *err_out = "out of memory";
+        return -1;
+    }
+    s_content[cidx].path = strdup(path);
+    s_content[cidx].frames = frames;
+    s_content[cidx].n_frames = n_frames;
+    s_content[cidx].canvas_w = w;
+    s_content[cidx].canvas_h = h;
+    return cidx;
+}
+
+int spr_frame_count(const char *path, const char **err_out)
+{
+    int cidx = content_load(path, err_out);
+    if (cidx < 0) return -1;
+    return s_content[cidx].n_frames;
+}
+
 int spr_draw(const char *path, int frame, int x, int y, int fx, int fy, int fw,
              int fh, uint32_t *fb, int fb_w, int fb_h, const char **err_out)
 {
-    int cidx = content_find(path);
-    if (cidx < 0) {
-        FILE *f = fopen(path, "rb");
-        if (!f) {
-            if (err_out) *err_out = "cannot open file";
-            return -1;
-        }
-        fseek(f, 0, SEEK_END);
-        long fsz = ftell(f);
-        rewind(f);
-        if (fsz <= 0) {
-            fclose(f);
-            if (err_out) *err_out = "empty file";
-            return -1;
-        }
-        uint8_t *file_data = (uint8_t *)malloc((size_t)fsz);
-        if (!file_data) {
-            fclose(f);
-            if (err_out) *err_out = "out of memory";
-            return -1;
-        }
-        if (fread(file_data, 1, (size_t)fsz, f) != (size_t)fsz) {
-            fclose(f);
-            free(file_data);
-            if (err_out) *err_out = "read error";
-            return -1;
-        }
-        fclose(f);
-
-        int n_frames = 0, w = 0, h = 0;
-        uint8_t *frames = apng_load(file_data, (size_t)fsz, &n_frames, &w, &h);
-        free(file_data);
-        if (!frames) {
-            if (err_out) *err_out = "decode error";
-            return -1;
-        }
-
-        cidx = content_alloc();
-        if (cidx < 0) {
-            free(frames);
-            if (err_out) *err_out = "out of memory";
-            return -1;
-        }
-        s_content[cidx].path = strdup(path);
-        s_content[cidx].frames = frames;
-        s_content[cidx].n_frames = n_frames;
-        s_content[cidx].canvas_w = w;
-        s_content[cidx].canvas_h = h;
-    }
+    int cidx = content_load(path, err_out);
+    if (cidx < 0) return -1;
 
     spr_content_t *ct = &s_content[cidx];
     if (frame < 0) frame = 0;

@@ -23,7 +23,8 @@ APP_SRCS = main.c peer.c display.c \
            ../../common/server.c ../../common/state.c \
            ../../common/character.c ../../common/scheduler.c \
            ../../common/gfx.c ../../common/lua_gfx.c \
-           ../../common/apng.c ../../common/spr.c
+           ../../common/apng.c ../../common/spr.c \
+           ../../common/lua_anim.c
 
 APP_OBJS = $(notdir $(APP_SRCS:.c=.o))
 
@@ -33,6 +34,7 @@ APP_HDRS = ../../common/app.h ../../common/lua_bind.h \
            ../../common/character.h ../../common/scheduler.h \
            ../../common/gfx.h ../../common/lua_gfx.h \
            ../../common/apng.h ../../common/spr.h \
+           ../../common/lua_anim.h \
            display.h
 
 LUA_SRCS = $(wildcard ../../vendor/lua/*.c)

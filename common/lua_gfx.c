@@ -1,4 +1,5 @@
 #include "lua_gfx.h"
+#include "lua_anim.h"
 #include "gfx.h"
 #include "spr.h"
 #include "../vendor/lua/lauxlib.h"
@@ -7,6 +8,7 @@
 static int g_in_draw = 0;
 
 void lua_gfx_set_drawing(int v) { g_in_draw = v; }
+int lua_gfx_in_draw(void) { return g_in_draw; }
 
 static int l_cls(lua_State *L)
 {
@@ -23,8 +25,8 @@ static int l_cls(lua_State *L)
 
 /* Resolve a path relative to the calling Lua script's directory.
    Walks the call stack to find the first source file with a real path. */
-static void resolve_path(lua_State *L, const char *path,
-                         char *out, size_t out_sz)
+void lua_gfx_resolve_path(lua_State *L, const char *path,
+                          char *out, size_t out_sz)
 {
     if (path[0] == '/') {
         /* Absolute path — use as-is */
@@ -66,7 +68,7 @@ static int l_spr(lua_State *L)
     int fh = (int)luaL_optinteger(L, 8, 0);
 
     char abs_path[1024];
-    resolve_path(L, rel, abs_path, sizeof(abs_path));
+    lua_gfx_resolve_path(L, rel, abs_path, sizeof(abs_path));
 
     const char *err = NULL;
     if (spr_draw(abs_path, frame, x, y, fx, fy, fw, fh, gfx_fb(), GFX_W, GFX_H, &err) < 0)
@@ -77,6 +79,8 @@ static int l_spr(lua_State *L)
 void lua_gfx_register(lua_State *L)
 {
     spr_clear_all();
+    lua_anim_clear_all();
     lua_register(L, "cls", l_cls);
     lua_register(L, "spr", l_spr);
+    lua_anim_register(L);
 }
