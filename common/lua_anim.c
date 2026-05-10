@@ -68,7 +68,7 @@ static int push_self(lua_State *L, const char *id)
 }
 
 /* ------------------------------------------------------------------ */
-/* Method implementations (each is a C closure with id as upvalue 1) */
+/* Method implementations (each is a C closure with id as upvalue 1)  */
 /* ------------------------------------------------------------------ */
 
 static int l_anim_of(lua_State *L)
