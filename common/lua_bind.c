@@ -3,6 +3,7 @@
 #include <sys/stat.h>
 #include "lua_bind.h"
 #include "lua_gfx.h"
+#include "lua_anim.h"
 #include "state.h"
 #include "../vendor/lua/lua.h"
 #include "../vendor/lua/lualib.h"
@@ -110,6 +111,8 @@ static const char *const k_stdlib[] = {
     "schedule",
     "cls",
     "spr",
+    "anim",
+    "fr",
     NULL};
 
 static int is_stdlib(const char *name)
@@ -733,6 +736,7 @@ void lua_bind_call_draw(app_t *app)
         if (app->lua_error_cb) app->lua_error_cb("_draw", msg, app);
         lua_pop(L, 1);
     }
+    lua_anim_post_draw(L);
 }
 
 /* ------------------------------------------------------------------ */
