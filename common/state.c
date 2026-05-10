@@ -3,6 +3,7 @@
 #include <string.h>
 #include "state.h"
 #include "lua_bind.h"
+#include "lua_anim.h"
 
 cJSON *app_state_to_json(app_t *app)
 {
@@ -43,6 +44,8 @@ cJSON *app_state_to_json(app_t *app)
         cJSON_AddItemToArray(sched, entry);
     }
     cJSON_AddItemToObject(root, "scheduler", sched);
+
+    cJSON_AddItemToObject(root, "anim", lua_anim_to_cjson());
 
     return root;
 }
