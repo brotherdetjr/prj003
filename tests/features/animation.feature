@@ -105,3 +105,36 @@ Feature: Animation API
   Scenario: of() called twice raises a Lua error at script load time
     When emu is invoked with args "--nowtick=0 --noautotick --script=scripts/anim_of_twice_error/main.lua"
     Then the exit code is 1
+
+  Scenario: get_state serializes animation current_frame
+    Given emu starts with test script "anim_forward/main.lua" and args "--nowtick=0 --noautotick --id=DEADBEEF"
+    When I post command:
+      """
+      {"cmd": "advance_time", "ticks": 100}
+      """
+    And I get state
+    Then state field "anim" equals:
+      """
+      {"a": {"n_frames": 2, "current_frame": 2, "backwards": false, "playing": true, "loop": false}}
+      """
+
+  Scenario: set_state restores animation frame
+    Given emu starts with test script "anim_forward/main.lua" and args "--nowtick=0 --noautotick --id=DEADBEEF"
+    When I post command:
+      """
+      {"cmd": "advance_time", "ticks": 100}
+      """
+    And I post command:
+      """
+      {"cmd": "set_state", "state": {
+        "ro": {"instance_id": "DEADBEEF", "now_tick": 100, "now_unix_sec": 0, "character": null},
+        "rw": {}, "scheduler": [],
+        "anim": {"a": {"n_frames": 2, "current_frame": 1, "backwards": false, "playing": true, "loop": false}}
+      }}
+      """
+    When I post command:
+      """
+      {"cmd": "advance_time", "ticks": 100}
+      """
+    And I get the screen
+    Then the screen matches fixture "spr_apng_frame0.png"

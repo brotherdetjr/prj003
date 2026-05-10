@@ -21,7 +21,7 @@ Feature: Global freeze — callbacks may not write outside rw
       """
     Then I receive a "_on_lua_error" SSE event with fn "_draw" and error containing "rw write blocked in _draw"
     When I get state
-    Then rw equals:
+    Then state field "rw" equals:
       """
       {"colour": 16711680}
       """
@@ -35,7 +35,7 @@ Feature: Global freeze — callbacks may not write outside rw
       """
     Then I receive a "_on_lua_error" SSE event with fn "_draw" and error containing "rw write blocked in _draw"
     When I get state
-    Then rw equals:
+    Then state field "rw" equals:
       """
       {"stats": {"energy": 100}}
       """
@@ -49,7 +49,7 @@ Feature: Global freeze — callbacks may not write outside rw
       """
     Then I receive a "_on_lua_error" SSE event with fn "_draw" and error containing "rw write blocked in _draw"
     When I get state
-    Then rw equals:
+    Then state field "rw" equals:
       """
       {"colour": 16711680}
       """
@@ -63,7 +63,7 @@ Feature: Global freeze — callbacks may not write outside rw
       """
     Then I receive a "_on_lua_error" SSE event with fn "_draw" and error containing "rw write blocked in _draw"
     When I get state
-    Then rw equals:
+    Then state field "rw" equals:
       """
       {"stats": {"energy": 100}}
       """

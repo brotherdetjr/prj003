@@ -2,6 +2,7 @@
 #include "lua_gfx.h"
 #include "spr.h"
 #include "../vendor/lua/lauxlib.h"
+#include "../vendor/cjson/cJSON.h"
 #include <string.h>
 #include <stdio.h>
 
@@ -229,6 +230,61 @@ void lua_anim_clear_all(void)
 {
     for (int i = 0; i < ANIM_MAX; i++)
         s_anims[i].id[0] = '\0';
+}
+
+cJSON *lua_anim_to_cjson(void)
+{
+    cJSON *obj = cJSON_CreateObject();
+    for (int i = 0; i < ANIM_MAX; i++) {
+        const anim_entry_t *e = &s_anims[i];
+        if (e->id[0] == '\0' || e->n_frames == 0) continue;
+        cJSON *entry = cJSON_CreateObject();
+        cJSON_AddNumberToObject(entry, "n_frames", e->n_frames);
+        cJSON_AddNumberToObject(entry, "current_frame", e->current_frame);
+        cJSON_AddBoolToObject(entry, "backwards", e->backwards);
+        cJSON_AddBoolToObject(entry, "playing", e->playing);
+        cJSON_AddBoolToObject(entry, "loop", e->loop);
+        cJSON_AddItemToObject(obj, e->id, entry);
+    }
+    return obj;
+}
+
+void lua_anim_restore(lua_State *L, const cJSON *obj)
+{
+    char key[ANIM_KEY_MAX];
+    for (int i = 0; i < ANIM_MAX; i++) {
+        if (s_anims[i].id[0] == '\0') continue;
+        make_key(s_anims[i].id, key, sizeof(key));
+        lua_pushnil(L);
+        lua_setfield(L, LUA_REGISTRYINDEX, key);
+        s_anims[i].id[0] = '\0';
+    }
+
+    if (obj == NULL || cJSON_IsNull(obj) || !cJSON_IsObject(obj)) return;
+
+    const cJSON *entry;
+    cJSON_ArrayForEach(entry, obj)
+    {
+        const char *id = entry->string;
+        if (!id) continue;
+        cJSON *n_j = cJSON_GetObjectItemCaseSensitive(entry, "n_frames");
+        cJSON *cur_j = cJSON_GetObjectItemCaseSensitive(entry, "current_frame");
+        cJSON *back_j = cJSON_GetObjectItemCaseSensitive(entry, "backwards");
+        cJSON *play_j = cJSON_GetObjectItemCaseSensitive(entry, "playing");
+        cJSON *loop_j = cJSON_GetObjectItemCaseSensitive(entry, "loop");
+
+        if (!cJSON_IsNumber(n_j) || !cJSON_IsNumber(cur_j)) continue;
+
+        anim_entry_t *e = anim_alloc(id);
+        if (!e) continue;
+
+        e->n_frames = (int)n_j->valuedouble;
+        e->current_frame = (int)cur_j->valuedouble;
+        e->backwards = cJSON_IsTrue(back_j);
+        e->playing = play_j ? cJSON_IsTrue(play_j) : 1;
+        e->loop = cJSON_IsTrue(loop_j);
+        e->used_in_last_draw = 0;
+    }
 }
 
 void lua_anim_post_draw(lua_State *L)

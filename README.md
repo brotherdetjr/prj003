@@ -531,7 +531,7 @@ After `poof`, `get_state` shows `"character": null` and a new `spawn` is accepte
 The emulator watches exactly the Lua files that were loaded at startup — the
 main script plus every file pulled in transitively via `require`. When any of
 them changes, the Lua VM is torn down, rebuilt from the main script, and the
-previous `rw` state and scheduler are restored — so scheduled events keep
+previous `rw` state, scheduler, and animation instances are restored — so scheduled events keep
 firing and game variables are preserved across reloads. The watched-file list
 is refreshed after each successful reload, so adding or removing a `require`
 takes effect immediately.

@@ -352,7 +352,10 @@ Feature: HTTP API edge cases
       """
     Then the response is ok
     When I get state
-    Then rw is an empty object
+    Then state field "rw" equals:
+      """
+      {}
+      """
 
   Scenario: set_state with rw omitted treats it as empty
     When I post command:
@@ -365,7 +368,10 @@ Feature: HTTP API edge cases
       """
     Then the response is ok
     When I get state
-    Then rw is an empty object
+    Then state field "rw" equals:
+      """
+      {}
+      """
 
   Scenario: set_state with scheduler entry missing fire_at_ms is rejected
     When I post command:

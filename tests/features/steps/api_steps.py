@@ -153,17 +153,12 @@ def step_scheduler_empty(context):
     assert sched == [], f"expected scheduler=[], got: {sched!r}"
 
 
-@then("rw is an empty object")
-def step_rw_empty(context):
-    rw = context.state.get("rw")
-    assert rw == {}, f"expected rw={{}}, got {rw!r}"
-
-
-@then("rw equals:")
-def step_rw_equals(context):
+@then('state field "{field}" equals:')
+def step_state_field_equals(context, field):
     expected = json.loads(context.text)
-    actual = context.state.get("rw", {})
-    assert actual == expected, f"expected rw={expected!r}, got {actual!r}"
+    actual = context.state.get(field)
+    assert actual == expected, f"expected state.{field}={expected!r}, got {actual!r}"
+
 
 
 @then('rw field "{key}" is {value}')

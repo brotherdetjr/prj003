@@ -355,6 +355,12 @@ completely.
 | `scheduler[].fire_at_ms` | Required per entry | — |
 | `scheduler[].event` | Required per entry | — |
 | `rw` | Optional | `null` or omitted → treated as `{}` (empty script state) |
+| `anim` | Optional | `null` or omitted → treated as `{}` (no animation instances) |
+| `anim.<id>.n_frames` | Required per entry | — |
+| `anim.<id>.current_frame` | Required per entry | — |
+| `anim.<id>.backwards` | Optional per entry | omitted → `false` |
+| `anim.<id>.playing` | Optional per entry | omitted → `true` |
+| `anim.<id>.loop` | Optional per entry | omitted → `false` |
 
 A `set_state` that supplies only a subset of `ro` fields (or a non-null
 `character` object missing any of its fields) returns
