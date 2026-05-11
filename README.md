@@ -69,7 +69,7 @@ common/             ← shared code (all platforms)
   app.h/c           ← app_t struct; app_init/spawn/poof/advance
   lua_bind.h/c      ← Lua VM init, schedule() global, event dispatch
   lua_gfx.h/c       ← Lua graphics globals (cls, spr, …)
-  lua_anim.h/c      ← animation instance registry; Lua anim()/fr() globals
+  lua_anim.h/c      ← animation instance registry; Lua anim()/aspr() globals
   gfx.h/c           ← software renderer + PNG encoder
   apng.h/c          ← PNG/APNG decoder: returns flat RGBA frames
   spr.h/c           ← sprite registry and blitter (uses apng.h/c)
@@ -248,18 +248,18 @@ The following graphics functions are available as Lua globals inside `_draw()` (
 |---|---|
 | `cls(color)` | Fill the entire screen with `color` (24-bit `0xRRGGBB` integer) |
 | `spr(path [, frame [, x [, y [, fx [, fy [, fw [, fh]]]]]]])` | Draw a PNG or APNG sprite from `path` (relative to the script file). `frame` is a one-based frame index (default 1; clamped for static PNGs). `x, y` set the screen position. `fx, fy, fw, fh` select a sub-region of the canvas (defaults: origin, full size). |
-| `fr(id)` | Return the current one-based frame number for animation instance `id`. Sets the instance's "used in this draw" flag, keeping it alive. Raises a Lua error if `id` is not registered or has no frame count set. |
+| `aspr(id [, x [, y [, fx [, fy [, fw [, fh]]]]]]])` | Draw the current frame of animation instance `id`. `x, y` set the screen position (default 0). `fx, fy, fw, fh` select a sub-region of the canvas (defaults: origin, full size). Sets the instance's "used in this draw" flag, keeping it alive. Raises a Lua error if `id` is not registered or has no frame count set. |
 
 #### Animation globals
 
-Animation instances track which frame of a sprite sequence should be shown each draw. They are created and configured outside `_draw()` (e.g. at module top level or in `on_*` handlers) and queried via `fr()` inside `_draw()`. Unused instances are garbage-collected automatically after any `_draw()` call in which they were not referenced.
+Animation instances track which frame of a sprite sequence should be shown each draw. They are created and configured outside `_draw()` (e.g. at module top level or in `on_*` handlers) and drawn via `aspr()` inside `_draw()`. Unused instances are garbage-collected automatically after any `_draw()` call in which they were not referenced.
 
 ```lua
 -- create or reference an instance and configure it (calls are chainable)
 anim("walk").of("walk.png").loop(true)
 
--- inside _draw(), pass the current frame to spr()
-spr("walk.png", fr("walk"), x, y)
+-- inside _draw(), draw the current frame
+aspr("walk", x, y)
 ```
 
 `anim(id)` returns a method table. Calling `anim(id)` when the instance already exists returns the same table without reinitialising it. Calling it inside `_draw()` raises a Lua error.

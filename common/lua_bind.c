@@ -112,7 +112,7 @@ static const char *const k_stdlib[] = {
     "cls",
     "spr",
     "anim",
-    "fr",
+    "aspr",
     NULL};
 
 static int is_stdlib(const char *name)

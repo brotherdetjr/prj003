@@ -9,6 +9,11 @@ EMU = os.environ.get('EMU_BIN') or os.path.abspath(
     os.path.join(os.path.dirname(__file__), '../../../platform/pc/emu'))
 
 FIXTURES_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../fixtures'))
+SCRIPTS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../scripts'))
+
+
+def expand_placeholders(text):
+    return text.replace('{SCRIPTS_DIR}', SCRIPTS_DIR)
 
 
 def post(context, payload):
