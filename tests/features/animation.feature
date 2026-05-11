@@ -155,3 +155,35 @@ Feature: Animation API
       """
     And I get the screen
     Then the screen matches fixture "spr_apng_frame1.png"
+
+  Scenario: animation instance is deleted after a draw in which it was not referenced
+    Given emu starts with test script "anim_autodeletion/main.lua" and args "--nowtick=0 --noautotick"
+    When I post command:
+      """
+      {"cmd": "set_state", "state": {
+        "ro": {"instance_id": "00000000", "now_tick": 0, "now_unix_sec": 0, "character": null},
+        "rw": {"show": true}, "scheduler": [],
+        "anim": {"a": {"path": "{SCRIPTS_DIR}/anim_autodeletion/two_frames.png", "n_frames": 2, "current_frame": 1, "backwards": false, "playing": true, "loop": false}}
+      }}
+      """
+    And I post command:
+      """
+      {"cmd": "advance_time", "ticks": 100}
+      """
+    And I post command:
+      """
+      {"cmd": "set_state", "state": {
+        "ro": {"instance_id": "00000000", "now_tick": 100, "now_unix_sec": 0, "character": null},
+        "rw": {"show": false}, "scheduler": [],
+        "anim": {"a": {"path": "{SCRIPTS_DIR}/anim_autodeletion/two_frames.png", "n_frames": 2, "current_frame": 2, "backwards": false, "playing": true, "loop": false}}
+      }}
+      """
+    And I post command:
+      """
+      {"cmd": "advance_time", "ticks": 100}
+      """
+    And I get state
+    Then state field "anim" equals:
+      """
+      {}
+      """
