@@ -138,3 +138,20 @@ Feature: Animation API
       """
     And I get the screen
     Then the screen matches fixture "spr_apng_frame0.png"
+
+  Scenario: set_state draws correct frame on first draw with no prior animation
+    Given emu starts with test script "anim_forward/main.lua" and args "--nowtick=0 --noautotick --id=DEADBEEF"
+    When I post command:
+      """
+      {"cmd": "set_state", "state": {
+        "ro": {"instance_id": "DEADBEEF", "now_tick": 0, "now_unix_sec": 0, "character": null},
+        "rw": {}, "scheduler": [],
+        "anim": {"a": {"path": "{SCRIPTS_DIR}/anim_forward/two_frames.png", "n_frames": 2, "current_frame": 2, "backwards": false, "playing": true, "loop": false}}
+      }}
+      """
+    And I post command:
+      """
+      {"cmd": "advance_time", "ticks": 100}
+      """
+    And I get the screen
+    Then the screen matches fixture "spr_apng_frame1.png"
