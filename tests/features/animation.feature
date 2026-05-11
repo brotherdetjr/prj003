@@ -93,14 +93,14 @@ Feature: Animation API
       """
     Then I receive a "_on_lua_error" SSE event with fn "_draw" and error containing "anim:"
 
-  Scenario: fr() without of() raises a Lua error
+  Scenario: aspr() without of() raises a Lua error
     Given emu starts with test script "anim_fr_without_of_error/main.lua" and args "--nowtick=0 --noautotick"
     And I subscribe to SSE events
     When I post command:
       """
       {"cmd": "advance_time", "ticks": 100}
       """
-    Then I receive a "_on_lua_error" SSE event with fn "_draw" and error containing "fr:"
+    Then I receive a "_on_lua_error" SSE event with fn "_draw" and error containing "aspr:"
 
   Scenario: of() called twice raises a Lua error at script load time
     When emu is invoked with args "--nowtick=0 --noautotick --script=scripts/anim_of_twice_error/main.lua"
@@ -115,7 +115,7 @@ Feature: Animation API
     And I get state
     Then state field "anim" equals:
       """
-      {"a": {"n_frames": 2, "current_frame": 2, "backwards": false, "playing": true, "loop": false}}
+      {"a": {"path": "{SCRIPTS_DIR}/anim_forward/two_frames.png", "n_frames": 2, "current_frame": 2, "backwards": false, "playing": true, "loop": false}}
       """
 
   Scenario: set_state restores animation frame
@@ -129,7 +129,7 @@ Feature: Animation API
       {"cmd": "set_state", "state": {
         "ro": {"instance_id": "DEADBEEF", "now_tick": 100, "now_unix_sec": 0, "character": null},
         "rw": {}, "scheduler": [],
-        "anim": {"a": {"n_frames": 2, "current_frame": 1, "backwards": false, "playing": true, "loop": false}}
+        "anim": {"a": {"path": "{SCRIPTS_DIR}/anim_forward/two_frames.png", "n_frames": 2, "current_frame": 1, "backwards": false, "playing": true, "loop": false}}
       }}
       """
     When I post command:

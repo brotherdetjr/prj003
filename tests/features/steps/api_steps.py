@@ -5,7 +5,7 @@ import re
 
 from behave import then, when
 from PIL import Image
-from utils import FIXTURES_DIR, get_screen, post, raw_request
+from utils import FIXTURES_DIR, expand_placeholders, get_screen, post, raw_request
 
 
 @when("I get state")
@@ -30,7 +30,7 @@ def step_spawn(context):
 
 @when("I post command:")
 def step_post_command_body(context):
-    raw_request(context, "POST", "/command", json=json.loads(context.text))
+    raw_request(context, "POST", "/command", json=json.loads(expand_placeholders(context.text)))
 
 
 @when('I send a {method} request to "{path}"')
@@ -155,7 +155,7 @@ def step_scheduler_empty(context):
 
 @then('state field "{field}" equals:')
 def step_state_field_equals(context, field):
-    expected = json.loads(context.text)
+    expected = json.loads(expand_placeholders(context.text))
     actual = context.state.get(field)
     assert actual == expected, f"expected state.{field}={expected!r}, got {actual!r}"
 

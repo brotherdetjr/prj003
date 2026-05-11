@@ -356,6 +356,7 @@ completely.
 | `scheduler[].event` | Required per entry | — |
 | `rw` | Optional | `null` or omitted → treated as `{}` (empty script state) |
 | `anim` | Optional | `null` or omitted → treated as `{}` (no animation instances) |
+| `anim.<id>.path` | Required per entry | Absolute path to the sprite file |
 | `anim.<id>.n_frames` | Required per entry | — |
 | `anim.<id>.current_frame` | Required per entry | — |
 | `anim.<id>.backwards` | Optional per entry | omitted → `false` |

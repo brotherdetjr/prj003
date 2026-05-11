@@ -3,11 +3,9 @@ import shlex
 import subprocess
 
 from behave import given, when
-from utils import find_free_port, run_emu, start_emu
+from utils import SCRIPTS_DIR, find_free_port, run_emu, start_emu
 
-TEST_SCRIPTS_DIR = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), "../../scripts")
-)
+TEST_SCRIPTS_DIR = SCRIPTS_DIR
 
 
 def _port_from_args(args, default):

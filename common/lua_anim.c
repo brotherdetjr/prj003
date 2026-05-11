@@ -1,5 +1,6 @@
 #include "lua_anim.h"
 #include "lua_gfx.h"
+#include "gfx.h"
 #include "spr.h"
 #include "../vendor/lua/lauxlib.h"
 #include "../vendor/cjson/cJSON.h"
@@ -8,13 +9,15 @@
 
 #define ANIM_MAX 64
 #define ANIM_ID_MAX 64
+#define ANIM_PATH_MAX 1024
 #define ANIM_KEY_PREFIX "_gloxie_anim_"
 #define ANIM_KEY_MAX (sizeof(ANIM_KEY_PREFIX) - 1 + ANIM_ID_MAX)
 
 typedef struct {
-    char id[ANIM_ID_MAX]; /* empty = free slot */
-    int n_frames;         /* 0 = unset */
-    int current_frame;    /* 1-based */
+    char id[ANIM_ID_MAX];     /* empty = free slot */
+    char path[ANIM_PATH_MAX]; /* resolved absolute path set by of() */
+    int n_frames;             /* 0 = unset */
+    int current_frame;        /* 1-based */
     int backwards;
     int playing;
     int loop;
@@ -42,6 +45,7 @@ static anim_entry_t *anim_alloc(const char *id)
         if (s_anims[i].id[0] == '\0') {
             strncpy(s_anims[i].id, id, ANIM_ID_MAX - 1);
             s_anims[i].id[ANIM_ID_MAX - 1] = '\0';
+            s_anims[i].path[0] = '\0';
             s_anims[i].n_frames = 0;
             s_anims[i].current_frame = 1;
             s_anims[i].backwards = 0;
@@ -80,8 +84,8 @@ static int l_anim_of(lua_State *L)
     anim_entry_t *e = anim_find(id);
     if (!e)
         return luaL_error(L, "anim.of: '%s' not found", id);
-    if (e->n_frames != 0)
-        return luaL_error(L, "anim.of: '%s' already has frame count set", id);
+    if (e->path[0] != '\0')
+        return luaL_error(L, "anim.of: '%s' already initialised", id);
 
     char abs_path[1024];
     lua_gfx_resolve_path(L, rel, abs_path, sizeof(abs_path));
@@ -92,6 +96,8 @@ static int l_anim_of(lua_State *L)
         return luaL_error(L, "anim.of: %s: %s", abs_path,
                           err ? err : "unknown error");
 
+    strncpy(e->path, abs_path, ANIM_PATH_MAX - 1);
+    e->path[ANIM_PATH_MAX - 1] = '\0';
     e->n_frames = n;
     return push_self(L, id);
 }
@@ -199,21 +205,34 @@ static int l_anim(lua_State *L)
     return 1;
 }
 
-static int l_fr(lua_State *L)
+static int l_aspr(lua_State *L)
 {
     if (!lua_gfx_in_draw())
-        return luaL_error(L, "fr: not in draw context");
+        return luaL_error(L, "aspr: not in draw context");
 
     const char *id = luaL_checkstring(L, 1);
     anim_entry_t *e = anim_find(id);
     if (!e)
-        return luaL_error(L, "fr: animation '%s' not registered", id);
-    if (e->n_frames == 0)
-        return luaL_error(L, "fr: animation '%s' has no frame count set", id);
+        return luaL_error(L, "aspr: animation '%s' not registered", id);
+    if (e->path[0] == '\0')
+        return luaL_error(L, "aspr: animation '%s' not initialised", id);
+
+    int x = (int)luaL_optinteger(L, 2, 0);
+    int y = (int)luaL_optinteger(L, 3, 0);
+    int fx = (int)luaL_optinteger(L, 4, 0);
+    int fy = (int)luaL_optinteger(L, 5, 0);
+    int fw = (int)luaL_optinteger(L, 6, 0);
+    int fh = (int)luaL_optinteger(L, 7, 0);
 
     e->used_in_last_draw = 1;
-    lua_pushinteger(L, e->current_frame);
-    return 1;
+    int frame = e->current_frame - 1;
+
+    const char *err = NULL;
+    if (spr_draw(e->path, frame, x, y, fx, fy, fw, fh,
+                 gfx_fb(), GFX_W, GFX_H, &err) < 0)
+        return luaL_error(L, "aspr: %s: %s", e->path,
+                          err ? err : "unknown error");
+    return 0;
 }
 
 /* ------------------------------------------------------------------ */
@@ -223,7 +242,7 @@ static int l_fr(lua_State *L)
 void lua_anim_register(lua_State *L)
 {
     lua_register(L, "anim", l_anim);
-    lua_register(L, "fr", l_fr);
+    lua_register(L, "aspr", l_aspr);
 }
 
 void lua_anim_clear_all(void)
@@ -237,8 +256,9 @@ cJSON *lua_anim_to_cjson(void)
     cJSON *obj = cJSON_CreateObject();
     for (int i = 0; i < ANIM_MAX; i++) {
         const anim_entry_t *e = &s_anims[i];
-        if (e->id[0] == '\0' || e->n_frames == 0) continue;
+        if (e->id[0] == '\0' || e->path[0] == '\0') continue;
         cJSON *entry = cJSON_CreateObject();
+        cJSON_AddStringToObject(entry, "path", e->path);
         cJSON_AddNumberToObject(entry, "n_frames", e->n_frames);
         cJSON_AddNumberToObject(entry, "current_frame", e->current_frame);
         cJSON_AddBoolToObject(entry, "backwards", e->backwards);
@@ -267,17 +287,21 @@ void lua_anim_restore(lua_State *L, const cJSON *obj)
     {
         const char *id = entry->string;
         if (!id) continue;
+        cJSON *path_j = cJSON_GetObjectItemCaseSensitive(entry, "path");
         cJSON *n_j = cJSON_GetObjectItemCaseSensitive(entry, "n_frames");
         cJSON *cur_j = cJSON_GetObjectItemCaseSensitive(entry, "current_frame");
         cJSON *back_j = cJSON_GetObjectItemCaseSensitive(entry, "backwards");
         cJSON *play_j = cJSON_GetObjectItemCaseSensitive(entry, "playing");
         cJSON *loop_j = cJSON_GetObjectItemCaseSensitive(entry, "loop");
 
-        if (!cJSON_IsNumber(n_j) || !cJSON_IsNumber(cur_j)) continue;
+        if (!cJSON_IsString(path_j) || !cJSON_IsNumber(n_j) ||
+            !cJSON_IsNumber(cur_j)) continue;
 
         anim_entry_t *e = anim_alloc(id);
         if (!e) continue;
 
+        strncpy(e->path, path_j->valuestring, ANIM_PATH_MAX - 1);
+        e->path[ANIM_PATH_MAX - 1] = '\0';
         e->n_frames = (int)n_j->valuedouble;
         e->current_frame = (int)cur_j->valuedouble;
         e->backwards = cJSON_IsTrue(back_j);
