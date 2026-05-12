@@ -329,7 +329,12 @@ pip install behave requests
 
 ```sh
 # Linux (Debian/Ubuntu)
-sudo apt install libsdl2-dev
+sudo apt install python3 python3-pip libsdl2-dev jq apngasm
+```
+
+```sh
+# macOS
+brew install python3 jq apngasm
 ```
 
 ```sh
