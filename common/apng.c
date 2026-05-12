@@ -240,14 +240,11 @@ uint8_t *apng_load(const uint8_t *file_data, size_t file_len, int *out_n, int *o
         } else if (memcmp(type, "IDAT", 4) == 0) {
             if (!seen_idat) {
                 seen_idat = 1;
-                if (frame_idx < 0) {
-                    frame_idx = 0;
-                    idat_frame = 1;
-                } else {
-                    idat_frame = 1;
-                }
+                if (frame_idx >= 0)
+                    idat_frame = 1; /* fcTL preceded IDAT → animation frame */
+                /* else: IDAT before any fcTL → static fallback, skip */
             }
-            if (frame_idx >= 0 && frame_idx < n_frames)
+            if (frame_idx >= 0 && frame_idx < n_frames && idat_frame)
                 buf_append(&frames[frame_idx].idat, cdata, clen);
         } else if (memcmp(type, "fdAT", 4) == 0 && clen >= 4) {
             if (frame_idx >= 0 && frame_idx < n_frames && !idat_frame)
