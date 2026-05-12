@@ -82,7 +82,10 @@ static void png_chunk(buf_t *out, const char *type, const uint8_t *data, uint32_
     u32be(out, crc32_buf(out->buf + crc_start, 4 + dlen));
 }
 
-static uint8_t *build_png(int w, int h, const uint8_t *idat_data, size_t idat_len,
+static uint8_t *build_png(int w, int h, uint8_t bit_depth, uint8_t color_type,
+                          const uint8_t *plte, uint32_t plte_len,
+                          const uint8_t *trns, uint32_t trns_len,
+                          const uint8_t *idat_data, size_t idat_len,
                           size_t *out_len)
 {
     if (!s_crc_ready) crc_init();
@@ -94,8 +97,10 @@ static uint8_t *build_png(int w, int h, const uint8_t *idat_data, size_t idat_le
     uint8_t ihdr[13] = {
         (w >> 24) & 0xFF, (w >> 16) & 0xFF, (w >> 8) & 0xFF, w & 0xFF,
         (h >> 24) & 0xFF, (h >> 16) & 0xFF, (h >> 8) & 0xFF, h & 0xFF,
-        8, 6, 0, 0, 0}; /* bit_depth=8, color_type=RGBA */
+        bit_depth, color_type, 0, 0, 0};
     png_chunk(&png, "IHDR", ihdr, 13);
+    if (plte && plte_len) png_chunk(&png, "PLTE", plte, plte_len);
+    if (trns && trns_len) png_chunk(&png, "tRNS", trns, trns_len);
     png_chunk(&png, "IDAT", idat_data, (uint32_t)idat_len);
     png_chunk(&png, "IEND", NULL, 0);
 
@@ -168,9 +173,15 @@ uint8_t *apng_load(const uint8_t *file_data, size_t file_len, int *out_n, int *o
     if (read_u32be(p) < 13 || memcmp(p + 4, "IHDR", 4) != 0) return NULL;
     int canvas_w = (int)read_u32be(p + 8);
     int canvas_h = (int)read_u32be(p + 12);
+    uint8_t bit_depth = p[16];
+    uint8_t color_type = p[17];
 
     int n_frames = 0;
     int is_apng = 0;
+    const uint8_t *plte = NULL;
+    uint32_t plte_len = 0;
+    const uint8_t *trns = NULL;
+    uint32_t trns_len = 0;
     const uint8_t *scan = p;
     while (scan + 8 <= end) {
         uint32_t clen = read_u32be(scan);
@@ -178,6 +189,12 @@ uint8_t *apng_load(const uint8_t *file_data, size_t file_len, int *out_n, int *o
         if (memcmp(scan + 4, "acTL", 4) == 0 && clen >= 8) {
             is_apng = 1;
             n_frames = (int)read_u32be(scan + 8);
+        } else if (memcmp(scan + 4, "PLTE", 4) == 0) {
+            plte = scan + 8;
+            plte_len = clen;
+        } else if (memcmp(scan + 4, "tRNS", 4) == 0) {
+            trns = scan + 8;
+            trns_len = clen;
         }
         scan += 12 + clen;
     }
@@ -271,7 +288,9 @@ uint8_t *apng_load(const uint8_t *file_data, size_t file_len, int *out_n, int *o
         if (f->idat.buf && f->idat.len > 0) {
             size_t png_len;
             uint8_t *mini =
-                build_png((int)f->w, (int)f->h, f->idat.buf, f->idat.len, &png_len);
+                build_png((int)f->w, (int)f->h, bit_depth, color_type,
+                          plte, plte_len, trns, trns_len,
+                          f->idat.buf, f->idat.len, &png_len);
             if (mini) {
                 int fw, fh, ch;
                 uint8_t *px =
