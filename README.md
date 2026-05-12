@@ -291,15 +291,13 @@ After cloning, install the pre-commit hook (runs the full build pipeline before 
 ln -sf ../../scripts/pre-commit .git/hooks/pre-commit
 ```
 
-Install the [GitHub CLI](https://cli.github.com/) for PR creation on first branch push:
+Requires GCC (with ASan support), `clang-format`, Python 3 with `behave` and
+`requests`, SDL2 (`libsdl2-dev`), apngasm, and [GitHub CLI](https://cli.github.com/) on Linux.
 
 ```sh
-# macOS
-brew install gh
-
 # Linux (Debian/Ubuntu)
-sudo apt install gh
-
+sudo apt install gh python3 python3-pip libsdl2-dev apngasm
+pip install behave requests
 gh auth login
 ```
 
@@ -320,22 +318,7 @@ To build the production binary:
 make emu     # produces emu (stripped, optimised)
 ```
 
-Requires GCC (with ASan support), `clang-format`, Python 3 with `behave` and
-`requests`, and SDL2 (`libsdl2-dev`) on Linux or macOS.
-
-```sh
-pip install behave requests
-```
-
-```sh
-# Linux (Debian/Ubuntu)
-sudo apt install python3 python3-pip libsdl2-dev apngasm
-```
-
-```sh
-# macOS
-brew install python3 apngasm
-```
+To apply formatting:
 
 ```sh
 make format         # apply formatting in-place
