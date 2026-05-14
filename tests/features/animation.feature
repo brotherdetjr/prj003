@@ -42,8 +42,8 @@ Feature: Animation API
     And I get the screen
     Then the screen matches fixture "spr_apng_frame0.png"
 
-  Scenario: stop() freezes animation on first frame
-    Given emu starts with test script "anim_stop/main.lua" and args "--nowtick=0 --noautotick"
+  Scenario: pause() freezes animation on first frame
+    Given emu starts with test script "anim_pause/main.lua" and args "--nowtick=0 --noautotick"
     When I post command:
       """
       {"cmd": "advance_time", "ticks": 100}

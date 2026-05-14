@@ -1,5 +1,5 @@
 function _init()
-    anim("a").of("two_frames.png").stop()
+    anim("a").of("two_frames.png").pause()
 end
 
 function _draw()
