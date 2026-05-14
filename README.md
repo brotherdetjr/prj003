@@ -204,13 +204,18 @@ See `LUA_LINT.md` for known gaps and planned static analysis rules.
 
 #### Game loop callbacks
 
+`_init([rw [, ro]])` is called once when the script is loaded, after top-level code runs and
+globals are frozen. Use it for one-time setup (e.g. registering animation instances). If `_init`
+raises a Lua error the process exits — errors here are fatal. Hot reload does not trigger `_init`;
+the previous `rw` state is preserved across reloads instead.
+
 Each tick (every `AUTOTICK` ms of virtual time), the engine calls these Lua globals in order:
 
 1. All scheduled `on_*` callbacks whose `fire_at_ms` falls within the current tick window.
 2. `_update(rw [, ro])` — game logic; always called.
 3. `_draw(rw [, ro])` — rendering; called after `_update`.
 
-Both functions are optional. If not defined they are silently skipped. They receive the same
+All three functions are optional. If not defined they are silently skipped. They receive the same
 `rw` and `ro` arguments as `on_*` callbacks. `_update` may write to `rw`; in `_draw` the `rw`
 argument is a recursive read-only proxy — any write attempt raises a Lua error.
 
@@ -252,7 +257,7 @@ The following graphics functions are available as Lua globals inside `_draw()` (
 
 #### Animation globals
 
-Animation instances track which frame of a sprite sequence should be shown each draw. They are created and configured outside `_draw()` (e.g. at module top level or in `on_*` handlers) and drawn via `aspr()` inside `_draw()`. Unused instances are garbage-collected automatically after any `_draw()` call in which they were not referenced.
+Animation instances track which frame of a sprite sequence should be shown each draw. They are created and configured outside `_draw()` (e.g. in `_init` or `on_*` handlers) and drawn via `aspr()` inside `_draw()`. Unused instances are garbage-collected automatically after any `_draw()` call in which they were not referenced.
 
 ```lua
 -- create or reference an instance and configure it (calls are chainable)

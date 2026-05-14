@@ -1,4 +1,6 @@
-anim("a")
+function _init()
+    anim("a")
+end
 
 function _draw()
     cls(0x000000)

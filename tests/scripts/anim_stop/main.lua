@@ -1,4 +1,6 @@
-anim("a").of("two_frames.png").stop()
+function _init()
+    anim("a").of("two_frames.png").stop()
+end
 
 function _draw()
     cls(0x000000)
