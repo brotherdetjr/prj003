@@ -745,17 +745,19 @@ void lua_bind_call_draw(app_t *app)
 /* Reload                                                             */
 /* ------------------------------------------------------------------ */
 
+static int load_and_freeze(app_t *app, const char *script_path); /* forward decl */
+
 int lua_bind_reload(app_t *app, const char *script_path)
 {
     cJSON *snap = app_state_to_json(app); /* lua_bind_restore ignores "ro" */
 
-    /* Stash old state; lua_bind_init clears lua_events so save them too */
+    /* Stash old state; load_and_freeze clears lua_events so save them too */
     lua_State *old_L = app->L;
     lua_event_t saved_events[LUA_MAX_EVENTS];
     memcpy(saved_events, app->lua_events, sizeof(saved_events));
 
     app->L = NULL;
-    if (lua_bind_init(app, script_path) != 0) {
+    if (load_and_freeze(app, script_path) != 0) {
         /* Load failed — restore old state intact */
         app->L = old_L;
         memcpy(app->lua_events, saved_events, sizeof(saved_events));
@@ -868,7 +870,7 @@ static void setup_package(lua_State *L, const char *script_path)
     lua_pop(L, 3);                    /* clean */
 }
 
-int lua_bind_init(app_t *app, const char *script_path)
+static int load_and_freeze(app_t *app, const char *script_path)
 {
     lua_State *L = luaL_newstate();
     if (!L) {
@@ -912,5 +914,30 @@ int lua_bind_init(app_t *app, const char *script_path)
     }
 
     freeze_globals(L);
+    return 0;
+}
+
+int lua_bind_init(app_t *app, const char *script_path)
+{
+    if (load_and_freeze(app, script_path) != 0) return -1;
+
+    /* Call _init(rw, ro) if defined; errors are fatal. */
+    lua_State *L = app->L;
+    set_schedule_prefix(L, "");
+    lua_getglobal(L, "_init");
+    if (lua_isfunction(L, -1)) {
+        push_rw(L);
+        push_ro(L, app);
+        if (lua_pcall(L, 2, 0, 0) != LUA_OK) {
+            fprintf(stderr, "lua_bind_init: _init failed: %s\n",
+                    lua_tostring(L, -1));
+            lua_close(L);
+            app->L = NULL;
+            return -1;
+        }
+    } else {
+        lua_pop(L, 1);
+    }
+
     return 0;
 }
