@@ -128,13 +128,13 @@ static int l_anim_loop(lua_State *L)
     return push_self(L, id);
 }
 
-static int l_anim_stop(lua_State *L)
+static int l_anim_pause(lua_State *L)
 {
     const char *id = lua_tostring(L, lua_upvalueindex(1));
 
     anim_entry_t *e = anim_find(id);
     if (!e)
-        return luaL_error(L, "anim.stop: '%s' not found", id);
+        return luaL_error(L, "anim.pause: '%s' not found", id);
 
     e->playing = 0;
     return push_self(L, id);
@@ -188,7 +188,7 @@ static int l_anim(lua_State *L)
     } methods[] = {{"of", l_anim_of},
                    {"backwards", l_anim_backwards},
                    {"loop", l_anim_loop},
-                   {"stop", l_anim_stop},
+                   {"pause", l_anim_pause},
                    {"play", l_anim_play},
                    {NULL, NULL}};
 

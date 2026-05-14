@@ -274,7 +274,7 @@ aspr("walk", x, y)
 | `.of(path)` | Set the frame count from the sprite at `path` (loaded if not already cached). Must be called exactly once per instance; a second call raises a Lua error. |
 | `.backwards(bool)` | Play in reverse when `true`. Default: `false`. |
 | `.loop(bool)` | Loop when the last (or first, if backwards) frame is reached. Default: `false`. |
-| `.stop()` | Pause playback; frame is not advanced on subsequent draw calls. |
+| `.pause()` | Pause playback; frame is not advanced on subsequent draw calls. |
 | `.play()` | Resume playback. |
 
 **Frame advancement** — after each `_draw()` call the engine advances every live instance one step:
