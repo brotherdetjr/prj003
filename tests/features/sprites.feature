@@ -44,3 +44,21 @@ Feature: Sprites
       """
     And I get the screen
     Then the screen matches fixture "spr_apng_frame1.png"
+
+  Scenario: spr clips correctly at negative x and y
+    Given emu starts with test script "spr_neg_xy/main.lua" and args "--nowtick=0 --noautotick"
+    When I post command:
+      """
+      {"cmd": "advance_time", "ticks": 100}
+      """
+    And I get the screen
+    Then the screen matches fixture "spr_neg_xy.png"
+
+  Scenario: aspr clips correctly at negative x and y
+    Given emu starts with test script "aspr_neg_xy/main.lua" and args "--nowtick=0 --noautotick"
+    When I post command:
+      """
+      {"cmd": "advance_time", "ticks": 100}
+      """
+    And I get the screen
+    Then the screen matches fixture "aspr_neg_xy.png"
