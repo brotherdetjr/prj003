@@ -62,3 +62,21 @@ Feature: Sprites
       """
     And I get the screen
     Then the screen matches fixture "aspr_neg_xy.png"
+
+  Scenario: spr draws nothing when completely off-screen
+    Given emu starts with test script "spr_oob/main.lua" and args "--nowtick=0 --noautotick"
+    When I post command:
+      """
+      {"cmd": "advance_time", "ticks": 100}
+      """
+    And I get the screen
+    Then the screen matches fixture "black_368x448.png"
+
+  Scenario: aspr draws nothing when completely off-screen
+    Given emu starts with test script "aspr_oob/main.lua" and args "--nowtick=0 --noautotick"
+    When I post command:
+      """
+      {"cmd": "advance_time", "ticks": 100}
+      """
+    And I get the screen
+    Then the screen matches fixture "black_368x448.png"
