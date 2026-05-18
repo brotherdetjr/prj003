@@ -6,6 +6,9 @@
 /* Mongoose HTTP event handler — pass as fn to mg_http_listen. */
 void mg_event_handler(struct mg_connection *c, int ev, void *ev_data);
 
+/* Call _update then _draw at the current virtual tick. */
+void update_and_draw(app_t *app);
+
 /* mg_timer callback: advances one tick when autotick is enabled. */
 void tick_timer_fn(void *arg);
 

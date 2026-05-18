@@ -457,6 +457,16 @@ static cJSON *lua_value_to_cjson(lua_State *L, int idx)
 static cJSON *lua_table_to_cjson(lua_State *L, int idx)
 {
     if (idx < 0) idx = lua_gettop(L) + 1 + idx;
+    lua_Integer len = (lua_Integer)lua_rawlen(L, idx);
+    if (len > 0) {
+        cJSON *arr = cJSON_CreateArray();
+        for (lua_Integer i = 1; i <= len; i++) {
+            lua_rawgeti(L, idx, i);
+            cJSON_AddItemToArray(arr, lua_value_to_cjson(L, -1));
+            lua_pop(L, 1);
+        }
+        return arr;
+    }
     cJSON *obj = cJSON_CreateObject();
     lua_pushnil(L);
     while (lua_next(L, idx) != 0) {

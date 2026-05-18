@@ -163,13 +163,16 @@ def step_state_field_equals(context, field):
 
 @then('rw field "{key}" is {value}')
 def step_rw_field(context, key, value):
+    expected = json.loads(value)
     actual = context.state.get("rw", {}).get(key)
-    if value == "true":
-        assert actual is True, f"expected rw.{key}=true, got {actual!r}"
-    elif value == "false":
-        assert actual is False, f"expected rw.{key}=false, got {actual!r}"
-    else:
-        assert actual == int(value), f"expected rw.{key}={value}, got {actual!r}"
+    assert actual == expected, f"expected rw.{key}={expected!r}, got {actual!r}"
+
+
+@then('rw field "{key}" equals:')
+def step_rw_field_equals(context, key):
+    expected = json.loads(context.text)
+    actual = context.state.get("rw", {}).get(key)
+    assert actual == expected, f"expected rw.{key}={expected!r}, got {actual!r}"
 
 
 @then('the screen matches fixture "{name}"')
