@@ -37,6 +37,25 @@ void lua_error_sse_cb(const char *fn, const char *msg, app_t *app)
 }
 
 /* ------------------------------------------------------------------ */
+/* Game frame                                                         */
+/* ------------------------------------------------------------------ */
+
+void update_and_draw(app_t *app)
+{
+    app->had_lua_error = 0;
+    lua_bind_call(app, "_update");
+    if (app->stop_on_lua_error && app->had_lua_error) {
+        app->autotick = 0;
+        return;
+    }
+    lua_gfx_set_drawing(1);
+    lua_bind_call_draw(app);
+    lua_gfx_set_drawing(0);
+    if (app->stop_on_lua_error && app->had_lua_error)
+        app->autotick = 0;
+}
+
+/* ------------------------------------------------------------------ */
 /* Autotick timer                                                     */
 /* ------------------------------------------------------------------ */
 
@@ -69,18 +88,7 @@ void tick_timer_fn(void *arg)
 
     if (!app->autotick) return; /* stopped by lua error in scheduled event */
 
-    app->had_lua_error = 0;
-    lua_bind_call(app, "_update");
-    if (app->stop_on_lua_error && app->had_lua_error) {
-        app->autotick = 0;
-        return;
-    }
-
-    lua_gfx_set_drawing(1);
-    lua_bind_call_draw(app);
-    lua_gfx_set_drawing(0);
-    if (app->stop_on_lua_error && app->had_lua_error)
-        app->autotick = 0;
+    update_and_draw(app);
 }
 
 /* ------------------------------------------------------------------ */
@@ -183,10 +191,7 @@ static void handle_command(struct mg_connection *c,
                     if (!sr.stopped_on_event) break;
                 }
                 if (!r.lua_error && step_end == boundary) {
-                    lua_bind_call(app, "_update");
-                    lua_gfx_set_drawing(1);
-                    lua_bind_call_draw(app);
-                    lua_gfx_set_drawing(0);
+                    update_and_draw(app);
                 }
             }
             r.now_tick = app->now_tick;
@@ -241,6 +246,7 @@ static void handle_command(struct mg_connection *c,
         app_spawn_character(app, char_id);
         lua_bind_reset_rw(app);
         lua_bind_call(app, "on_spawn");
+        update_and_draw(app);
         reply_state(c, app);
 
     } else if (strcmp(cmd, "poof") == 0) {

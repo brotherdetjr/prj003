@@ -23,21 +23,17 @@ Feature: _update() and _draw() Lua callbacks
   Scenario: on_spawn state is visible to _update()
     Given emu starts with test script "update_draw_on_spawn/main.lua" and args "--nowtick=0 --noautotick"
     When I spawn a character
-    And I post command:
-      """
-      {"cmd": "advance_time", "ticks": 100}
-      """
     And I get state
     Then rw field "spawn_before_update" is true
 
-  Scenario: scheduled events fire before _update() within each autotick window
+  Scenario: _init runs first, then _update at tick 0, then events before _update each autotick
     Given emu starts with test script "update_draw_order/main.lua" and args "--nowtick=0 --noautotick"
-    When I spawn a character
-    And I post command:
+    When I post command:
       """
-      {"cmd": "advance_time", "ticks": 300}
+      {"cmd": "advance_time", "ticks": 200}
       """
     And I get state
-    Then rw field "event_count" is 3
-    And rw field "update_count" is 3
-    And rw field "order_ok" is true
+    Then rw field "order" equals:
+      """
+      ["_init", "_update", "on_myevent", "_update", "on_myevent", "_update"]
+      """
