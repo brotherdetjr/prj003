@@ -65,9 +65,10 @@ Options:
 
 On startup the instance:
 1. Initialises the world (empty — no character yet).
-2. Starts the HTTP server on the given port.
-3. Begins listening on stdin for incoming peer messages.
-4. If auto-tick (default), starts advancing one tick per real second.
+2. Calls `_init`, then `_update`, then `_draw` at the initial virtual tick.
+3. Starts the HTTP server on the given port.
+4. Begins listening on stdin for incoming peer messages.
+5. If auto-tick (default), starts advancing one tick per real second.
 
 All diagnostic output (logs, errors) goes to **stderr**.  
 **stdout is reserved exclusively for outgoing peer messages.**

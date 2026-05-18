@@ -10,6 +10,7 @@
 #include "peer.h"
 #include "../../common/state.h"
 #include "../../common/lua_bind.h"
+#include "../../common/lua_gfx.h"
 #include "display.h"
 
 static volatile sig_atomic_t s_stop = 0;
@@ -273,6 +274,11 @@ int main(int argc, char *argv[])
     }
 
     display_init(headless);
+
+    lua_bind_call(&app, "_update");
+    lua_gfx_set_drawing(1);
+    lua_bind_call_draw(&app);
+    lua_gfx_set_drawing(0);
 
     /* HTTP server */
     mg_mgr_init(&app.mgr);
