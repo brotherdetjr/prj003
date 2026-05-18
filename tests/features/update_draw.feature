@@ -20,10 +20,9 @@ Feature: _update() and _draw() Lua callbacks
     And I get the screen
     Then the screen matches fixture "green_368x448.png"
 
-  Scenario: on_spawn state is visible to _update()
+  Scenario: _init state is visible to _update()
     Given emu starts with test script "update_draw_on_spawn/main.lua" and args "--nowtick=0 --noautotick"
-    When I spawn a character
-    And I get state
+    When I get state
     Then rw field "spawn_before_update" is true
 
   Scenario: _init runs first, then _update at tick 0, then events before _update each autotick

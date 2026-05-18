@@ -5,7 +5,7 @@ Feature: Hot-reload — changes to Lua files in the script directory take effect
     And "energy1.lua.template" is copied to "energy.lua"
     And emu starts with the hot-reload test script and args "--nowtick=0 --noautotick"
     And I subscribe to SSE events
-    When I spawn a character
+    When I get state
     Then the response is ok
     And energy is 10
     And the scheduler has an "energy.on_drain" event at tick 5000
@@ -41,7 +41,7 @@ Feature: Hot-reload — changes to Lua files in the script directory take effect
     And "energy1.lua.template" is copied to "energy.lua"
     And emu starts with the hot-reload test script and args "--nowtick=0 --noautotick"
     And I subscribe to SSE events
-    When I spawn a character
+    When I get state
     Then the response is ok
     When "decoy.lua.template" is copied to "decoy.lua"
     Then I do not receive an SSE "_on_reload" event

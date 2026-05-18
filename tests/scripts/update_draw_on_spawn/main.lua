@@ -1,4 +1,5 @@
-function on_spawn(rw)
+function _init(rw)
+    spawn()
     rw.spawned = true
 end
 

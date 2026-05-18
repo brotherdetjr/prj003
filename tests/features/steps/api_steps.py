@@ -23,11 +23,6 @@ def step_get_screen(context):
     context.screen_png = get_screen(context)
 
 
-@when("I spawn a character")
-def step_spawn(context):
-    context.state = post(context, {"cmd": "spawn"})
-
-
 @when("I post command:")
 def step_post_command_body(context):
     raw_request(context, "POST", "/command", json=json.loads(expand_placeholders(context.text)))

@@ -1,7 +1,7 @@
 Feature: HTTP API edge cases
 
   Background:
-    Given emu starts with args "--nowtick=42 --noautotick"
+    Given emu starts with test script "api_test/main.lua" and args "--nowtick=42 --noautotick"
 
   # ---------------------------------------------------------------------------
   # HTTP protocol
@@ -86,17 +86,8 @@ Feature: HTTP API edge cases
     And stopped_on_event is false
 
   # ---------------------------------------------------------------------------
-  # spawn / poof
+  # poof
   # ---------------------------------------------------------------------------
-
-  Scenario: spawning when a character already exists is rejected
-    When I spawn a character
-    And I post command:
-      """
-      {"cmd": "spawn"}
-      """
-    Then the response has ok false
-    And the error is "character already exists"
 
   Scenario: poof when no character is present is rejected
     When I post command:
@@ -396,8 +387,7 @@ Feature: HTTP API edge cases
     Then the response has ok false
 
   Scenario: set_state completely replaces existing state rather than merging
-    When I spawn a character
-    And I post command:
+    When I post command:
       """
       {"cmd": "set_state", "state": {
         "ro": {"instance_id": "DEADBEEF", "now_tick": 200, "now_unix_sec": 1775606400,

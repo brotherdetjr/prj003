@@ -1,6 +1,7 @@
 myapp = {}
 myapp.energy = require("energy")
 
-function on_spawn(rw)
+function _init(rw)
+    spawn()
     myapp.energy.init(rw)
 end

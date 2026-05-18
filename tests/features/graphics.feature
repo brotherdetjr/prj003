@@ -13,5 +13,8 @@ Feature: Graphics
   Scenario: cls raises an error when called outside _draw
     Given emu starts with test script "cls_on_spawn/main.lua" and args "--nowtick=0 --noautotick"
     And I subscribe to SSE events
-    When I spawn a character
-    Then I receive a "_on_lua_error" SSE event with fn "on_spawn" and error containing "draw context"
+    When I post command:
+      """
+      {"cmd": "advance_time", "ticks": 0, "stop_on_event": true}
+      """
+    Then I receive a "_on_lua_error" SSE event with fn "on_start" and error containing "draw context"

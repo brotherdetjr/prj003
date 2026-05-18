@@ -1,5 +1,4 @@
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include "server.h"
@@ -231,23 +230,6 @@ static void handle_command(struct mg_connection *c,
         mg_http_reply(c, 200, JSON_HDR,
                       "{\"ok\":true,\"stop_on_lua_error\":%s}\n",
                       app->stop_on_lua_error ? "true" : "false");
-
-    } else if (strcmp(cmd, "spawn") == 0) {
-        if (app->has_character) {
-            reply_error(c, "character already exists");
-            goto done;
-        }
-        uint32_t char_id;
-        cJSON *cid_j = cJSON_GetObjectItemCaseSensitive(body, "character_id");
-        if (cJSON_IsString(cid_j))
-            char_id = (uint32_t)strtoul(cid_j->valuestring, NULL, 16);
-        else
-            char_id = (uint32_t)rand();
-        app_spawn_character(app, char_id);
-        lua_bind_reset_rw(app);
-        lua_bind_call(app, "on_spawn");
-        update_and_draw(app);
-        reply_state(c, app);
 
     } else if (strcmp(cmd, "poof") == 0) {
         if (!app->has_character) {

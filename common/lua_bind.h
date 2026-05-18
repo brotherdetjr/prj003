@@ -32,12 +32,6 @@ void lua_bind_call_draw(app_t *app);
 cJSON *lua_bind_rw_to_cjson(app_t *app);
 
 /*
- * Reset the rw table to an empty table.
- * Call before on_spawn() so the script starts with a clean slate.
- */
-void lua_bind_reset_rw(app_t *app);
-
-/*
  * Restore full Lua state (rw + scheduler) from a state JSON object.
  * Call after json_to_state() when loading state from --file or set_state.
  * Returns 0 on success, -1 if the scheduler array contains invalid entries.

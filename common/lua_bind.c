@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
 #include "lua_bind.h"
@@ -109,6 +110,7 @@ static const char *const k_stdlib[] = {
     "coroutine", "debug", "io", "math", "os", "package", "string",
     "table", "utf8",
     "schedule",
+    "spawn",
     "cls",
     "spr",
     "anim",
@@ -196,6 +198,15 @@ static void freeze_globals(lua_State *L)
 /* ------------------------------------------------------------------ */
 /* Global functions exposed to Lua                                    */
 /* ------------------------------------------------------------------ */
+
+static int l_spawn(lua_State *L)
+{
+    app_t *app = get_app(L);
+    if (app->has_character)
+        return luaL_error(L, "spawn: character already exists");
+    app_spawn_character(app, (uint32_t)rand());
+    return 0;
+}
 
 static void set_schedule_prefix(lua_State *L, const char *prefix)
 {
@@ -486,13 +497,6 @@ cJSON *lua_bind_rw_to_cjson(app_t *app)
     cJSON *obj = lua_table_to_cjson(L, -1);
     lua_pop(L, 1);
     return obj;
-}
-
-void lua_bind_reset_rw(app_t *app)
-{
-    lua_State *L = app->L;
-    lua_newtable(L);
-    lua_setfield(L, LUA_REGISTRYINDEX, REG_RW);
 }
 
 static void cjson_to_lua_table(lua_State *L, const cJSON *obj)
@@ -896,6 +900,7 @@ static int load_and_freeze(app_t *app, const char *script_path)
 
     /* Register global functions */
     lua_register(L, "schedule", l_schedule);
+    lua_register(L, "spawn", l_spawn);
     lua_gfx_register(L);
     lua_pushstring(L, "");
     lua_setfield(L, LUA_REGISTRYINDEX, REG_PREFIX);

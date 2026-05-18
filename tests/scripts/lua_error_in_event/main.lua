@@ -1,4 +1,5 @@
-function on_spawn()
+function _init()
+    spawn()
     schedule(50, "on_error_event")
 end
 

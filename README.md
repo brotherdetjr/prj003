@@ -67,7 +67,7 @@ game is not.
 ```
 common/             ← shared code (all platforms)
   app.h/c           ← app_t struct; app_init/spawn/poof/advance
-  lua_bind.h/c      ← Lua VM init, schedule() global, event dispatch
+  lua_bind.h/c      ← Lua VM init, schedule()/spawn() globals, event dispatch
   lua_gfx.h/c       ← Lua graphics globals (cls, spr, …)
   lua_anim.h/c      ← animation instance registry; Lua anim()/aspr() globals
   gfx.h/c           ← software renderer + PNG encoder
@@ -89,7 +89,7 @@ platform/
     Makefile
 
 scripts/
-  main.lua          ← game logic: energy drain, spawn hook
+  main.lua          ← game logic: spawn, energy drain
                        (may require additional .lua files in the same directory)
 
 tests/
@@ -143,7 +143,7 @@ receive two arguments: `rw` (read-write scripted state) and `ro` (read-only
 snapshot: `instance_id`, `now_tick`, `now_unix_sec`, `character`). Callbacks
 that don't need both may simply declare fewer parameters.
 
-`schedule(delay_ms, name)` is available as a Lua global. Callback names are
+`spawn()` and `schedule(delay_ms, name)` are available as Lua globals. `spawn()` creates the character; it raises a Lua error if a character already exists. Callback names are
 **module-relative**: the dispatch layer automatically prepends the current
 module's prefix, so a callback inside `energy.on_drain` uses just `"on_drain"`
 and the engine stores `"energy.on_drain"`.
@@ -163,13 +163,14 @@ nrg = require("energy")            -- alias; prefix becomes "nrg."
 ```
 
 Top-level callbacks in the main script have no prefix and must pass the full
-dotted path when bootstrapping from `on_spawn`:
+dotted path when bootstrapping from `_init`:
 
 ```lua
 -- main.lua
 energy = require("energy")
 
-function on_spawn(rw)
+function _init(rw)
+    spawn()
     energy.init(rw)   -- energy.init() calls schedule(); prefix resolved via _G scan
 end
 ```
@@ -234,7 +235,7 @@ end
 
 | Prefix | Meaning | Example |
 |---|---|---|
-| `on_` | Engine lifecycle hook or schedulable event callback | `on_spawn`, `on_energy_drain` |
+| `on_` | Schedulable event callback | `on_energy_drain` |
 | `_on_` | System event emitted by the engine; not schedulable by scripts | `_on_reload` |
 | `_update` / `_draw` | Game loop callbacks; called every tick by the engine | — |
 
@@ -354,7 +355,8 @@ peer messages (newline-delimited JSON).
 Start the instance in a terminal. `--nowtick` sets the virtual clock (game
 logic); `--wallclockutc` sets the wall clock (zodiac). The two are independent:
 `now_tick` advances via `advance_time`; `now_unix_sec` only changes via
-`set_wall_clock`.
+`set_wall_clock`. The script's `_init` runs at startup and calls `spawn()` to
+create the character.
 
 ```sh
 ./emu --id=DEADBEEF --nowtick=42 --wallclockutc=2026-04-08T00:00:00 --noautotick
@@ -362,31 +364,11 @@ logic); `--wallclockutc` sets the wall clock (zodiac). The two are independent:
 
 In a second terminal, run these commands one by one.
 
-**Empty state — no character yet:**
+**Initial state — character spawned by `_init`:**
 ```sh
 curl -s -X POST http://localhost:7070/command \
   -H 'Content-Type: application/json' \
   -d '{"cmd":"get_state"}' | python3 -m json.tool
-```
-```json
-{
-    "ok": true,
-    "ro": {
-        "instance_id": "DEADBEEF",
-        "now_tick": 42,
-        "now_unix_sec": 1775606400,
-        "character": null
-    },
-    "rw": {},
-    "scheduler": []
-}
-```
-
-**Spawn a character:**
-```sh
-curl -s -X POST http://localhost:7070/command \
-  -H 'Content-Type: application/json' \
-  -d '{"cmd":"spawn"}' | python3 -m json.tool
 ```
 ```json
 {
@@ -517,7 +499,7 @@ curl -s -X POST http://localhost:7070/command \
 {"ok": true}
 ```
 
-After `poof`, `get_state` shows `"character": null` and a new `spawn` is accepted.
+After `poof`, `get_state` shows `"character": null`. A new character can be spawned by calling `spawn()` from the Lua script.
 
 ### Hot-reload
 
@@ -555,7 +537,6 @@ void setup() {
     while (WiFi.status() != WL_CONNECTED) delay(100);
 
     app_init(&s_app, rtc_now(), 0);
-    app_spawn_character(&s_app, esp_random());
 
     mg_mgr_init(&app.mgr);
     mg_http_listen(&app.mgr, "http://0.0.0.0:80", mg_event_handler, &app);
