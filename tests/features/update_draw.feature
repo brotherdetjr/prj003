@@ -7,15 +7,11 @@ Feature: _update() and _draw() Lua callbacks
       {"cmd": "advance_time", "ticks": 200}
       """
     And I get state
-    Then rw field "update_count" is 2
+    Then rw field "update_count" is 3
 
   Scenario: _draw() renders rw state set by _update() each tick
     Given emu starts with test script "update_draw_basic/main.lua" and args "--nowtick=0 --noautotick"
-    When I post command:
-      """
-      {"cmd": "advance_time", "ticks": 100}
-      """
-    And I get the screen
+    When I get the screen
     Then the screen matches fixture "red_368x448.png"
     When I post command:
       """

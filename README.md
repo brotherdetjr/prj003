@@ -209,7 +209,7 @@ globals are frozen. Use it for one-time setup (e.g. registering animation instan
 raises a Lua error the process exits — errors here are fatal. Hot reload does not trigger `_init`;
 the previous `rw` state is preserved across reloads instead.
 
-Each tick (every `AUTOTICK` ms of virtual time), the engine calls these Lua globals in order:
+At startup, immediately after `_init`, the engine calls `_update` then `_draw` once at the initial tick. After that, each tick (every `AUTOTICK` ms of virtual time), the engine calls these Lua globals in order:
 
 1. All scheduled `on_*` callbacks whose `fire_at_ms` falls within the current tick window.
 2. `_update(rw [, ro])` — game logic; always called.

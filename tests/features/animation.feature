@@ -2,11 +2,7 @@ Feature: Animation API
 
   Scenario: forward animation advances through two frames and stops
     Given emu starts with test script "anim_forward/main.lua" and args "--nowtick=0 --noautotick"
-    When I post command:
-      """
-      {"cmd": "advance_time", "ticks": 100}
-      """
-    And I get the screen
+    When I get the screen
     Then the screen matches fixture "spr_apng_frame0.png"
     When I post command:
       """
@@ -23,11 +19,7 @@ Feature: Animation API
 
   Scenario: forward loop wraps back to first frame
     Given emu starts with test script "anim_loop/main.lua" and args "--nowtick=0 --noautotick"
-    When I post command:
-      """
-      {"cmd": "advance_time", "ticks": 100}
-      """
-    And I get the screen
+    When I get the screen
     Then the screen matches fixture "spr_apng_frame0.png"
     When I post command:
       """
@@ -59,11 +51,7 @@ Feature: Animation API
 
   Scenario: three-frame forward animation cycles red, green, blue then stops
     Given emu starts with test script "anim_three_forward/main.lua" and args "--nowtick=0 --noautotick"
-    When I post command:
-      """
-      {"cmd": "advance_time", "ticks": 100}
-      """
-    And I get the screen
+    When I get the screen
     Then the screen matches fixture "anim_three_red.png"
     When I post command:
       """
@@ -108,11 +96,7 @@ Feature: Animation API
 
   Scenario: get_state serializes animation current_frame
     Given emu starts with test script "anim_forward/main.lua" and args "--nowtick=0 --noautotick --id=DEADBEEF"
-    When I post command:
-      """
-      {"cmd": "advance_time", "ticks": 100}
-      """
-    And I get state
+    When I get state
     Then state field "anim" equals:
       """
       {"a": {"path": "{SCRIPTS_DIR}/anim_forward/two_frames.png", "n_frames": 2, "current_frame": 2, "backwards": false, "playing": true, "loop": false}}
