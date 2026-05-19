@@ -297,13 +297,28 @@ After cloning, install the pre-commit hook (runs the full build pipeline before 
 ln -sf ../../scripts/pre-commit .git/hooks/pre-commit
 ```
 
-Requires GCC (with ASan support), `clang-format`, Python 3 with `behave` and
-`requests`, SDL2 (`libsdl2-dev`), apngasm, and [GitHub CLI](https://cli.github.com/) on Linux.
+Required tools:
+* GCC
+  * with [AddressSanitizer](https://clang.llvm.org/docs/AddressSanitizer.html),
+  * and [ClangFormat](https://clang.llvm.org/docs/ClangFormat.html).
+* [Python 3](https://www.python.org/downloads/)
+  * with [pip](https://pypi.org/project/pip/),
+  * [behave](https://behave.readthedocs.io/en/stable/),
+  * and [requests](https://pypi.org/project/requests/).
+* [SDL2](https://wiki.libsdl.org/SDL2/Installation),
+* and [include-what-you-use](https://include-what-you-use.org/).
+
+Optional tools:
+* [apngasm](https://github.com/apngasm/apngasm/)
+* and [GitHub CLI](https://cli.github.com/).
 
 ```sh
-# Linux (Debian/Ubuntu)
-sudo apt install gh python3 python3-pip libsdl2-dev apngasm
+sudo apt install gcc python3 python3-pip libsdl2-dev clang-format iwyu
 pip install behave requests
+# Optional animated PNG file assembly tool
+sudo apt install apngasm
+# Optional GitHub command line tool
+sudo apt install gh
 gh auth login
 ```
 

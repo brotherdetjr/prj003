@@ -1,6 +1,5 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include "state.h"
 #include "lua_bind.h"
 #include "lua_anim.h"
