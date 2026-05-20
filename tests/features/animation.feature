@@ -73,21 +73,13 @@ Feature: Animation API
     Then the screen matches fixture "anim_three_blue.png"
 
   Scenario: anim() inside _draw raises a Lua error
-    Given emu starts with test script "anim_in_draw_error/main.lua" and args "--nowtick=0 --noautotick"
+    Given emu starts with test script "anim_in_draw_error/main.lua" and args "--nowtick=0 --noautotick --wait-for-sse-client"
     And I subscribe to SSE events
-    When I post command:
-      """
-      {"cmd": "advance_time", "ticks": 100}
-      """
     Then I receive a "_on_lua_error" SSE event with fn "_draw" and error containing "anim:"
 
   Scenario: aspr() without of() raises a Lua error
-    Given emu starts with test script "anim_fr_without_of_error/main.lua" and args "--nowtick=0 --noautotick"
+    Given emu starts with test script "anim_fr_without_of_error/main.lua" and args "--nowtick=0 --noautotick --wait-for-sse-client"
     And I subscribe to SSE events
-    When I post command:
-      """
-      {"cmd": "advance_time", "ticks": 100}
-      """
     Then I receive a "_on_lua_error" SSE event with fn "_draw" and error containing "aspr:"
 
   Scenario: of() called twice raises a Lua error at script load time

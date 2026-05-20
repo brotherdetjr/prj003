@@ -358,6 +358,7 @@ make format         # apply formatting in-place
   --script=PATH                             Lua game script (default: scripts/main.lua)
   --noautotick                              start in manual-tick mode
   --stop-on-lua-error                       halt advance and disable autotick on Lua error
+  --wait-for-sse-client                     defer game engine execution until first /events request
   --headless                                suppress the SDL2 display window
   --help                                    show this help and exit
 ```

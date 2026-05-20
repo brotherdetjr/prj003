@@ -3,6 +3,10 @@
 
 #include "app.h"
 
+/* Load world state from a JSON file; calls json_to_state + lua_bind_restore.
+ * Requires lua_bind_init to have been called first. Returns 0 on success. */
+int load_state_file(app_t *app, const char *path);
+
 /* Mongoose HTTP event handler — pass as fn to mg_http_listen. */
 void mg_event_handler(struct mg_connection *c, int ev, void *ev_data);
 

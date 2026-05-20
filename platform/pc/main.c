@@ -8,7 +8,6 @@
 #include "../../common/app.h"
 #include "../../common/server.h"
 #include "peer.h"
-#include "../../common/state.h"
 #include "../../common/lua_bind.h"
 #include "display.h"
 
@@ -61,6 +60,7 @@ static void usage(const char *prog)
             "                                            relative to this binary)\n"
             "  --noautotick                              start in manual-tick mode\n"
             "  --stop-on-lua-error                       halt advance and disable autotick on Lua error\n"
+            "  --wait-for-sse-client                     defer game engine execution until first /events request\n"
             "  --headless                                suppress the SDL2 display window\n"
             "  --help                                    show this help and exit\n",
             prog);
@@ -87,51 +87,6 @@ static uint64_t parse_wallclockutc(const char *s)
     return (uint64_t)t;
 }
 
-static int load_state_file(app_t *app, const char *path)
-{
-    FILE *f = fopen(path, "r");
-    if (!f) {
-        perror(path);
-        return -1;
-    }
-
-    fseek(f, 0, SEEK_END);
-    long sz = ftell(f);
-    rewind(f);
-    if (sz <= 0 || sz > 65536) {
-        fprintf(stderr, "%s: file too large or empty\n", path);
-        fclose(f);
-        return -1;
-    }
-    char *buf = malloc((size_t)sz + 1);
-    if (fread(buf, 1, (size_t)sz, f) != (size_t)sz) {
-        free(buf);
-        fclose(f);
-        return -1;
-    }
-    buf[sz] = '\0';
-    fclose(f);
-
-    cJSON *json = cJSON_Parse(buf);
-    free(buf);
-    if (!json) {
-        fprintf(stderr, "%s: malformed JSON\n", path);
-        return -1;
-    }
-
-    int rc = json_to_state(app, json);
-    if (rc != 0) {
-        cJSON_Delete(json);
-        fprintf(stderr, "%s: invalid state\n", path);
-        return -1;
-    }
-
-    lua_bind_restore(app, json);
-
-    cJSON_Delete(json);
-    return 0;
-}
-
 int main(int argc, char *argv[])
 {
     signal(SIGTERM, handle_stop);
@@ -150,6 +105,7 @@ int main(int argc, char *argv[])
     uint32_t given_id = 0;
     int has_id = 0;
     int headless = 0;
+    int wait_for_sse_client = 0;
 
     for (int i = 1; i < argc; i++) {
         if (strncmp(argv[i], "--id=", 5) == 0) {
@@ -199,6 +155,8 @@ int main(int argc, char *argv[])
             app.autotick = 0;
         } else if (strcmp(argv[i], "--stop-on-lua-error") == 0) {
             app.stop_on_lua_error = 1;
+        } else if (strcmp(argv[i], "--wait-for-sse-client") == 0) {
+            wait_for_sse_client = 1;
         } else if (strcmp(argv[i], "--headless") == 0) {
             headless = 1;
         } else if (strcmp(argv[i], "--help") == 0) {
@@ -250,31 +208,39 @@ int main(int argc, char *argv[])
         const char *resolved = realpath(script_path, canon);
         fprintf(stderr, "Script: %s\n", resolved ? resolved : script_path);
     }
-    if (lua_bind_init(&app, script_path) != 0) {
-        fprintf(stderr, "Failed to initialise Lua from: %s\n", script_path);
-        return 1;
-    }
-    app.lua_error_cb = lua_error_sse_cb;
 
-    if (load_file[0]) {
-        if (load_state_file(&app, load_file) == 0) {
-            /* explicit flags override values from the saved file */
-            if (has_nowtick) {
-                app.now_tick = arg_nowtick;
-                scheduler_clear(&app.scheduler);
-            }
-            if (has_wallclock)
-                app.now_unix_sec = arg_wallclock;
-            fprintf(stderr, "Loaded state from '%s'\n", load_file);
-        } else {
-            lua_close(app.L);
-            return 1;
-        }
-    }
+    app.lua_error_cb = lua_error_sse_cb;
 
     display_init(headless);
 
-    update_and_draw(&app);
+    if (wait_for_sse_client) {
+        app.wait_for_sse_client = 1;
+        app.deferred_script = strdup(script_path);
+        app.deferred_state_file = load_file[0] ? strdup(load_file) : NULL;
+    } else {
+        if (lua_bind_init(&app, script_path) != 0) {
+            fprintf(stderr, "Failed to initialise Lua from: %s\n", script_path);
+            return 1;
+        }
+
+        if (load_file[0]) {
+            if (load_state_file(&app, load_file) == 0) {
+                /* explicit flags override values from the saved file */
+                if (has_nowtick) {
+                    app.now_tick = arg_nowtick;
+                    scheduler_clear(&app.scheduler);
+                }
+                if (has_wallclock)
+                    app.now_unix_sec = arg_wallclock;
+                fprintf(stderr, "Loaded state from '%s'\n", load_file);
+            } else {
+                lua_close(app.L);
+                return 1;
+            }
+        }
+
+        update_and_draw(&app);
+    }
 
     /* HTTP server */
     mg_mgr_init(&app.mgr);
@@ -283,7 +249,7 @@ int main(int argc, char *argv[])
     snprintf(addr, sizeof(addr), "http://0.0.0.0:%s", port);
     if (!mg_http_listen(&app.mgr, addr, mg_event_handler, &app)) {
         fprintf(stderr, "Failed to listen on %s\n", addr);
-        lua_close(app.L);
+        if (app.L) lua_close(app.L);
         mg_mgr_free(&app.mgr);
         return 1;
     }
@@ -291,10 +257,13 @@ int main(int argc, char *argv[])
         time_t t = (time_t)app.now_unix_sec;
         char tbuf[32];
         strftime(tbuf, sizeof(tbuf), "%Y-%m-%dT%H:%M:%SZ", gmtime(&t));
-        fprintf(stderr, "Gloxie %s  autotick %s  stop-on-lua-error %s  wall %s\n",
+        fprintf(stderr, "Gloxie %s  autotick %s  stop-on-lua-error %s  wait-for-sse-client %s  wall %s\n",
                 app.instance_id, app.autotick ? "on" : "off",
-                app.stop_on_lua_error ? "on" : "off", tbuf);
+                app.stop_on_lua_error ? "on" : "off",
+                app.wait_for_sse_client ? "on" : "off", tbuf);
     }
+    if (wait_for_sse_client)
+        fprintf(stderr, "Waiting for SSE client on /events ...\n");
 
     /* autotick timer */
     mg_timer_add(&app.mgr, AUTOTICK, MG_TIMER_REPEAT, tick_timer_fn, &app);
@@ -302,9 +271,13 @@ int main(int argc, char *argv[])
     /* peer stdin (non-blocking) */
     peer_stdin_init();
 
-    /* seed watcher with the exact set of Lua files loaded at startup */
-    refresh_watched_files(&app, script_path);
-    struct timespec lua_mtime = watched_max_mtime();
+    /* seed watcher once Lua is initialised; deferred until after deferred init */
+    int watcher_init = !wait_for_sse_client;
+    struct timespec lua_mtime = {0, 0};
+    if (watcher_init) {
+        refresh_watched_files(&app, script_path);
+        lua_mtime = watched_max_mtime();
+    }
 
     /* main loop */
     while (!s_stop) {
@@ -312,25 +285,35 @@ int main(int argc, char *argv[])
         if (!headless && display_poll()) s_stop = 1;
         peer_stdin_poll(&app);
 
-        struct timespec cur = watched_max_mtime();
-        if (cur.tv_sec != lua_mtime.tv_sec || cur.tv_nsec != lua_mtime.tv_nsec) {
-            lua_mtime = cur;
-            fprintf(stderr, "Hot-reloading: %s\n", script_path);
-            if (lua_bind_reload(&app, script_path) == 0) {
-                refresh_watched_files(&app, script_path);
-                char reload_data[64];
-                snprintf(reload_data, sizeof(reload_data),
-                         "{\"now_tick\":%llu}",
-                         (unsigned long long)app.now_tick);
-                sse_push(&app.mgr, "_on_reload", reload_data);
-                fprintf(stderr, "Script reloaded\n");
-            } else {
-                fprintf(stderr, "Reload failed, previous script still running\n");
+        if (!watcher_init && !app.wait_for_sse_client) {
+            watcher_init = 1;
+            refresh_watched_files(&app, script_path);
+            lua_mtime = watched_max_mtime();
+        }
+
+        if (watcher_init) {
+            struct timespec cur = watched_max_mtime();
+            if (cur.tv_sec != lua_mtime.tv_sec || cur.tv_nsec != lua_mtime.tv_nsec) {
+                lua_mtime = cur;
+                fprintf(stderr, "Hot-reloading: %s\n", script_path);
+                if (lua_bind_reload(&app, script_path) == 0) {
+                    refresh_watched_files(&app, script_path);
+                    char reload_data[64];
+                    snprintf(reload_data, sizeof(reload_data),
+                             "{\"now_tick\":%llu}",
+                             (unsigned long long)app.now_tick);
+                    sse_push(&app.mgr, "_on_reload", reload_data);
+                    fprintf(stderr, "Script reloaded\n");
+                } else {
+                    fprintf(stderr, "Reload failed, previous script still running\n");
+                }
             }
         }
     }
 
-    lua_close(app.L);
+    if (app.L) lua_close(app.L);
+    free(app.deferred_script);
+    free(app.deferred_state_file);
     mg_mgr_free(&app.mgr);
     display_free();
     return 0;
