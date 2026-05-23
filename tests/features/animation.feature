@@ -1,21 +1,93 @@
 Feature: Animation API
 
   Scenario: forward animation advances through two frames and stops
-    Given emu starts with test script "anim_forward/main.lua" and args "--nowtick=0 --noautotick"
+    Given emu starts with test script "anim_forward/main.lua" and args "--nowtick=0 --noautotick --wallclockutc=1970-01-01T00:00:00 --id=DEADBEEF"
     When I get the screen
     Then the screen matches fixture "spr_apng_frame0.png"
+    When I get state
+    Then state equals:
+      """
+      {
+        "ro": {
+          "instance_id": "DEADBEEF",
+          "now_tick": 0,
+          "now_unix_sec": 0,
+          "character": null
+        },
+        "rw": {},
+        "scheduler": [],
+        "anim": {
+          "a": {
+            "path": "{SCRIPTS_DIR}/anim_forward/two_frames.png",
+            "n_frames": 2,
+            "next_frame": 2,
+            "backwards": false,
+            "playing": true,
+            "loop": false
+          }
+        }
+      }
+      """
     When I post command:
       """
       {"cmd": "advance_time", "ticks": 100}
       """
     And I get the screen
     Then the screen matches fixture "spr_apng_frame1.png"
+    When I get state
+    Then state equals:
+      """
+      {
+        "ro": {
+          "instance_id": "DEADBEEF",
+          "now_tick": 100,
+          "now_unix_sec": 0,
+          "character": null
+        },
+        "rw": {},
+        "scheduler": [],
+        "anim": {
+          "a": {
+            "path": "{SCRIPTS_DIR}/anim_forward/two_frames.png",
+            "n_frames": 2,
+            "next_frame": 2,
+            "backwards": false,
+            "playing": false,
+            "loop": false
+          }
+        }
+      }
+      """
     When I post command:
       """
       {"cmd": "advance_time", "ticks": 100}
       """
     And I get the screen
     Then the screen matches fixture "spr_apng_frame1.png"
+    When I get state
+    Then state equals:
+      """
+      {
+        "ro": {
+          "instance_id": "DEADBEEF",
+          "now_tick": 200,
+          "now_unix_sec": 0,
+          "character": null
+        },
+        "rw": {},
+        "scheduler": [],
+        "anim": {
+          "a": {
+            "path": "{SCRIPTS_DIR}/anim_forward/two_frames.png",
+            "n_frames": 2,
+            "next_frame": 2,
+            "backwards": false,
+            "playing": false,
+            "loop": false
+          }
+        }
+      }
+      """
 
   Scenario: forward loop wraps back to first frame
     Given emu starts with test script "anim_loop/main.lua" and args "--nowtick=0 --noautotick"
@@ -88,7 +160,26 @@ Feature: Animation API
     When I get state
     Then state equals:
       """
-      {"ro": {"instance_id": "DEADBEEF", "now_tick": 0, "now_unix_sec": 0, "character": null}, "rw": {}, "scheduler": [], "anim": {"a": {"path": "{SCRIPTS_DIR}/anim_forward/two_frames.png", "n_frames": 2, "next_frame": 2, "backwards": false, "playing": true, "loop": false}}}
+      {
+        "ro": {
+          "instance_id": "DEADBEEF",
+          "now_tick": 0,
+          "now_unix_sec": 0,
+          "character": null
+        },
+        "rw": {},
+        "scheduler": [],
+        "anim": {
+          "a": {
+            "path": "{SCRIPTS_DIR}/anim_forward/two_frames.png",
+            "n_frames": 2,
+            "next_frame": 2,
+            "backwards": false,
+            "playing": true,
+            "loop": false
+          }
+        }
+      }
       """
 
   Scenario: set_state restores animation frame
@@ -99,11 +190,29 @@ Feature: Animation API
       """
     And I post command:
       """
-      {"cmd": "set_state", "state": {
-        "ro": {"instance_id": "DEADBEEF", "now_tick": 100, "now_unix_sec": 0, "character": null},
-        "rw": {}, "scheduler": [],
-        "anim": {"a": {"path": "{SCRIPTS_DIR}/anim_forward/two_frames.png", "n_frames": 2, "next_frame": 1, "backwards": false, "playing": true, "loop": false}}
-      }}
+      {
+        "cmd": "set_state",
+        "state": {
+          "ro": {
+            "instance_id": "DEADBEEF",
+            "now_tick": 100,
+            "now_unix_sec": 0,
+            "character": null
+          },
+          "rw": {},
+          "scheduler": [],
+          "anim": {
+            "a": {
+              "path": "{SCRIPTS_DIR}/anim_forward/two_frames.png",
+              "n_frames": 2,
+              "next_frame": 1,
+              "backwards": false,
+              "playing": true,
+              "loop": false
+            }
+          }
+        }
+      }
       """
     When I post command:
       """
@@ -113,14 +222,32 @@ Feature: Animation API
     Then the screen matches fixture "spr_apng_frame0.png"
 
   Scenario: set_state draws correct frame on first draw with no prior animation
-    Given emu starts with test script "anim_forward/main.lua" and args "--nowtick=0 --noautotick --id=DEADBEEF"
+    Given emu starts with test script "anim_pause/main.lua" and args "--nowtick=0 --noautotick --id=DEADBEEF"
     When I post command:
       """
-      {"cmd": "set_state", "state": {
-        "ro": {"instance_id": "DEADBEEF", "now_tick": 0, "now_unix_sec": 0, "character": null},
-        "rw": {}, "scheduler": [],
-        "anim": {"a": {"path": "{SCRIPTS_DIR}/anim_forward/two_frames.png", "n_frames": 2, "next_frame": 2, "backwards": false, "playing": true, "loop": false}}
-      }}
+      {
+        "cmd": "set_state",
+        "state": {
+          "ro": {
+            "instance_id": "DEADBEEF",
+            "now_tick": 0,
+            "now_unix_sec": 0,
+            "character": null
+          },
+          "rw": {},
+          "scheduler": [],
+          "anim": {
+            "a": {
+              "path": "{SCRIPTS_DIR}/anim_forward/two_frames.png",
+              "n_frames": 2,
+              "next_frame": 2,
+              "backwards": false,
+              "playing": true,
+              "loop": false
+            }
+          }
+        }
+      }
       """
     And I post command:
       """
@@ -138,5 +265,17 @@ Feature: Animation API
     And I get state
     Then state equals:
       """
-      {"ro": {"instance_id": "00000000", "now_tick": 100, "now_unix_sec": 0, "character": null}, "rw": {"show": false}, "scheduler": [], "anim": {}}
+      {
+        "ro": {
+          "instance_id": "00000000",
+          "now_tick": 100,
+          "now_unix_sec": 0,
+          "character": null
+        },
+        "rw": {
+          "show": false
+        },
+        "scheduler": [],
+        "anim": {}
+      }
       """
