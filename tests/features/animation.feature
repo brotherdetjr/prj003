@@ -83,12 +83,12 @@ Feature: Animation API
     And I subscribe to SSE events
     Then I receive a "_on_lua_error" SSE event with fn "_init" and error containing "anim.of:"
 
-  Scenario: get_state serializes animation current_frame
+  Scenario: get_state serializes animation next_frame
     Given emu starts with test script "anim_forward/main.lua" and args "--nowtick=0 --noautotick --wallclockutc=1970-01-01T00:00:00 --id=DEADBEEF"
     When I get state
     Then state equals:
       """
-      {"ro": {"instance_id": "DEADBEEF", "now_tick": 0, "now_unix_sec": 0, "character": null}, "rw": {}, "scheduler": [], "anim": {"a": {"path": "{SCRIPTS_DIR}/anim_forward/two_frames.png", "n_frames": 2, "current_frame": 2, "backwards": false, "playing": true, "loop": false}}}
+      {"ro": {"instance_id": "DEADBEEF", "now_tick": 0, "now_unix_sec": 0, "character": null}, "rw": {}, "scheduler": [], "anim": {"a": {"path": "{SCRIPTS_DIR}/anim_forward/two_frames.png", "n_frames": 2, "next_frame": 2, "backwards": false, "playing": true, "loop": false}}}
       """
 
   Scenario: set_state restores animation frame
@@ -102,7 +102,7 @@ Feature: Animation API
       {"cmd": "set_state", "state": {
         "ro": {"instance_id": "DEADBEEF", "now_tick": 100, "now_unix_sec": 0, "character": null},
         "rw": {}, "scheduler": [],
-        "anim": {"a": {"path": "{SCRIPTS_DIR}/anim_forward/two_frames.png", "n_frames": 2, "current_frame": 1, "backwards": false, "playing": true, "loop": false}}
+        "anim": {"a": {"path": "{SCRIPTS_DIR}/anim_forward/two_frames.png", "n_frames": 2, "next_frame": 1, "backwards": false, "playing": true, "loop": false}}
       }}
       """
     When I post command:
@@ -119,7 +119,7 @@ Feature: Animation API
       {"cmd": "set_state", "state": {
         "ro": {"instance_id": "DEADBEEF", "now_tick": 0, "now_unix_sec": 0, "character": null},
         "rw": {}, "scheduler": [],
-        "anim": {"a": {"path": "{SCRIPTS_DIR}/anim_forward/two_frames.png", "n_frames": 2, "current_frame": 2, "backwards": false, "playing": true, "loop": false}}
+        "anim": {"a": {"path": "{SCRIPTS_DIR}/anim_forward/two_frames.png", "n_frames": 2, "next_frame": 2, "backwards": false, "playing": true, "loop": false}}
       }}
       """
     And I post command:
@@ -136,7 +136,7 @@ Feature: Animation API
       {"cmd": "set_state", "state": {
         "ro": {"instance_id": "00000000", "now_tick": 0, "now_unix_sec": 0, "character": null},
         "rw": {"show": true}, "scheduler": [],
-        "anim": {"a": {"path": "{SCRIPTS_DIR}/anim_autodeletion/two_frames.png", "n_frames": 2, "current_frame": 1, "backwards": false, "playing": true, "loop": false}}
+        "anim": {"a": {"path": "{SCRIPTS_DIR}/anim_autodeletion/two_frames.png", "n_frames": 2, "next_frame": 1, "backwards": false, "playing": true, "loop": false}}
       }}
       """
     And I post command:
@@ -148,7 +148,7 @@ Feature: Animation API
       {"cmd": "set_state", "state": {
         "ro": {"instance_id": "00000000", "now_tick": 100, "now_unix_sec": 0, "character": null},
         "rw": {"show": false}, "scheduler": [],
-        "anim": {"a": {"path": "{SCRIPTS_DIR}/anim_autodeletion/two_frames.png", "n_frames": 2, "current_frame": 2, "backwards": false, "playing": true, "loop": false}}
+        "anim": {"a": {"path": "{SCRIPTS_DIR}/anim_autodeletion/two_frames.png", "n_frames": 2, "next_frame": 2, "backwards": false, "playing": true, "loop": false}}
       }}
       """
     And I post command:
