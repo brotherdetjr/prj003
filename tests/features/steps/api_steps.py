@@ -148,6 +148,13 @@ def step_scheduler_empty(context):
     assert sched == [], f"expected scheduler=[], got: {sched!r}"
 
 
+@then("state equals:")
+def step_state_equals(context):
+    expected = json.loads(expand_placeholders(context.text))
+    actual = {k: v for k, v in context.state.items() if k != "ok"}
+    assert actual == expected, f"expected state={expected!r}, got {actual!r}"
+
+
 @then('state field "{field}" equals:')
 def step_state_field_equals(context, field):
     expected = json.loads(expand_placeholders(context.text))
