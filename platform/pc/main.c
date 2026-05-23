@@ -223,23 +223,24 @@ int main(int argc, char *argv[])
             return 1;
         }
 
-        if (load_file[0]) {
-            if (load_state_file(&app, load_file) == 0) {
-                /* explicit flags override values from the saved file */
-                if (has_nowtick) {
-                    app.now_tick = arg_nowtick;
-                    scheduler_clear(&app.scheduler);
+        if (!app.init_failed) {
+            if (load_file[0]) {
+                if (load_state_file(&app, load_file) == 0) {
+                    /* explicit flags override values from the saved file */
+                    if (has_nowtick) {
+                        app.now_tick = arg_nowtick;
+                        scheduler_clear(&app.scheduler);
+                    }
+                    if (has_wallclock)
+                        app.now_unix_sec = arg_wallclock;
+                    fprintf(stderr, "Loaded state from '%s'\n", load_file);
+                } else {
+                    lua_close(app.L);
+                    return 1;
                 }
-                if (has_wallclock)
-                    app.now_unix_sec = arg_wallclock;
-                fprintf(stderr, "Loaded state from '%s'\n", load_file);
-            } else {
-                lua_close(app.L);
-                return 1;
             }
+            update_and_draw(&app);
         }
-
-        update_and_draw(&app);
     }
 
     /* HTTP server */

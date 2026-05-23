@@ -113,6 +113,7 @@ void tick_timer_fn(void *arg)
     app_t *app = (app_t *)arg;
     if (app->wait_for_sse_client) return;
     if (!app->autotick) return;
+    if (app->init_failed) return;
 
     app->now_unix_sec = (uint64_t)time(NULL);
 
@@ -410,14 +411,19 @@ void mg_event_handler(struct mg_connection *c, int ev, void *ev_data)
             }
             free(script);
             app->lua_error_cb = lua_error_sse_cb;
-            if (app->deferred_state_file) {
-                if (load_state_file(app, app->deferred_state_file) == 0)
-                    fprintf(stderr, "Loaded state from '%s'\n",
-                            app->deferred_state_file);
+            if (!app->init_failed) {
+                if (app->deferred_state_file) {
+                    if (load_state_file(app, app->deferred_state_file) == 0)
+                        fprintf(stderr, "Loaded state from '%s'\n",
+                                app->deferred_state_file);
+                    free(app->deferred_state_file);
+                    app->deferred_state_file = NULL;
+                }
+                update_and_draw(app);
+            } else {
                 free(app->deferred_state_file);
                 app->deferred_state_file = NULL;
             }
-            update_and_draw(app);
         }
 
     } else {

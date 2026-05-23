@@ -65,7 +65,7 @@ Options:
 
 On startup the instance:
 1. Initialises the world state.
-2. Calls `_init`, then `_update`, then `_draw` at the initial virtual tick. `_init` typically calls `spawn()` to create the character.
+2. Calls `_init` at the initial virtual tick. If `_init` raises a Lua error, a `_on_lua_error` SSE event is emitted, autotick is paused, and `_update`/`_draw` are skipped until the script is fixed via hot reload. On a successful `_init`, `_update` then `_draw` are called immediately after.
 3. Starts the HTTP server on the given port.
 4. Begins listening on stdin for incoming peer messages.
 5. If auto-tick (default), starts advancing one tick per real second.

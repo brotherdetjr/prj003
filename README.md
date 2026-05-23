@@ -207,8 +207,10 @@ See `LUA_LINT.md` for known gaps and planned static analysis rules.
 
 `_init([rw [, ro]])` is called once when the script is loaded, after top-level code runs and
 globals are frozen. Use it for one-time setup (e.g. registering animation instances). If `_init`
-raises a Lua error the process exits — errors here are fatal. Hot reload does not trigger `_init`;
-the previous `rw` state is preserved across reloads instead.
+raises a Lua error, a `_on_lua_error` SSE event is emitted, autotick is paused, and `_update`/`_draw`
+are not called until the script is fixed. Hot reload retries `_init` when the previous attempt
+failed; on success autotick resumes. When `_init` succeeds, hot reload preserves the previous `rw`
+state instead of re-running `_init`.
 
 At startup, immediately after `_init`, the engine calls `_update` then `_draw` once at the initial tick. After that, each tick (every `AUTOTICK` ms of virtual time), the engine calls these Lua globals in order:
 
