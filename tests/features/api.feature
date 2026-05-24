@@ -2,7 +2,6 @@ Feature: HTTP API edge cases
 
   Background:
     Given emu starts with test script "api_test/main.lua" and args "--nowtick=42 --noautotick"
-
   # ---------------------------------------------------------------------------
   # HTTP protocol
   # ---------------------------------------------------------------------------
@@ -21,7 +20,6 @@ Feature: HTTP API edge cases
     When I POST raw body "not json" to "/command"
     Then the HTTP status is 400
     And the response has ok false
-
   # ---------------------------------------------------------------------------
   # Command dispatch
   # ---------------------------------------------------------------------------
@@ -41,7 +39,6 @@ Feature: HTTP API edge cases
       """
     Then the response has ok false
     And the error is "unknown command"
-
   # ---------------------------------------------------------------------------
   # advance_time
   # ---------------------------------------------------------------------------
@@ -84,7 +81,6 @@ Feature: HTTP API edge cases
     Then the response is ok
     And now_tick is 42
     And stopped_on_event is false
-
   # ---------------------------------------------------------------------------
   # poof
   # ---------------------------------------------------------------------------
@@ -92,11 +88,26 @@ Feature: HTTP API edge cases
   Scenario: poof when no character is present is rejected
     When I post command:
       """
+      {
+        "cmd": "set_state",
+        "state": {
+          "ro": {
+            "instance_id": "DEADBEEF",
+            "now_tick": 9000,
+            "now_unix_sec": 1775606400,
+            "character": null
+          },
+          "rw": {},
+          "scheduler": []
+        }
+      }
+      """
+    And I post command:
+      """
       {"cmd": "poof"}
       """
     Then the response has ok false
     And the error is "no character"
-
   # ---------------------------------------------------------------------------
   # set_autotick
   # ---------------------------------------------------------------------------
@@ -114,7 +125,6 @@ Feature: HTTP API edge cases
       {"cmd": "set_autotick", "enabled": "yes"}
       """
     Then the response has ok false
-
   # ---------------------------------------------------------------------------
   # set_wall_clock
   # ---------------------------------------------------------------------------
@@ -146,7 +156,6 @@ Feature: HTTP API edge cases
       {"cmd": "set_wall_clock", "now_unix_sec": 1.5}
       """
     Then the response has ok false
-
   # ---------------------------------------------------------------------------
   # set_state
   # ---------------------------------------------------------------------------
@@ -154,15 +163,34 @@ Feature: HTTP API edge cases
   Scenario: set_state restores now_tick and clears character
     When I post command:
       """
-      {"cmd": "set_state", "state": {
-        "ro": {"instance_id": "DEADBEEF", "now_tick": 9000, "now_unix_sec": 1775606400, "character": null},
-        "rw": {}, "scheduler": []
-      }}
+      {
+        "cmd": "set_state",
+        "state": {
+          "ro": {
+            "instance_id": "DEADBEEF",
+            "now_tick": 9000,
+            "now_unix_sec": 1775606400,
+            "character": null
+          }
+        }
+      }
       """
     Then the response is ok
     When I get state
-    Then now_tick is 9000
-    And there is no character
+    Then state equals:
+      """
+      {
+        "ro": {
+          "instance_id": "DEADBEEF",
+          "now_tick": 9000,
+          "now_unix_sec": 1775606400,
+          "character": null
+        },
+        "rw": {},
+        "scheduler": [],
+        "anim": {}
+      }
+      """
 
   Scenario: set_state restores a character with rw state
     When I post command:
