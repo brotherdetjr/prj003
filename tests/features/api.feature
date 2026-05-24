@@ -160,7 +160,7 @@ Feature: HTTP API edge cases
   # set_state
   # ---------------------------------------------------------------------------
 
-  Scenario: set_state restores now_tick and clears character
+  Scenario: set_state->get_state roundtrip
     When I post command:
       """
       {
@@ -171,6 +171,25 @@ Feature: HTTP API edge cases
             "now_tick": 9000,
             "now_unix_sec": 1775606400,
             "character": null
+          },
+          "rw": {
+            "energy": 200
+          },
+          "scheduler": [
+            {
+              "fire_at_ms": 5000,
+              "event": "on_energy_drain"
+            }
+          ],
+          "anim": {
+            "a": {
+              "path": "{SCRIPTS_DIR}/anim_forward/two_frames.png",
+              "n_frames": 2,
+              "next_frame": 2,
+              "backwards": false,
+              "playing": true,
+              "loop": false
+            }
           }
         }
       }
@@ -186,51 +205,56 @@ Feature: HTTP API edge cases
           "now_unix_sec": 1775606400,
           "character": null
         },
-        "rw": {},
-        "scheduler": [],
-        "anim": {}
+        "rw": {
+          "energy": 200
+        },
+        "scheduler": [
+          {
+            "fire_at_ms": 5000,
+            "event": "on_energy_drain"
+          }
+        ],
+        "anim": {
+          "a": {
+            "path": "{SCRIPTS_DIR}/anim_forward/two_frames.png",
+            "n_frames": 2,
+            "next_frame": 2,
+            "backwards": false,
+            "playing": true,
+            "loop": false
+          }
+        }
       }
       """
-
-  Scenario: set_state restores a character with rw state
-    When I post command:
-      """
-      {"cmd": "set_state", "state": {
-        "ro": {"instance_id": "DEADBEEF", "now_tick": 500, "now_unix_sec": 1775606400,
-               "character": {"id": "CAFEBABE", "birth_unix_sec": 1775606400, "birth_tick": 0}},
-        "rw": {"energy": 200}, "scheduler": []
-      }}
-      """
-    Then the response is ok
-    When I get state
-    Then now_tick is 500
-    And the character id is "CAFEBABE"
-    And energy is 200
-
-  Scenario: set_state restores scheduler
-    When I post command:
-      """
-      {"cmd": "set_state", "state": {
-        "ro": {"instance_id": "DEADBEEF", "now_tick": 100, "now_unix_sec": 1775606400,
-               "character": {"id": "CAFEBABE", "birth_unix_sec": 1775606400, "birth_tick": 0}},
-        "rw": {"energy": 200},
-        "scheduler": [{"fire_at_ms": 5000, "event": "on_energy_drain"}]
-      }}
-      """
-    Then the response is ok
-    When I get state
-    Then the scheduler has an "on_energy_drain" event at tick 5000
 
   Scenario: set_state restores scheduler and fires events on advance
     Given I subscribe to SSE events
     When I post command:
       """
-      {"cmd": "set_state", "state": {
-        "ro": {"instance_id": "DEADBEEF", "now_tick": 100, "now_unix_sec": 1775606400,
-               "character": {"id": "CAFEBABE", "birth_unix_sec": 1775606400, "birth_tick": 0}},
-        "rw": {"energy": 200},
-        "scheduler": [{"fire_at_ms": 5000, "event": "on_energy_drain"}]
-      }}
+      {
+        "cmd": "set_state",
+        "state": {
+          "ro": {
+            "instance_id": "DEADBEEF",
+            "now_tick": 100,
+            "now_unix_sec": 1775606400,
+            "character": {
+              "id": "CAFEBABE",
+              "birth_unix_sec": 1775606400,
+              "birth_tick": 0
+            }
+          },
+          "rw": {
+            "energy": 200
+          },
+          "scheduler": [
+            {
+              "fire_at_ms": 5000,
+              "event": "on_energy_drain"
+            }
+          ]
+        }
+      }
       """
     Then the response is ok
     When I post command:
@@ -261,171 +285,390 @@ Feature: HTTP API edge cases
   Scenario: set_state with missing ro.instance_id is rejected
     When I post command:
       """
-      {"cmd": "set_state", "state": {
-        "ro": {"now_tick": 100, "now_unix_sec": 1775606400,
-               "character": {"id": "CAFEBABE", "birth_unix_sec": 1775606400, "birth_tick": 0}},
-        "rw": {}, "scheduler": []
-      }}
+      {
+        "cmd": "set_state",
+        "state": {
+          "ro": {
+            "now_tick": 100,
+            "now_unix_sec": 1775606400,
+            "character": {
+              "id": "CAFEBABE",
+              "birth_unix_sec": 1775606400,
+              "birth_tick": 0
+            }
+          },
+          "rw": {},
+          "scheduler": []
+        }
+      }
       """
     Then the response has ok false
 
   Scenario: set_state with missing ro.now_tick is rejected
     When I post command:
       """
-      {"cmd": "set_state", "state": {
-        "ro": {"instance_id": "DEADBEEF", "now_unix_sec": 1775606400,
-               "character": {"id": "CAFEBABE", "birth_unix_sec": 1775606400, "birth_tick": 0}},
-        "rw": {}, "scheduler": []
-      }}
+      {
+        "cmd": "set_state",
+        "state": {
+          "ro": {
+            "instance_id": "DEADBEEF",
+            "now_unix_sec": 1775606400,
+            "character": {
+              "id": "CAFEBABE",
+              "birth_unix_sec": 1775606400,
+              "birth_tick": 0
+            }
+          },
+          "rw": {},
+          "scheduler": []
+        }
+      }
       """
     Then the response has ok false
 
   Scenario: set_state with missing ro.now_unix_sec is rejected
     When I post command:
       """
-      {"cmd": "set_state", "state": {
-        "ro": {"instance_id": "DEADBEEF", "now_tick": 100,
-               "character": {"id": "CAFEBABE", "birth_unix_sec": 1775606400, "birth_tick": 0}},
-        "rw": {}, "scheduler": []
-      }}
+      {
+        "cmd": "set_state",
+        "state": {
+          "ro": {
+            "instance_id": "DEADBEEF",
+            "now_tick": 100,
+            "character": {
+              "id": "CAFEBABE",
+              "birth_unix_sec": 1775606400,
+              "birth_tick": 0
+            }
+          },
+          "rw": {},
+          "scheduler": []
+        }
+      }
       """
     Then the response has ok false
 
   Scenario: set_state with missing ro.character is rejected
     When I post command:
       """
-      {"cmd": "set_state", "state": {
-        "ro": {"instance_id": "DEADBEEF", "now_tick": 100, "now_unix_sec": 1775606400},
-        "rw": {}, "scheduler": []
-      }}
+      {
+        "cmd": "set_state",
+        "state": {
+          "ro": {
+            "instance_id": "DEADBEEF",
+            "now_tick": 100,
+            "now_unix_sec": 1775606400
+          },
+          "rw": {},
+          "scheduler": []
+        }
+      }
       """
     Then the response has ok false
 
   Scenario: set_state with missing character.id is rejected
     When I post command:
       """
-      {"cmd": "set_state", "state": {
-        "ro": {"instance_id": "DEADBEEF", "now_tick": 100, "now_unix_sec": 1775606400,
-               "character": {"birth_unix_sec": 1775606400, "birth_tick": 0}},
-        "rw": {}, "scheduler": []
-      }}
+      {
+        "cmd": "set_state",
+        "state": {
+          "ro": {
+            "instance_id": "DEADBEEF",
+            "now_tick": 100,
+            "now_unix_sec": 1775606400,
+            "character": {
+              "birth_unix_sec": 1775606400,
+              "birth_tick": 0
+            }
+          },
+          "rw": {},
+          "scheduler": []
+        }
+      }
       """
     Then the response has ok false
 
   Scenario: set_state with missing character.birth_unix_sec is rejected
     When I post command:
       """
-      {"cmd": "set_state", "state": {
-        "ro": {"instance_id": "DEADBEEF", "now_tick": 100, "now_unix_sec": 1775606400,
-               "character": {"id": "CAFEBABE", "birth_tick": 0}},
-        "rw": {}, "scheduler": []
-      }}
+      {
+        "cmd": "set_state",
+        "state": {
+          "ro": {
+            "instance_id": "DEADBEEF",
+            "now_tick": 100,
+            "now_unix_sec": 1775606400,
+            "character": {
+              "id": "CAFEBABE",
+              "birth_tick": 0
+            }
+          },
+          "rw": {},
+          "scheduler": []
+        }
+      }
       """
     Then the response has ok false
 
   Scenario: set_state with missing character.birth_tick is rejected
     When I post command:
       """
-      {"cmd": "set_state", "state": {
-        "ro": {"instance_id": "DEADBEEF", "now_tick": 100, "now_unix_sec": 1775606400,
-               "character": {"id": "CAFEBABE", "birth_unix_sec": 1775606400}},
-        "rw": {}, "scheduler": []
-      }}
+      {
+        "cmd": "set_state",
+        "state": {
+          "ro": {
+            "instance_id": "DEADBEEF",
+            "now_tick": 100,
+            "now_unix_sec": 1775606400,
+            "character": {
+              "id": "CAFEBABE",
+              "birth_unix_sec": 1775606400
+            }
+          },
+          "rw": {},
+          "scheduler": []
+        }
+      }
       """
     Then the response has ok false
 
-  Scenario: set_state with scheduler null treats it as empty
+  Scenario: set_state with scheduler/anim/rw null treats it as empty
     When I post command:
       """
-      {"cmd": "set_state", "state": {
-        "ro": {"instance_id": "DEADBEEF", "now_tick": 100, "now_unix_sec": 1775606400,
-               "character": {"id": "CAFEBABE", "birth_unix_sec": 1775606400, "birth_tick": 0}},
-        "rw": {}, "scheduler": null
-      }}
+      {
+        "cmd": "set_state",
+        "state": {
+          "ro": {
+            "instance_id": "DEADBEEF",
+            "now_tick": 100,
+            "now_unix_sec": 1775606400,
+            "character": {
+              "id": "CAFEBABE",
+              "birth_unix_sec": 1775606400,
+              "birth_tick": 0
+            }
+          },
+          "rw": null,
+          "scheduler": null,
+          "anim": null
+        }
+      }
       """
     Then the response is ok
     When I get state
-    Then the scheduler is an empty array
+    Then state equals:
+      """
+      {
+        "ro": {
+          "instance_id": "DEADBEEF",
+          "now_tick": 100,
+          "now_unix_sec": 1775606400,
+          "character": {
+            "id": "CAFEBABE",
+            "birth_unix_sec": 1775606400,
+            "birth_tick": 0
+          }
+        },
+        "rw": {},
+        "scheduler": [],
+        "anim": {}
+      }
+      """
 
-  Scenario: set_state with scheduler omitted treats it as empty
+  Scenario: set_state with scheduler/anim/rw omitted treats it as empty
     When I post command:
       """
-      {"cmd": "set_state", "state": {
-        "ro": {"instance_id": "DEADBEEF", "now_tick": 100, "now_unix_sec": 1775606400,
-               "character": {"id": "CAFEBABE", "birth_unix_sec": 1775606400, "birth_tick": 0}},
-        "rw": {}
-      }}
+      {
+        "cmd": "set_state",
+        "state": {
+          "ro": {
+            "instance_id": "DEADBEEF",
+            "now_tick": 100,
+            "now_unix_sec": 1775606400,
+            "character": {
+              "id": "CAFEBABE",
+              "birth_unix_sec": 1775606400,
+              "birth_tick": 0
+            }
+          }
+        }
+      }
       """
     Then the response is ok
     When I get state
-    Then the scheduler is an empty array
-
-  Scenario: set_state with rw null treats it as empty
-    When I post command:
+    Then state equals:
       """
-      {"cmd": "set_state", "state": {
-        "ro": {"instance_id": "DEADBEEF", "now_tick": 100, "now_unix_sec": 1775606400,
-               "character": {"id": "CAFEBABE", "birth_unix_sec": 1775606400, "birth_tick": 0}},
-        "rw": null, "scheduler": []
-      }}
-      """
-    Then the response is ok
-    When I get state
-    Then state field "rw" equals:
-      """
-      {}
-      """
-
-  Scenario: set_state with rw omitted treats it as empty
-    When I post command:
-      """
-      {"cmd": "set_state", "state": {
-        "ro": {"instance_id": "DEADBEEF", "now_tick": 100, "now_unix_sec": 1775606400,
-               "character": {"id": "CAFEBABE", "birth_unix_sec": 1775606400, "birth_tick": 0}},
-        "scheduler": []
-      }}
-      """
-    Then the response is ok
-    When I get state
-    Then state field "rw" equals:
-      """
-      {}
+      {
+        "ro": {
+          "instance_id": "DEADBEEF",
+          "now_tick": 100,
+          "now_unix_sec": 1775606400,
+          "character": {
+            "id": "CAFEBABE",
+            "birth_unix_sec": 1775606400,
+            "birth_tick": 0
+          }
+        },
+        "rw": {},
+        "scheduler": [],
+        "anim": {}
+      }
       """
 
   Scenario: set_state with scheduler entry missing fire_at_ms is rejected
     When I post command:
       """
-      {"cmd": "set_state", "state": {
-        "ro": {"instance_id": "DEADBEEF", "now_tick": 100, "now_unix_sec": 1775606400,
-               "character": {"id": "CAFEBABE", "birth_unix_sec": 1775606400, "birth_tick": 0}},
-        "rw": {}, "scheduler": [{"event": "on_energy_drain"}]
-      }}
+      {
+        "cmd": "set_state",
+        "state": {
+          "ro": {
+            "instance_id": "DEADBEEF",
+            "now_tick": 100,
+            "now_unix_sec": 1775606400,
+            "character": {
+              "id": "CAFEBABE",
+              "birth_unix_sec": 1775606400,
+              "birth_tick": 0
+            }
+          },
+          "rw": {},
+          "scheduler": [
+            {
+              "event": "on_energy_drain"
+            }
+          ]
+        }
+      }
       """
     Then the response has ok false
 
   Scenario: set_state with scheduler entry missing event is rejected
     When I post command:
       """
-      {"cmd": "set_state", "state": {
-        "ro": {"instance_id": "DEADBEEF", "now_tick": 100, "now_unix_sec": 1775606400,
-               "character": {"id": "CAFEBABE", "birth_unix_sec": 1775606400, "birth_tick": 0}},
-        "rw": {}, "scheduler": [{"fire_at_ms": 5000}]
-      }}
+      {
+        "cmd": "set_state",
+        "state": {
+          "ro": {
+            "instance_id": "DEADBEEF",
+            "now_tick": 100,
+            "now_unix_sec": 1775606400,
+            "character": {
+              "id": "CAFEBABE",
+              "birth_unix_sec": 1775606400,
+              "birth_tick": 0
+            }
+          },
+          "rw": {},
+          "scheduler": [
+            {
+              "fire_at_ms": 5000
+            }
+          ]
+        }
+      }
       """
     Then the response has ok false
+
+  Scenario Outline: set_state with anim entry missing <field> is rejected
+    When I post command:
+      """
+      {
+        "cmd": "set_state",
+        "state": {
+          "ro": {
+            "instance_id": "DEADBEEF",
+            "now_tick": 100,
+            "now_unix_sec": 1775606400,
+            "character": {
+              "id": "CAFEBABE",
+              "birth_unix_sec": 1775606400,
+              "birth_tick": 0
+            }
+          },
+          "rw": {},
+          "scheduler": [],
+          "anim": {
+            "a": <anim_json>
+          }
+        }
+      }
+      """
+    Then the response has ok false
+
+    Examples:
+      | field      | anim_json                                                                                                                  | missing_part        |
+      | path       | {"n_frames": 2, "next_frame": 0, "backwards": false, "playing": true, "loop": false}                                       | image file path     |
+      | n_frames   | {"path": "{SCRIPTS_DIR}/anim_forward/two_frames.png", "next_frame": 0, "backwards": false, "playing": true, "loop": false} | total frame count   |
+      | next_frame | {"path": "{SCRIPTS_DIR}/anim_forward/two_frames.png", "n_frames": 2, "backwards": false, "playing": true, "loop": false}   | next frame index    |
+      | backwards  | {"path": "{SCRIPTS_DIR}/anim_forward/two_frames.png", "n_frames": 2, "next_frame": 0, "playing": true, "loop": false}      | play direction flag |
+      | playing    | {"path": "{SCRIPTS_DIR}/anim_forward/two_frames.png", "n_frames": 2, "next_frame": 0, "backwards": false, "loop": false}   | playback active     |
+      | loop       | {"path": "{SCRIPTS_DIR}/anim_forward/two_frames.png", "n_frames": 2, "next_frame": 0, "backwards": false, "playing": true} | loop flag           |
 
   Scenario: set_state completely replaces existing state rather than merging
     When I post command:
       """
-      {"cmd": "set_state", "state": {
-        "ro": {"instance_id": "DEADBEEF", "now_tick": 200, "now_unix_sec": 1775606400,
-               "character": {"id": "AABBCCDD", "birth_unix_sec": 1775606400, "birth_tick": 200}},
-        "rw": {"energy": 100}, "scheduler": []
-      }}
+      {
+        "cmd": "set_state",
+        "state": {
+          "ro": {
+            "instance_id": "DEADBEEF",
+            "now_tick": 200,
+            "now_unix_sec": 1775606400,
+            "character": {
+              "id": "AABBCCDD",
+              "birth_unix_sec": 1775606400,
+              "birth_tick": 200
+            }
+          },
+          "rw": {
+            "energy": 100
+          },
+          "scheduler": []
+        }
+      }
+      """
+    Then the response is ok
+    When I post command:
+      """
+      {
+        "cmd": "set_state",
+        "state": {
+          "ro": {
+            "instance_id": "DEADBEEF",
+            "now_tick": 200,
+            "now_unix_sec": 1775606400,
+            "character": {
+              "id": "AABBCCDD",
+              "birth_unix_sec": 1775606400,
+              "birth_tick": 200
+            }
+          },
+          "rw": {
+            "foo": "bar"
+          },
+          "scheduler": []
+        }
+      }
       """
     Then the response is ok
     When I get state
-    Then now_tick is 200
-    And the character id is "AABBCCDD"
-    And energy is 100
-    And the scheduler is an empty array
+    Then state equals:
+      """
+      {
+        "ro": {
+          "instance_id": "DEADBEEF",
+          "now_tick": 200,
+          "now_unix_sec": 1775606400,
+          "character": {
+            "id": "AABBCCDD",
+            "birth_unix_sec": 1775606400,
+            "birth_tick": 200
+          }
+        },
+        "rw": {
+          "foo": "bar"
+        },
+        "scheduler": [],
+        "anim": {}
+      }
+      """

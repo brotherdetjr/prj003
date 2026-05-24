@@ -339,9 +339,9 @@ completely.
 | `anim.<id>.path` | Required per entry | Absolute path to the sprite file |
 | `anim.<id>.n_frames` | Required per entry | — |
 | `anim.<id>.current_frame` | Required per entry | 1-based. This is the frame that will be drawn on the **next** `_draw` call, not the one that was last shown. |
-| `anim.<id>.backwards` | Optional per entry | omitted → `false` |
-| `anim.<id>.playing` | Optional per entry | omitted → `true` |
-| `anim.<id>.loop` | Optional per entry | omitted → `false` |
+| `anim.<id>.backwards` | Required per entry | — |
+| `anim.<id>.playing` | Required per entry | — |
+| `anim.<id>.loop` | Required per entry | — |
 
 A `set_state` that supplies only a subset of `ro` fields (or a non-null
 `character` object missing any of its fields) returns

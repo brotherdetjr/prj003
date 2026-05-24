@@ -20,7 +20,7 @@ cJSON *lua_anim_to_cjson(void);
 
 /* Restore animation instances from a JSON array.  Clears all current
    instances (C side and Lua registry) first.  arr may be NULL or a JSON
-   null (treated as empty). */
-void lua_anim_restore(lua_State *L, const cJSON *arr);
+   null (treated as empty).  Returns 0 on success, -1 if any entry is invalid. */
+int lua_anim_restore(lua_State *L, const cJSON *arr);
 
 #endif /* GLOXIE_LUA_ANIM_H */

@@ -269,7 +269,7 @@ cJSON *lua_anim_to_cjson(void)
     return obj;
 }
 
-void lua_anim_restore(lua_State *L, const cJSON *obj)
+int lua_anim_restore(lua_State *L, const cJSON *obj)
 {
     char key[ANIM_KEY_MAX];
     for (int i = 0; i < ANIM_MAX; i++) {
@@ -280,13 +280,13 @@ void lua_anim_restore(lua_State *L, const cJSON *obj)
         s_anims[i].id[0] = '\0';
     }
 
-    if (obj == NULL || cJSON_IsNull(obj) || !cJSON_IsObject(obj)) return;
+    if (obj == NULL || cJSON_IsNull(obj) || !cJSON_IsObject(obj)) return 0;
 
     const cJSON *entry;
     cJSON_ArrayForEach(entry, obj)
     {
         const char *id = entry->string;
-        if (!id) continue;
+        if (!id) return -1;
         cJSON *path_j = cJSON_GetObjectItemCaseSensitive(entry, "path");
         cJSON *n_j = cJSON_GetObjectItemCaseSensitive(entry, "n_frames");
         cJSON *cur_j = cJSON_GetObjectItemCaseSensitive(entry, "next_frame");
@@ -295,20 +295,22 @@ void lua_anim_restore(lua_State *L, const cJSON *obj)
         cJSON *loop_j = cJSON_GetObjectItemCaseSensitive(entry, "loop");
 
         if (!cJSON_IsString(path_j) || !cJSON_IsNumber(n_j) ||
-            !cJSON_IsNumber(cur_j)) continue;
+            !cJSON_IsNumber(cur_j) || !cJSON_IsBool(back_j) ||
+            !cJSON_IsBool(play_j) || !cJSON_IsBool(loop_j)) return -1;
 
         anim_entry_t *e = anim_alloc(id);
-        if (!e) continue;
+        if (!e) return -1;
 
         strncpy(e->path, path_j->valuestring, ANIM_PATH_MAX - 1);
         e->path[ANIM_PATH_MAX - 1] = '\0';
         e->n_frames = (int)n_j->valuedouble;
         e->next_frame = (int)cur_j->valuedouble;
         e->backwards = cJSON_IsTrue(back_j);
-        e->playing = play_j ? cJSON_IsTrue(play_j) : 1;
+        e->playing = cJSON_IsTrue(play_j);
         e->loop = cJSON_IsTrue(loop_j);
         e->used_in_last_draw = 0;
     }
+    return 0;
 }
 
 void lua_anim_post_draw(lua_State *L)

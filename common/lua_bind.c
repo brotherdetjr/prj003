@@ -577,8 +577,9 @@ int lua_bind_restore(app_t *app, const cJSON *state_json)
 {
     lua_bind_restore_rw(app,
                         cJSON_GetObjectItemCaseSensitive(state_json, "rw"));
-    lua_anim_restore(app->L,
-                     cJSON_GetObjectItemCaseSensitive(state_json, "anim"));
+    if (lua_anim_restore(app->L,
+                         cJSON_GetObjectItemCaseSensitive(state_json, "anim")) != 0)
+        return -1;
     return lua_bind_restore_scheduler(app,
                                       cJSON_GetObjectItemCaseSensitive(state_json, "scheduler"));
 }
