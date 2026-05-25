@@ -282,13 +282,42 @@ Feature: HTTP API edge cases
       """
     Then the response has ok false
 
-  Scenario: set_state with missing ro.instance_id is rejected
+  Scenario Outline: (ro, character & scheduler validation) set_state is rejected due to <what_is_wrong>
+    When I post command:
+      """
+      {"cmd": "set_state", "state": <state_json>}
+      """
+    Then the response has ok false
+
+    Examples:
+      | state_json                                                                                                                                                                                                                                   | what_is_wrong                                     |
+      | {"ro": {"now_tick": 100, "now_unix_sec": 1775606400, "character": {"id": "CAFEBABE", "birth_unix_sec": 1775606400, "birth_tick": 0}}, "rw": {}, "scheduler": []}                                                                             | missing instance_id in ro                         |
+      | {"ro": {"instance_id": true, "now_tick": 100, "now_unix_sec": 1775606400, "character": {"id": "CAFEBABE", "birth_unix_sec": 1775606400, "birth_tick": 0}}, "rw": {}, "scheduler": []}                                                        | wrong value type of instance_id in ro             |
+      | {"ro": {"instance_id": "DEADBEEF", "now_unix_sec": 1775606400, "character": {"id": "CAFEBABE", "birth_unix_sec": 1775606400, "birth_tick": 0}}, "rw": {}, "scheduler": []}                                                                   | missing now_tick in ro                            |
+      | {"ro": {"instance_id": "DEADBEEF", "now_tick": false, "now_unix_sec": 1775606400, "character": {"id": "CAFEBABE", "birth_unix_sec": 1775606400, "birth_tick": 0}}, "rw": {}, "scheduler": []}                                                | wrong value type of now_tick in ro                |
+      | {"ro": {"instance_id": "DEADBEEF", "now_tick": 100, "character": {"id": "CAFEBABE", "birth_unix_sec": 1775606400, "birth_tick": 0}}, "rw": {}, "scheduler": []}                                                                              | missing now_unix_sec in ro                        |
+      | {"ro": {"instance_id": "DEADBEEF", "now_tick": 100, "now_unix_sec": false, "character": {"id": "CAFEBABE", "birth_unix_sec": 1775606400, "birth_tick": 0}}, "rw": {}, "scheduler": []}                                                       | wrong value type of now_unix_sec in ro            |
+      | {"ro": {"instance_id": "DEADBEEF", "now_tick": 100, "now_unix_sec": 1775606400}, "rw": {}, "scheduler": []}                                                                                                                                  | missing character in ro                           |
+      | {"ro": {"instance_id": "DEADBEEF", "now_tick": 100, "now_unix_sec": 1775606400, "character": "hello"}, "rw": {}, "scheduler": []}                                                                                                            | wrong value type of character in ro               |
+      | {"ro": {"instance_id": "DEADBEEF", "now_tick": 100, "now_unix_sec": 1775606400, "character": {"birth_unix_sec": 1775606400, "birth_tick": 0}}, "rw": {}, "scheduler": []}                                                                    | missing id in character                           |
+      | {"ro": {"instance_id": "DEADBEEF", "now_tick": 100, "now_unix_sec": 1775606400, "character": {"id": true, "birth_unix_sec": 1775606400, "birth_tick": 0}}, "rw": {}, "scheduler": []}                                                        | wrong value type of id in character               |
+      | {"ro": {"instance_id": "DEADBEEF", "now_tick": 100, "now_unix_sec": 1775606400, "character": {"id": "CAFEBABE", "birth_tick": 0}}, "rw": {}, "scheduler": []}                                                                                | missing birth_unix_sec in character               |
+      | {"ro": {"instance_id": "DEADBEEF", "now_tick": 100, "now_unix_sec": 1775606400, "character": {"id": "CAFEBABE", "birth_unix_sec": false, "birth_tick": 0}}, "rw": {}, "scheduler": []}                                                       | wrong value type of birth_unix_sec in character   |
+      | {"ro": {"instance_id": "DEADBEEF", "now_tick": 100, "now_unix_sec": 1775606400, "character": {"id": "CAFEBABE", "birth_unix_sec": 1775606400}}, "rw": {}, "scheduler": []}                                                                   | missing birth_tick in character                   |
+      | {"ro": {"instance_id": "DEADBEEF", "now_tick": 100, "now_unix_sec": 1775606400, "character": {"id": "CAFEBABE", "birth_unix_sec": 1775606400, "birth_tick": false}}, "rw": {}, "scheduler": []}                                              | wrong value type of birth_tick in character       |
+      | {"ro": {"instance_id": "DEADBEEF", "now_tick": 100, "now_unix_sec": 1775606400, "character": {"id": "CAFEBABE", "birth_unix_sec": 1775606400, "birth_tick": 0}}, "rw": {}, "scheduler": [{"event": "on_energy_drain"}]}                      | missing fire_at_ms in scheduler entry             |
+      | {"ro": {"instance_id": "DEADBEEF", "now_tick": 100, "now_unix_sec": 1775606400, "character": {"id": "CAFEBABE", "birth_unix_sec": 1775606400, "birth_tick": 0}}, "rw": {}, "scheduler": [{"fire_at_ms": false, "event": "on_energy_drain"}]} | wrong value type of fire_at_ms in scheduler entry |
+      | {"ro": {"instance_id": "DEADBEEF", "now_tick": 100, "now_unix_sec": 1775606400, "character": {"id": "CAFEBABE", "birth_unix_sec": 1775606400, "birth_tick": 0}}, "rw": {}, "scheduler": [{"fire_at_ms": 5000}]}                              | missing event in scheduler entry                  |
+      | {"ro": {"instance_id": "DEADBEEF", "now_tick": 100, "now_unix_sec": 1775606400, "character": {"id": "CAFEBABE", "birth_unix_sec": 1775606400, "birth_tick": 0}}, "rw": {}, "scheduler": [{"fire_at_ms": 5000, "event": true}]}               | wrong value type of event in scheduler entry      |
+
+  Scenario Outline: (anim validation) set_state is rejected due to <what_is_wrong>
     When I post command:
       """
       {
         "cmd": "set_state",
         "state": {
           "ro": {
+            "instance_id": "DEADBEEF",
             "now_tick": 100,
             "now_unix_sec": 1775606400,
             "character": {
@@ -298,139 +327,29 @@ Feature: HTTP API edge cases
             }
           },
           "rw": {},
-          "scheduler": []
+          "scheduler": [],
+          "anim": {
+            "a": <anim_json>
+          }
         }
       }
       """
     Then the response has ok false
 
-  Scenario: set_state with missing ro.now_tick is rejected
-    When I post command:
-      """
-      {
-        "cmd": "set_state",
-        "state": {
-          "ro": {
-            "instance_id": "DEADBEEF",
-            "now_unix_sec": 1775606400,
-            "character": {
-              "id": "CAFEBABE",
-              "birth_unix_sec": 1775606400,
-              "birth_tick": 0
-            }
-          },
-          "rw": {},
-          "scheduler": []
-        }
-      }
-      """
-    Then the response has ok false
-
-  Scenario: set_state with missing ro.now_unix_sec is rejected
-    When I post command:
-      """
-      {
-        "cmd": "set_state",
-        "state": {
-          "ro": {
-            "instance_id": "DEADBEEF",
-            "now_tick": 100,
-            "character": {
-              "id": "CAFEBABE",
-              "birth_unix_sec": 1775606400,
-              "birth_tick": 0
-            }
-          },
-          "rw": {},
-          "scheduler": []
-        }
-      }
-      """
-    Then the response has ok false
-
-  Scenario: set_state with missing ro.character is rejected
-    When I post command:
-      """
-      {
-        "cmd": "set_state",
-        "state": {
-          "ro": {
-            "instance_id": "DEADBEEF",
-            "now_tick": 100,
-            "now_unix_sec": 1775606400
-          },
-          "rw": {},
-          "scheduler": []
-        }
-      }
-      """
-    Then the response has ok false
-
-  Scenario: set_state with missing character.id is rejected
-    When I post command:
-      """
-      {
-        "cmd": "set_state",
-        "state": {
-          "ro": {
-            "instance_id": "DEADBEEF",
-            "now_tick": 100,
-            "now_unix_sec": 1775606400,
-            "character": {
-              "birth_unix_sec": 1775606400,
-              "birth_tick": 0
-            }
-          },
-          "rw": {},
-          "scheduler": []
-        }
-      }
-      """
-    Then the response has ok false
-
-  Scenario: set_state with missing character.birth_unix_sec is rejected
-    When I post command:
-      """
-      {
-        "cmd": "set_state",
-        "state": {
-          "ro": {
-            "instance_id": "DEADBEEF",
-            "now_tick": 100,
-            "now_unix_sec": 1775606400,
-            "character": {
-              "id": "CAFEBABE",
-              "birth_tick": 0
-            }
-          },
-          "rw": {},
-          "scheduler": []
-        }
-      }
-      """
-    Then the response has ok false
-
-  Scenario: set_state with missing character.birth_tick is rejected
-    When I post command:
-      """
-      {
-        "cmd": "set_state",
-        "state": {
-          "ro": {
-            "instance_id": "DEADBEEF",
-            "now_tick": 100,
-            "now_unix_sec": 1775606400,
-            "character": {
-              "id": "CAFEBABE",
-              "birth_unix_sec": 1775606400
-            }
-          },
-          "rw": {},
-          "scheduler": []
-        }
-      }
-      """
-    Then the response has ok false
+    Examples:
+      | anim_json                                                                                                                                     | what_is_wrong                         |
+      | {"n_frames": 2, "next_frame": 0, "backwards": false, "playing": true, "loop": false}                                                          | missing image file path               |
+      | {"path": true, "n_frames": 2, "next_frame": 0, "backwards": false, "playing": true, "loop": false}                                            | wrong value type of image file path   |
+      | {"path": "{SCRIPTS_DIR}/anim_forward/two_frames.png", "next_frame": 0, "backwards": false, "playing": true, "loop": false}                    | missing total frame count             |
+      | {"path": "{SCRIPTS_DIR}/anim_forward/two_frames.png", "n_frames": false, "next_frame": 0, "backwards": false, "playing": true, "loop": false} | wrong value type of total frame count |
+      | {"path": "{SCRIPTS_DIR}/anim_forward/two_frames.png", "n_frames": 2, "backwards": false, "playing": true, "loop": false}                      | missing next frame index              |
+      | {"path": "{SCRIPTS_DIR}/anim_forward/two_frames.png", "n_frames": 2, "next_frame": false, "backwards": false, "playing": true, "loop": false} | wrong value type of next frame index  |
+      | {"path": "{SCRIPTS_DIR}/anim_forward/two_frames.png", "n_frames": 2, "next_frame": 0, "playing": true, "loop": false}                         | missing play direction flag           |
+      | {"path": "{SCRIPTS_DIR}/anim_forward/two_frames.png", "n_frames": 2, "next_frame": 0, "backwards": 0, "playing": true, "loop": false}         | wrong value type of play direction    |
+      | {"path": "{SCRIPTS_DIR}/anim_forward/two_frames.png", "n_frames": 2, "next_frame": 0, "backwards": false, "loop": false}                      | missing playback active               |
+      | {"path": "{SCRIPTS_DIR}/anim_forward/two_frames.png", "n_frames": 2, "next_frame": 0, "backwards": false, "playing": 0, "loop": false}        | wrong value type of playback active   |
+      | {"path": "{SCRIPTS_DIR}/anim_forward/two_frames.png", "n_frames": 2, "next_frame": 0, "backwards": false, "playing": true}                    | missing loop flag                     |
+      | {"path": "{SCRIPTS_DIR}/anim_forward/two_frames.png", "n_frames": 2, "next_frame": 0, "backwards": false, "playing": true, "loop": 0}         | wrong value type of loop flag         |
 
   Scenario: set_state with scheduler/anim/rw null treats it as empty
     When I post command:
@@ -514,95 +433,6 @@ Feature: HTTP API edge cases
         "anim": {}
       }
       """
-
-  Scenario: set_state with scheduler entry missing fire_at_ms is rejected
-    When I post command:
-      """
-      {
-        "cmd": "set_state",
-        "state": {
-          "ro": {
-            "instance_id": "DEADBEEF",
-            "now_tick": 100,
-            "now_unix_sec": 1775606400,
-            "character": {
-              "id": "CAFEBABE",
-              "birth_unix_sec": 1775606400,
-              "birth_tick": 0
-            }
-          },
-          "rw": {},
-          "scheduler": [
-            {
-              "event": "on_energy_drain"
-            }
-          ]
-        }
-      }
-      """
-    Then the response has ok false
-
-  Scenario: set_state with scheduler entry missing event is rejected
-    When I post command:
-      """
-      {
-        "cmd": "set_state",
-        "state": {
-          "ro": {
-            "instance_id": "DEADBEEF",
-            "now_tick": 100,
-            "now_unix_sec": 1775606400,
-            "character": {
-              "id": "CAFEBABE",
-              "birth_unix_sec": 1775606400,
-              "birth_tick": 0
-            }
-          },
-          "rw": {},
-          "scheduler": [
-            {
-              "fire_at_ms": 5000
-            }
-          ]
-        }
-      }
-      """
-    Then the response has ok false
-
-  Scenario Outline: set_state with anim entry missing <field> is rejected
-    When I post command:
-      """
-      {
-        "cmd": "set_state",
-        "state": {
-          "ro": {
-            "instance_id": "DEADBEEF",
-            "now_tick": 100,
-            "now_unix_sec": 1775606400,
-            "character": {
-              "id": "CAFEBABE",
-              "birth_unix_sec": 1775606400,
-              "birth_tick": 0
-            }
-          },
-          "rw": {},
-          "scheduler": [],
-          "anim": {
-            "a": <anim_json>
-          }
-        }
-      }
-      """
-    Then the response has ok false
-
-    Examples:
-      | field      | anim_json                                                                                                                  | missing_part        |
-      | path       | {"n_frames": 2, "next_frame": 0, "backwards": false, "playing": true, "loop": false}                                       | image file path     |
-      | n_frames   | {"path": "{SCRIPTS_DIR}/anim_forward/two_frames.png", "next_frame": 0, "backwards": false, "playing": true, "loop": false} | total frame count   |
-      | next_frame | {"path": "{SCRIPTS_DIR}/anim_forward/two_frames.png", "n_frames": 2, "backwards": false, "playing": true, "loop": false}   | next frame index    |
-      | backwards  | {"path": "{SCRIPTS_DIR}/anim_forward/two_frames.png", "n_frames": 2, "next_frame": 0, "playing": true, "loop": false}      | play direction flag |
-      | playing    | {"path": "{SCRIPTS_DIR}/anim_forward/two_frames.png", "n_frames": 2, "next_frame": 0, "backwards": false, "loop": false}   | playback active     |
-      | loop       | {"path": "{SCRIPTS_DIR}/anim_forward/two_frames.png", "n_frames": 2, "next_frame": 0, "backwards": false, "playing": true} | loop flag           |
 
   Scenario: set_state completely replaces existing state rather than merging
     When I post command:
