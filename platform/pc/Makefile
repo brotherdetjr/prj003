@@ -56,7 +56,7 @@ ASAN_FLAGS = -std=gnu11 -O1 -g -fno-omit-frame-pointer \
 
 ASAN_LOG = /tmp/emu-asan
 
-all: format-check test_scheduler emu-asan
+all: format-check iwyu-check test_scheduler emu-asan
 	./test_scheduler
 	rm -f $(ASAN_LOG).*
 	cd ../../tests && EMU_BIN=$(CURDIR)/emu-asan \
@@ -114,4 +114,18 @@ format-check:
 format:
 	clang-format -i $(FORMAT_SRCS)
 
-.PHONY: all emu clean format-check format
+# -Werror stripped: IWYU uses clang and may emit diagnostics gcc silently ignores
+IWYU_FLAGS = $(filter-out -Werror, $(CFLAGS))
+
+iwyu-check:
+	@command -v include-what-you-use >/dev/null 2>&1 || \
+	    { echo "include-what-you-use not found — install: sudo apt install iwyu"; exit 1; }; \
+	ok=1; \
+	for src in $(APP_SRCS); do \
+	    out=$$(include-what-you-use $(IWYU_FLAGS) $$src 2>&1); \
+	    if echo "$$out" | grep -q "^- "; then \
+	        echo "$$out"; ok=0; \
+	    fi; \
+	done; [ $$ok -eq 1 ]
+
+.PHONY: all emu clean format-check format iwyu-check

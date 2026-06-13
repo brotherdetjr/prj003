@@ -23,11 +23,6 @@ def step_get_screen(context):
     context.screen_png = get_screen(context)
 
 
-@when("I spawn a character")
-def step_spawn(context):
-    context.state = post(context, {"cmd": "spawn"})
-
-
 @when("I post command:")
 def step_post_command_body(context):
     raw_request(context, "POST", "/command", json=json.loads(expand_placeholders(context.text)))
@@ -151,6 +146,13 @@ def step_scheduler_count(context, count):
 def step_scheduler_empty(context):
     sched = context.state.get("scheduler")
     assert sched == [], f"expected scheduler=[], got: {sched!r}"
+
+
+@then("state equals:")
+def step_state_equals(context):
+    expected = json.loads(expand_placeholders(context.text))
+    actual = {k: v for k, v in context.state.items() if k != "ok"}
+    assert actual == expected, f"expected state={expected!r}, got {actual!r}"
 
 
 @then('state field "{field}" equals:')

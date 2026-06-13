@@ -6,7 +6,7 @@ Feature: Lua schedule() — dispatch, prefix resolution, and argument validation
 
   Scenario Outline: prefix follows the global variable path — <description>
     Given emu starts with test script "<script>" and args "--nowtick=0 --noautotick"
-    When I spawn a character
+    When I get state
     Then the response is ok
     And energy is 10
     And the scheduler has an "<event>.on_drain" event at tick 5000
@@ -39,7 +39,7 @@ Feature: Lua schedule() — dispatch, prefix resolution, and argument validation
 
   Scenario: same module reached via two distinct paths dispatches and reschedules independently
     Given emu starts with test script "diamond_test/main.lua" and args "--nowtick=0 --noautotick"
-    When I spawn a character
+    When I get state
     Then the response is ok
     And energy is 10
     And the scheduler has 2 event(s)
@@ -108,17 +108,23 @@ Feature: Lua schedule() — dispatch, prefix resolution, and argument validation
   # Argument validation
   # ---------------------------------------------------------------------------
 
+  Scenario: event name of exactly 63 chars is accepted
+    Given emu starts with test script "schedule_name_max/main.lua" and args "--nowtick=0 --noautotick"
+    When I get state
+    Then the scheduler has 1 event(s)
+
   Scenario Outline: <description>
     Given emu starts with test script "<script>" and args "--nowtick=0 --noautotick"
-    When I spawn a character
-    Then the response is ok
+    When I post command:
+      """
+      {"cmd": "advance_time", "ticks": 100}
+      """
     When I get state
     Then the scheduler has <count> event(s)
 
     Examples:
-      | description                                    | script                            | count |
-      | event name of exactly 63 chars is accepted     | schedule_name_max/main.lua        | 1     |
-      | event name of 64 chars is rejected             | schedule_name_too_long/main.lua   | 0     |
-      | event name starting with underscore is rejected| schedule_name_underscore/main.lua | 0     |
-      | negative delay_ms is rejected                  | schedule_delay_negative/main.lua  | 0     |
-      | exhausting the event table is rejected         | schedule_table_full/main.lua      | 64    |
+      | description                                     | script                            | count |
+      | event name of 64 chars is rejected              | schedule_name_too_long/main.lua   | 0     |
+      | event name starting with underscore is rejected | schedule_name_underscore/main.lua | 0     |
+      | negative delay_ms is rejected                   | schedule_delay_negative/main.lua  | 0     |
+      | exhausting the event table is rejected          | schedule_table_full/main.lua      | 64    |

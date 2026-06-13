@@ -3,13 +3,6 @@ Feature: Smoke — happy path from README
   Background:
     Given emu starts with args "--id=DEADBEEF --nowtick=42 --wallclockutc=2026-04-08T00:00:00 --noautotick"
 
-  Scenario: Initial state has no character
-    When I get state
-    Then the response is ok
-    And now_tick is 42
-    And now_unix_sec is 1775606400
-    And there is no character
-
   Scenario: Wall clock can be set and read back independently
     When I post command:
       """
@@ -23,7 +16,7 @@ Feature: Smoke — happy path from README
     Then now_unix_sec is 1775606401
 
   Scenario: Character lifecycle — spawn, advance, energy drain, poof
-    When I spawn a character
+    When I get state
     Then the response is ok
     And the character id is "14FE67E1"
     And birth_unix_sec is 1775606400

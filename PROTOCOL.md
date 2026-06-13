@@ -64,8 +64,8 @@ Options:
 ```
 
 On startup the instance:
-1. Initialises the world (empty — no character yet).
-2. Calls `_init`, then `_update`, then `_draw` at the initial virtual tick.
+1. Initialises the world state.
+2. Calls `_init` at the initial virtual tick. If `_init` raises a Lua error, a `_on_lua_error` SSE event is emitted, autotick is paused, and `_update`/`_draw` are skipped until the script is fixed via hot reload. On a successful `_init`, `_update` then `_draw` are called immediately after.
 3. Starts the HTTP server on the given port.
 4. Begins listening on stdin for incoming peer messages.
 5. If auto-tick (default), starts advancing one tick per real second.
@@ -199,27 +199,6 @@ Response: state fields at top level alongside `ok`:
 ```json
 { "ok": true, "script": "...", "ro": {...}, "rw": {...}, "scheduler": [...] }
 ```
-
----
-
-#### `spawn`
-
-Create a new character. Fails if a character already exists (use `poof` first to clear the current one).
-
-Request:
-```json
-{ "cmd": "spawn" }
-```
-
-Optional fields:
-- `"character_id": "XXXXXXXX"` — 8 hex digits; random (seeded by instance ID)
-  if omitted.
-
-The instance ID and character ID are independent: the instance ID identifies
-the device/process; the character ID identifies the creature and survives
-save/load/transfer across devices.
-
-Response: state fields at top level alongside `ok` (same shape as `get_state`).
 
 ---
 
@@ -360,9 +339,9 @@ completely.
 | `anim.<id>.path` | Required per entry | Absolute path to the sprite file |
 | `anim.<id>.n_frames` | Required per entry | — |
 | `anim.<id>.current_frame` | Required per entry | 1-based. This is the frame that will be drawn on the **next** `_draw` call, not the one that was last shown. |
-| `anim.<id>.backwards` | Optional per entry | omitted → `false` |
-| `anim.<id>.playing` | Optional per entry | omitted → `true` |
-| `anim.<id>.loop` | Optional per entry | omitted → `false` |
+| `anim.<id>.backwards` | Required per entry | — |
+| `anim.<id>.playing` | Required per entry | — |
+| `anim.<id>.loop` | Required per entry | — |
 
 A `set_state` that supplies only a subset of `ro` fields (or a non-null
 `character` object missing any of its fields) returns
@@ -520,11 +499,11 @@ game mechanics are further defined.
 
 ### `State`
 
-State fields appear at the top level of every `get_state` / `spawn` response
+State fields appear at the top level of every `get_state` response
 (alongside `"ok": true`), and are passed as the value of the `"state"` key in
 `set_state` requests.
 
-No character spawned yet (or after `poof`):
+No character present (after `poof` or before `spawn()` is called from the script):
 ```json
 {
   "ro": {
@@ -589,9 +568,8 @@ All IDs are 8 upper-case hex digits represented as JSON strings
 ## 5. Error handling
 
 - Commands with missing required fields return `{"ok": false, "error": "..."}`.
-- Commands that are not applicable in the current state (e.g. `spawn` when a
-  character exists, or `poof` when none does) return an error rather than
-  silently succeeding.
+- Commands that are not applicable in the current state (e.g. `poof` when no
+  character exists) return an error rather than silently succeeding.
 - The HTTP server returns `400 Bad Request` for malformed JSON bodies.
 
 ---

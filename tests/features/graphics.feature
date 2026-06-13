@@ -11,7 +11,6 @@ Feature: Graphics
     Then the screen matches fixture "red_368x448.png"
 
   Scenario: cls raises an error when called outside _draw
-    Given emu starts with test script "cls_on_spawn/main.lua" and args "--nowtick=0 --noautotick"
+    Given emu starts with test script "cls_in_init/main.lua" and args "--nowtick=0 --noautotick --wait-for-sse-client"
     And I subscribe to SSE events
-    When I spawn a character
-    Then I receive a "_on_lua_error" SSE event with fn "on_spawn" and error containing "draw context"
+    Then I receive a "_on_lua_error" SSE event with fn "_init" and error containing "draw context"

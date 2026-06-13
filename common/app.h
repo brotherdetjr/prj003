@@ -35,6 +35,11 @@ typedef struct app_t {
     int autotick;
     int stop_on_lua_error;
     int had_lua_error;
+    int init_failed;           /* set when _init() raised a Lua error; cleared on next successful _init() */
+    int saved_autotick;        /* autotick value saved when _init() fails; restored on recovery */
+    int wait_for_sse_client;   /* if set, defer game engine execution until first /events request */
+    char *deferred_script;     /* heap-allocated Lua script path; freed after deferred init */
+    char *deferred_state_file; /* heap-allocated state JSON path; NULL if no --file; freed after deferred init */
     struct mg_mgr mgr;
     lua_State *L;
     lua_event_t lua_events[LUA_MAX_EVENTS];

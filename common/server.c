@@ -13,6 +13,55 @@
 #define IS_SSE(c) ((c)->data[0] == 'S')
 
 /* ------------------------------------------------------------------ */
+/* State file I/O                                                     */
+/* ------------------------------------------------------------------ */
+
+int load_state_file(app_t *app, const char *path)
+{
+    FILE *f = fopen(path, "r");
+    if (!f) {
+        perror(path);
+        return -1;
+    }
+
+    fseek(f, 0, SEEK_END);
+    long sz = ftell(f);
+    rewind(f);
+    if (sz <= 0 || sz > 65536) {
+        fprintf(stderr, "%s: file too large or empty\n", path);
+        fclose(f);
+        return -1;
+    }
+    char *buf = malloc((size_t)sz + 1);
+    if (fread(buf, 1, (size_t)sz, f) != (size_t)sz) {
+        free(buf);
+        fclose(f);
+        return -1;
+    }
+    buf[sz] = '\0';
+    fclose(f);
+
+    cJSON *json = cJSON_Parse(buf);
+    free(buf);
+    if (!json) {
+        fprintf(stderr, "%s: malformed JSON\n", path);
+        return -1;
+    }
+
+    int rc = json_to_state(app, json);
+    if (rc != 0) {
+        cJSON_Delete(json);
+        fprintf(stderr, "%s: invalid state\n", path);
+        return -1;
+    }
+
+    lua_bind_restore(app, json);
+
+    cJSON_Delete(json);
+    return 0;
+}
+
+/* ------------------------------------------------------------------ */
 /* SSE                                                                */
 /* ------------------------------------------------------------------ */
 
@@ -62,7 +111,9 @@ void update_and_draw(app_t *app)
 void tick_timer_fn(void *arg)
 {
     app_t *app = (app_t *)arg;
+    if (app->wait_for_sse_client) return;
     if (!app->autotick) return;
+    if (app->init_failed) return;
 
     app->now_unix_sec = (uint64_t)time(NULL);
 
@@ -143,6 +194,11 @@ static void handle_command(struct mg_connection *c,
         mg_http_reply(c, 400, JSON_HDR,
                       "{\"ok\":false,\"error\":\"invalid JSON\"}\n");
         return;
+    }
+
+    if (app->wait_for_sse_client) {
+        reply_error(c, "not ready");
+        goto done;
     }
 
     cJSON *cmd_j = cJSON_GetObjectItemCaseSensitive(body, "cmd");
@@ -231,23 +287,6 @@ static void handle_command(struct mg_connection *c,
         mg_http_reply(c, 200, JSON_HDR,
                       "{\"ok\":true,\"stop_on_lua_error\":%s}\n",
                       app->stop_on_lua_error ? "true" : "false");
-
-    } else if (strcmp(cmd, "spawn") == 0) {
-        if (app->has_character) {
-            reply_error(c, "character already exists");
-            goto done;
-        }
-        uint32_t char_id;
-        cJSON *cid_j = cJSON_GetObjectItemCaseSensitive(body, "character_id");
-        if (cJSON_IsString(cid_j))
-            char_id = (uint32_t)strtoul(cid_j->valuestring, NULL, 16);
-        else
-            char_id = (uint32_t)rand();
-        app_spawn_character(app, char_id);
-        lua_bind_reset_rw(app);
-        lua_bind_call(app, "on_spawn");
-        update_and_draw(app);
-        reply_state(c, app);
 
     } else if (strcmp(cmd, "poof") == 0) {
         if (!app->has_character) {
@@ -357,7 +396,35 @@ void mg_event_handler(struct mg_connection *c, int ev, void *ev_data)
                   "Cache-Control: no-cache\r\n"
                   "Transfer-Encoding: chunked\r\n"
                   "\r\n");
-        c->data[0] = 'S'; /* mark as SSE subscriber */
+        c->data[0] = 'S'; /* mark as SSE subscriber before any init callbacks */
+        if (app->wait_for_sse_client) {
+            app->wait_for_sse_client = 0;
+            char *script = app->deferred_script;
+            app->deferred_script = NULL;
+            fprintf(stderr, "SSE client connected — starting deferred init\n");
+            if (lua_bind_init(app, script) != 0) {
+                free(script);
+                free(app->deferred_state_file);
+                app->deferred_state_file = NULL;
+                mg_http_printf_chunk(c, "event: _on_init_error\ndata: {}\n\n");
+                return;
+            }
+            free(script);
+            app->lua_error_cb = lua_error_sse_cb;
+            if (!app->init_failed) {
+                if (app->deferred_state_file) {
+                    if (load_state_file(app, app->deferred_state_file) == 0)
+                        fprintf(stderr, "Loaded state from '%s'\n",
+                                app->deferred_state_file);
+                    free(app->deferred_state_file);
+                    app->deferred_state_file = NULL;
+                }
+                update_and_draw(app);
+            } else {
+                free(app->deferred_state_file);
+                app->deferred_state_file = NULL;
+            }
+        }
 
     } else {
         mg_http_reply(c, 404, JSON_HDR,

@@ -1,5 +1,6 @@
 nrg = require("energy")
 
-function on_spawn(rw)
+function _init(rw)
+    spawn()
     nrg.init(rw)
 end

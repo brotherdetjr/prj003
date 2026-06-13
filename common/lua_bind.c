@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
 #include "lua_bind.h"
@@ -109,6 +110,7 @@ static const char *const k_stdlib[] = {
     "coroutine", "debug", "io", "math", "os", "package", "string",
     "table", "utf8",
     "schedule",
+    "spawn",
     "cls",
     "spr",
     "anim",
@@ -196,6 +198,15 @@ static void freeze_globals(lua_State *L)
 /* ------------------------------------------------------------------ */
 /* Global functions exposed to Lua                                    */
 /* ------------------------------------------------------------------ */
+
+static int l_spawn(lua_State *L)
+{
+    app_t *app = get_app(L);
+    if (app->has_character)
+        return luaL_error(L, "spawn: character already exists");
+    app_spawn_character(app, (uint32_t)rand());
+    return 0;
+}
 
 static void set_schedule_prefix(lua_State *L, const char *prefix)
 {
@@ -488,13 +499,6 @@ cJSON *lua_bind_rw_to_cjson(app_t *app)
     return obj;
 }
 
-void lua_bind_reset_rw(app_t *app)
-{
-    lua_State *L = app->L;
-    lua_newtable(L);
-    lua_setfield(L, LUA_REGISTRYINDEX, REG_RW);
-}
-
 static void cjson_to_lua_table(lua_State *L, const cJSON *obj)
 {
     lua_newtable(L);
@@ -573,8 +577,9 @@ int lua_bind_restore(app_t *app, const cJSON *state_json)
 {
     lua_bind_restore_rw(app,
                         cJSON_GetObjectItemCaseSensitive(state_json, "rw"));
-    lua_anim_restore(app->L,
-                     cJSON_GetObjectItemCaseSensitive(state_json, "anim"));
+    if (lua_anim_restore(app->L,
+                         cJSON_GetObjectItemCaseSensitive(state_json, "anim")) != 0)
+        return -1;
     return lua_bind_restore_scheduler(app,
                                       cJSON_GetObjectItemCaseSensitive(state_json, "scheduler"));
 }
@@ -756,10 +761,12 @@ void lua_bind_call_draw(app_t *app)
 /* ------------------------------------------------------------------ */
 
 static int load_and_freeze(app_t *app, const char *script_path); /* forward decl */
+static void call_init_fn(app_t *app);                            /* forward decl */
 
 int lua_bind_reload(app_t *app, const char *script_path)
 {
-    cJSON *snap = app_state_to_json(app); /* lua_bind_restore ignores "ro" */
+    int was_init_failed = app->init_failed;
+    cJSON *snap = was_init_failed ? NULL : app_state_to_json(app);
 
     /* Stash old state; load_and_freeze clears lua_events so save them too */
     lua_State *old_L = app->L;
@@ -771,13 +778,17 @@ int lua_bind_reload(app_t *app, const char *script_path)
         /* Load failed — restore old state intact */
         app->L = old_L;
         memcpy(app->lua_events, saved_events, sizeof(saved_events));
-        cJSON_Delete(snap);
+        if (snap) cJSON_Delete(snap);
         return -1;
     }
 
     lua_close(old_L);
-    lua_bind_restore(app, snap);
-    cJSON_Delete(snap);
+    if (was_init_failed)
+        call_init_fn(app);
+    else {
+        lua_bind_restore(app, snap);
+        cJSON_Delete(snap);
+    }
     return 0;
 }
 
@@ -845,6 +856,40 @@ int lua_bind_get_loaded_files(app_t *app, char (*out)[1024], int max_count)
 }
 
 /* ------------------------------------------------------------------ */
+/* Init helpers                                                       */
+/* ------------------------------------------------------------------ */
+
+static void call_init_fn(app_t *app)
+{
+    lua_State *L = app->L;
+    set_schedule_prefix(L, "");
+    lua_getglobal(L, "_init");
+    if (!lua_isfunction(L, -1)) {
+        lua_pop(L, 1);
+        app->init_failed = 0;
+        return;
+    }
+    push_rw(L);
+    push_ro(L, app);
+    if (lua_pcall(L, 2, 0, 0) != LUA_OK) {
+        const char *msg = lua_tostring(L, -1);
+        fprintf(stderr, "lua_bind_init: _init failed: %s\n", msg);
+        if (app->lua_error_cb) app->lua_error_cb("_init", msg, app);
+        lua_pop(L, 1);
+        lua_bind_restore(app, NULL);
+        if (!app->init_failed) {
+            app->saved_autotick = app->autotick;
+            app->autotick = 0;
+        }
+        app->init_failed = 1;
+        return;
+    }
+    if (app->init_failed)
+        app->autotick = app->saved_autotick;
+    app->init_failed = 0;
+}
+
+/* ------------------------------------------------------------------ */
 /* Init                                                               */
 /* ------------------------------------------------------------------ */
 
@@ -896,6 +941,7 @@ static int load_and_freeze(app_t *app, const char *script_path)
 
     /* Register global functions */
     lua_register(L, "schedule", l_schedule);
+    lua_register(L, "spawn", l_spawn);
     lua_gfx_register(L);
     lua_pushstring(L, "");
     lua_setfield(L, LUA_REGISTRYINDEX, REG_PREFIX);
@@ -930,24 +976,6 @@ static int load_and_freeze(app_t *app, const char *script_path)
 int lua_bind_init(app_t *app, const char *script_path)
 {
     if (load_and_freeze(app, script_path) != 0) return -1;
-
-    /* Call _init(rw, ro) if defined; errors are fatal. */
-    lua_State *L = app->L;
-    set_schedule_prefix(L, "");
-    lua_getglobal(L, "_init");
-    if (lua_isfunction(L, -1)) {
-        push_rw(L);
-        push_ro(L, app);
-        if (lua_pcall(L, 2, 0, 0) != LUA_OK) {
-            fprintf(stderr, "lua_bind_init: _init failed: %s\n",
-                    lua_tostring(L, -1));
-            lua_close(L);
-            app->L = NULL;
-            return -1;
-        }
-    } else {
-        lua_pop(L, 1);
-    }
-
+    call_init_fn(app);
     return 0;
 }

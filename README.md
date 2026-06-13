@@ -67,7 +67,7 @@ game is not.
 ```
 common/             ← shared code (all platforms)
   app.h/c           ← app_t struct; app_init/spawn/poof/advance
-  lua_bind.h/c      ← Lua VM init, schedule() global, event dispatch
+  lua_bind.h/c      ← Lua VM init, schedule()/spawn() globals, event dispatch
   lua_gfx.h/c       ← Lua graphics globals (cls, spr, …)
   lua_anim.h/c      ← animation instance registry; Lua anim()/aspr() globals
   gfx.h/c           ← software renderer + PNG encoder
@@ -89,7 +89,7 @@ platform/
     Makefile
 
 scripts/
-  main.lua          ← game logic: energy drain, spawn hook
+  main.lua          ← game logic: spawn, energy drain
                        (may require additional .lua files in the same directory)
 
 tests/
@@ -143,7 +143,7 @@ receive two arguments: `rw` (read-write scripted state) and `ro` (read-only
 snapshot: `instance_id`, `now_tick`, `now_unix_sec`, `character`). Callbacks
 that don't need both may simply declare fewer parameters.
 
-`schedule(delay_ms, name)` is available as a Lua global. Callback names are
+`spawn()` and `schedule(delay_ms, name)` are available as Lua globals. `spawn()` creates the character; it raises a Lua error if a character already exists. Callback names are
 **module-relative**: the dispatch layer automatically prepends the current
 module's prefix, so a callback inside `energy.on_drain` uses just `"on_drain"`
 and the engine stores `"energy.on_drain"`.
@@ -163,13 +163,14 @@ nrg = require("energy")            -- alias; prefix becomes "nrg."
 ```
 
 Top-level callbacks in the main script have no prefix and must pass the full
-dotted path when bootstrapping from `on_spawn`:
+dotted path when bootstrapping from `_init`:
 
 ```lua
 -- main.lua
 energy = require("energy")
 
-function on_spawn(rw)
+function _init(rw)
+    spawn()
     energy.init(rw)   -- energy.init() calls schedule(); prefix resolved via _G scan
 end
 ```
@@ -206,8 +207,10 @@ See `LUA_LINT.md` for known gaps and planned static analysis rules.
 
 `_init([rw [, ro]])` is called once when the script is loaded, after top-level code runs and
 globals are frozen. Use it for one-time setup (e.g. registering animation instances). If `_init`
-raises a Lua error the process exits — errors here are fatal. Hot reload does not trigger `_init`;
-the previous `rw` state is preserved across reloads instead.
+raises a Lua error, a `_on_lua_error` SSE event is emitted, autotick is paused, and `_update`/`_draw`
+are not called until the script is fixed. Hot reload retries `_init` when the previous attempt
+failed; on success autotick resumes. When `_init` succeeds, hot reload preserves the previous `rw`
+state instead of re-running `_init`.
 
 At startup, immediately after `_init`, the engine calls `_update` then `_draw` once at the initial tick. After that, each tick (every `AUTOTICK` ms of virtual time), the engine calls these Lua globals in order:
 
@@ -234,7 +237,7 @@ end
 
 | Prefix | Meaning | Example |
 |---|---|---|
-| `on_` | Engine lifecycle hook or schedulable event callback | `on_spawn`, `on_energy_drain` |
+| `on_` | Schedulable event callback | `on_energy_drain` |
 | `_on_` | System event emitted by the engine; not schedulable by scripts | `_on_reload` |
 | `_update` / `_draw` | Game loop callbacks; called every tick by the engine | — |
 
@@ -296,13 +299,28 @@ After cloning, install the pre-commit hook (runs the full build pipeline before 
 ln -sf ../../scripts/pre-commit .git/hooks/pre-commit
 ```
 
-Requires GCC (with ASan support), `clang-format`, Python 3 with `behave` and
-`requests`, SDL2 (`libsdl2-dev`), apngasm, and [GitHub CLI](https://cli.github.com/) on Linux.
+Required tools:
+* GCC
+  * with [AddressSanitizer](https://clang.llvm.org/docs/AddressSanitizer.html),
+  * and [ClangFormat](https://clang.llvm.org/docs/ClangFormat.html).
+* [Python 3](https://www.python.org/downloads/)
+  * with [pip](https://pypi.org/project/pip/),
+  * [behave](https://behave.readthedocs.io/en/stable/),
+  * and [requests](https://pypi.org/project/requests/).
+* [SDL2](https://wiki.libsdl.org/SDL2/Installation),
+* and [include-what-you-use](https://include-what-you-use.org/).
+
+Optional tools:
+* [apngasm](https://github.com/apngasm/apngasm/)
+* and [GitHub CLI](https://cli.github.com/).
 
 ```sh
-# Linux (Debian/Ubuntu)
-sudo apt install gh python3 python3-pip libsdl2-dev apngasm
+sudo apt install gcc python3 python3-pip libsdl2-dev clang-format iwyu
 pip install behave requests
+# Optional animated PNG file assembly tool
+sudo apt install apngasm
+# Optional GitHub command line tool
+sudo apt install gh
 gh auth login
 ```
 
@@ -342,6 +360,7 @@ make format         # apply formatting in-place
   --script=PATH                             Lua game script (default: scripts/main.lua)
   --noautotick                              start in manual-tick mode
   --stop-on-lua-error                       halt advance and disable autotick on Lua error
+  --wait-for-sse-client                     defer game engine execution until first /events request
   --headless                                suppress the SDL2 display window
   --help                                    show this help and exit
 ```
@@ -354,7 +373,8 @@ peer messages (newline-delimited JSON).
 Start the instance in a terminal. `--nowtick` sets the virtual clock (game
 logic); `--wallclockutc` sets the wall clock (zodiac). The two are independent:
 `now_tick` advances via `advance_time`; `now_unix_sec` only changes via
-`set_wall_clock`.
+`set_wall_clock`. The script's `_init` runs at startup and calls `spawn()` to
+create the character.
 
 ```sh
 ./emu --id=DEADBEEF --nowtick=42 --wallclockutc=2026-04-08T00:00:00 --noautotick
@@ -362,31 +382,11 @@ logic); `--wallclockutc` sets the wall clock (zodiac). The two are independent:
 
 In a second terminal, run these commands one by one.
 
-**Empty state — no character yet:**
+**Initial state — character spawned by `_init`:**
 ```sh
 curl -s -X POST http://localhost:7070/command \
   -H 'Content-Type: application/json' \
   -d '{"cmd":"get_state"}' | python3 -m json.tool
-```
-```json
-{
-    "ok": true,
-    "ro": {
-        "instance_id": "DEADBEEF",
-        "now_tick": 42,
-        "now_unix_sec": 1775606400,
-        "character": null
-    },
-    "rw": {},
-    "scheduler": []
-}
-```
-
-**Spawn a character:**
-```sh
-curl -s -X POST http://localhost:7070/command \
-  -H 'Content-Type: application/json' \
-  -d '{"cmd":"spawn"}' | python3 -m json.tool
 ```
 ```json
 {
@@ -517,7 +517,7 @@ curl -s -X POST http://localhost:7070/command \
 {"ok": true}
 ```
 
-After `poof`, `get_state` shows `"character": null` and a new `spawn` is accepted.
+After `poof`, `get_state` shows `"character": null`. A new character can be spawned by calling `spawn()` from the Lua script.
 
 ### Hot-reload
 
@@ -555,7 +555,6 @@ void setup() {
     while (WiFi.status() != WL_CONNECTED) delay(100);
 
     app_init(&s_app, rtc_now(), 0);
-    app_spawn_character(&s_app, esp_random());
 
     mg_mgr_init(&app.mgr);
     mg_http_listen(&app.mgr, "http://0.0.0.0:80", mg_event_handler, &app);

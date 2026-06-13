@@ -1,6 +1,5 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include "state.h"
 #include "lua_bind.h"
 #include "lua_anim.h"
@@ -61,6 +60,9 @@ int json_to_state(app_t *app, const cJSON *json)
     if (!cJSON_IsString(instance_id_j) ||
         !cJSON_IsNumber(now_tick_j) || !cJSON_IsNumber(now_unix_sec_j)) return -1;
 
+    snprintf(app->instance_id, sizeof(app->instance_id),
+             "%s", instance_id_j->valuestring);
+    app->instance_id_raw = (uint32_t)strtoul(instance_id_j->valuestring, NULL, 16);
     app->now_tick = (uint64_t)now_tick_j->valuedouble;
     app->now_unix_sec = (uint64_t)now_unix_sec_j->valuedouble;
 

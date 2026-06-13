@@ -2,6 +2,10 @@ function _init()
     anim("a").of("two_frames.png")
 end
 
+function _update(rw)
+    rw.show = not rw.show
+end
+
 function _draw(rw)
     cls(0x000000)
     if rw.show then
